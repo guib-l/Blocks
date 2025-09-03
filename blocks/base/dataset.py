@@ -7,35 +7,13 @@ import uuid
 import copy
 
 from pathlib import Path
+from typing import Dict, Any, TypeVar, Union, Type
 
-from typing import Dict, Any, TypeVar, Type
-
-DataSet = TypeVar('DataSet', bound='DataSet')
-
-
-class BlockJSONEncoder(json.JSONEncoder):
-    """
-    Custom JSON encoder for Block objects.
-    """
-    def default(self, obj):        
-        if isinstance(obj, DataSet):
-            return obj._dataset
-        
-        elif isinstance(obj, uuid.UUID):
-            return str(obj)
-        
-        elif isinstance(obj, Path):
-            return str(obj)
-
-        else:
-            try:
-                return obj.to_json()
-            except AttributeError:
-                return super().default(obj)
-        
-        return super().default(obj)
+from .encoder import BaseJSONEncoder
 
 
+
+T = TypeVar('T', bound='DataSet')
 
 class DataSet:
     """
@@ -100,20 +78,21 @@ class DataSet:
         """
         return key.lower() in {k.lower() for k in self._dataset.keys()}
     
-    def set_empty(self) -> dict:
+    def set_empty(self, empty_values: dict = None) -> dict:
         """
         Set all elements to empty values.
         
         Returns:
             dict: Dictionary with empty values.
         """
-        empty_values = {
-            dict: {},
-            list: [],
-            str: "",
-            int: 0,
-            float: 0.0
-        }
+        if empty_values is None:
+            empty_values = {
+                dict: {},
+                list: [],
+                str: "",
+                int: 0,
+                float: 0.0
+            }
         return {key: empty_values.get(type(val), None) 
                     for key, val in self._dataset.items()}
 
@@ -133,7 +112,7 @@ class DataSet:
         for key in self._dataset.keys():
             self._dataset[key] = None
 
-    def set_option(self, name: str, obj) -> None:
+    def set_option(self, key: str, obj) -> None:
         """
         Initialize a new element in the dictionary so that it is not None.
 
@@ -142,15 +121,17 @@ class DataSet:
             obj: The value of the element.
 
         Raises:
-            ValueError: If the element is set to NoneType.
+            ValueError: If the name is a method or the element is set to NoneType.
+            TypeError: If the name is not a string.
         """
-        if callable(getattr(self, name, None)):
-            raise ValueError(f"'{name}' est une méthode existante et ne peut pas être utilisé comme attribut")
+        if not isinstance(key, str):
+            raise TypeError(f"Option name must be a string, got {type(name).__name__}")
+            
+        if callable(getattr(self, key, None)):
+            raise ValueError(f"'{key}' est une méthode existante et ne peut pas être utilisé comme attribut")
     
-        self._dataset[name] = obj
-        if not self._check_key(name):
-            raise ValueError(f"Some elements {name} are set to 'NoneType'")
-        setattr(self, name, obj)
+        self._dataset[key] = obj
+        setattr(self, key, obj)
 
     def get_dataset(self, alert: bool = False) -> dict:
         """
@@ -296,7 +277,7 @@ class DataSet:
         for key, value in state.items():
             self.set_option(key, value)
 
-    def __copy__(self):
+    def __copy__(self) -> T:
         """
         Create a copy of the DataSet instance.
 
@@ -305,7 +286,7 @@ class DataSet:
         """
         return type(self)(**self._dataset.copy())
     
-    def __deepcopy__(self, memo: Dict[int, Any]) -> DataSet:
+    def __deepcopy__(self, memo: Dict[int, Any]) -> T:
         """
         Create a deep copy of the DataSet instance.
 
@@ -322,18 +303,19 @@ class DataSet:
     # JSON Serialization and Deserialization Methods
     # -----------------------------------------------------
 
-    def to_json(self, indent=2):
+    def to_json(self, encoder=BaseJSONEncoder, indent=2):
         """
         Convert the block to a JSON string.
         
         Args:
+            encoder (Type[json.JSONEncoder]): The JSON encoder class to use
             indent (int): Number of spaces for indentation
             
         Returns:
             str: A JSON string representation of the block
         """
         return json.dumps(self._dataset.copy(), 
-                          cls=BlockJSONEncoder, 
+                          cls=encoder, 
                           indent=indent)
 
     def write_json(self, 
@@ -386,6 +368,252 @@ class DataSet:
         """
         with open(filepath, 'r') as f:
             return cls.from_json(f.read())
+
+    def merge(self, other: 'DataSet', overwrite: bool = True) -> T:
+        """
+        Merge another DataSet into this one.
+        
+        Args:
+            other (DataSet): Another DataSet to merge with this one
+            overwrite (bool): If True, values from other will overwrite existing values
+                             with the same key. If False, existing values are kept.
+                             
+        Returns:
+            DataSet: Self, after merging
+        """
+        for key, value in other.get_dataset().items():
+            if overwrite or key not in self._dataset:
+                self.set_option(key, value)
+        return self
+        
+    @classmethod
+    def combine(cls, *datasets: 'DataSet', overwrite: bool = True) -> 'DataSet':
+        """
+        Combine multiple DataSets into a new one.
+        
+        Args:
+            *datasets: Variable number of DataSet instances to combine
+            overwrite (bool): If True, values from later datasets will
+                             overwrite values from earlier ones.
+                             
+        Returns:
+            DataSet: A new DataSet containing combined data
+        """
+        result = cls()
+        for dataset in datasets:
+            result.merge(dataset, overwrite=overwrite)
+        return result
+    
+    # -----------------------------------------------------
+    # Export Methods
+    # -----------------------------------------------------
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the dataset to a dictionary.
+        
+        Returns:
+            dict: A dictionary representation of the dataset
+        """
+        return self._dataset.copy()
+        
+    def to_csv(self, filepath: str, delimiter: str = ',') -> str:
+        """
+        Export the dataset to a CSV file.
+        
+        Args:
+            filepath (str): Path to the output CSV file
+            delimiter (str): Delimiter to use in the CSV file
+            
+        Returns:
+            str: Path to the written file
+        """
+        import csv
+        
+        # Flatten the dataset for CSV export
+        flattened_data = {}
+        for key, value in self._dataset.items():
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                flattened_data[key] = value
+            else:
+                flattened_data[key] = str(value)
+        
+        with open(filepath, 'w', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=flattened_data.keys(), delimiter=delimiter)
+            writer.writeheader()
+            writer.writerow(flattened_data)
+            
+        return filepath
+        
+    def to_yaml(self, filepath: str = None) -> Union[str, str]:
+        """
+        Convert the dataset to YAML format.
+        
+        Args:
+            filepath (str, optional): If provided, write YAML to this file
+            
+        Returns:
+            str: YAML string or path to written file
+        """
+        try:
+            import yaml
+        except ImportError:
+            raise ImportError("PyYAML is required for YAML export. Install with 'pip install pyyaml'")
+            
+        yaml_str = yaml.dump(self._dataset, default_flow_style=False, sort_keys=False)
+        
+        if filepath:
+            with open(filepath, 'w') as f:
+                f.write(yaml_str)
+            return filepath
+        
+        return yaml_str
+    
+    # -----------------------------------------------------
+    # Data Filtering Methods
+    # -----------------------------------------------------
+
+    def filter(self, predicate: callable) -> T:
+        """
+        Create a new DataSet containing only items that satisfy the predicate.
+        
+        Args:
+            predicate: A function that takes a key and value and returns a boolean
+            
+        Returns:
+            DataSet: A new filtered DataSet
+        """
+        result = type(self)()
+        for key, value in self._dataset.items():
+            if predicate(key, value):
+                result.set_option(key, value)
+        return result
+        
+    def select(self, *keys) -> T:
+        """
+        Create a new DataSet containing only the specified keys.
+        
+        Args:
+            *keys: Keys to include in the new DataSet
+            
+        Returns:
+            DataSet: A new DataSet with only the selected keys
+        """
+        result = type(self)()
+        for key in keys:
+            if key in self._dataset:
+                result.set_option(key, self._dataset[key])
+        return result
+    
+    def exclude(self, *keys) -> T:
+        """
+        Create a new DataSet excluding the specified keys.
+        
+        Args:
+            *keys: Keys to exclude from the new DataSet
+            
+        Returns:
+            DataSet: A new DataSet without the excluded keys
+        """
+        result = type(self)()
+        for key, value in self._dataset.items():
+            if key not in keys:
+                result.set_option(key, value)
+        return result
+    
+    # -----------------------------------------------------
+    # Data Transformation Methods
+    # -----------------------------------------------------
+
+    def transform(self, transformer: callable) -> T:
+        """
+        Create a new DataSet with transformed values.
+        
+        Args:
+            transformer: A function that takes a key and value and returns a new value
+            
+        Returns:
+            DataSet: A new DataSet with transformed values
+        """
+        result = type(self)()
+        for key, value in self._dataset.items():
+            result.set_option(key, transformer(key, value))
+        return result
+        
+    def apply(self, func: callable, *keys) -> T:
+        """
+        Apply a function to specific values in the DataSet.
+        
+        Args:
+            func: A function to apply to each value
+            *keys: Keys to apply the function to. If empty, applies to all keys.
+            
+        Returns:
+            DataSet: Self, after applying the function
+        """
+        target_keys = keys if keys else self._dataset.keys()
+        
+        for key in target_keys:
+            if key in self._dataset:
+                self._dataset[key] = func(self._dataset[key])
+                setattr(self, key, self._dataset[key])
+                
+        return self
+    
+    # -----------------------------------------------------
+    # Data Validation Methods
+    # -----------------------------------------------------
+
+    def validate(self, schema: Dict[str, Type]) -> bool:
+        """
+        Validate the dataset against a schema.
+        
+        Args:
+            schema: Dictionary mapping field names to expected types
+            
+        Returns:
+            bool: True if the dataset is valid, False otherwise
+        """
+        for field, expected_type in schema.items():
+            if field not in self._dataset:
+                return False
+                
+            value = self._dataset[field]
+            if not isinstance(value, expected_type):
+                return False
+                
+        return True
+        
+    def assert_valid(self, schema: Dict[str, Type]) -> None:
+        """
+        Assert that the dataset is valid according to a schema.
+        
+        Args:
+            schema: Dictionary mapping field names to expected types
+            
+        Raises:
+            ValueError: If a required field is missing
+            TypeError: If a field has the wrong type
+        """
+        for field, expected_type in schema.items():
+            if field not in self._dataset:
+                raise ValueError(f"Required field '{field}' is missing")
+                
+            value = self._dataset[field]
+            if not isinstance(value, expected_type):
+                raise TypeError(
+                    f"Field '{field}' should be of type {expected_type.__name__}, "
+                    f"got {type(value).__name__}"
+                )
+    
+    def is_empty(self) -> bool:
+        """
+        Check if the dataset is empty.
+        
+        Returns:
+            bool: True if the dataset is empty, False otherwise
+        """
+        return len(self._dataset) == 0
 
 
 

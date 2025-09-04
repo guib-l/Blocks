@@ -58,8 +58,10 @@ class FileManager:
             os.makedirs(self.base_directory)
             self._log(f"Répertoire de base créé: {self.base_directory}", logging.INFO)
 
-    def move_files(self, src: Union[str, Path], dest: Union[str, Path], 
-                overwrite: bool = False) -> str:
+    def move_files(self, 
+                   src: Union[str, Path], 
+                   dest: Union[str, Path], 
+                   overwrite: bool = False) -> str:
         """
         Déplace un fichier ou un répertoire de src vers dest.
         
@@ -330,9 +332,13 @@ class FileManager:
             self._log(error_msg, logging.ERROR)
             raise FileError(error_msg) from e
 
-    def write_file(self, path: Union[str, Path], content: Union[str, bytes], 
-                  encoding: str = 'utf-8', binary: bool = False, 
-                  append: bool = False) -> str:
+    def write_file(self, 
+                   path: Union[str, Path], 
+                   content: Union[str, bytes], 
+                   encoding: str = 'utf-8', 
+                   binary: bool = False, 
+                   append: bool = False,
+                   auto_create: bool = None) -> str:
         """
         Écrit du contenu dans un fichier.
         
@@ -350,10 +356,12 @@ class FileManager:
             FileError: Si une erreur survient lors de l'écriture
         """
         full_path = self._resolve_path(path)
+
+        auto_create = auto_create if auto_create is not None else self.auto_create
         
         # Créer le répertoire parent si nécessaire
         parent_dir = os.path.dirname(full_path)
-        if self.auto_create and not os.path.exists(parent_dir):
+        if auto_create and not os.path.exists(parent_dir):
             os.makedirs(parent_dir)
             
         try:
@@ -513,8 +521,11 @@ class FileManager:
     # Méthodes pour les archives et fichiers temporaires
     # -----------------------------------------------------
     
-    def create_zip(self, source: Union[str, Path], destination: Union[str, Path], 
-                   compression: int = zipfile.ZIP_DEFLATED, include_base_dir: bool = True) -> str:
+    def create_zip(self, 
+                   source: Union[str, Path], 
+                   destination: Union[str, Path], 
+                   compression: int = zipfile.ZIP_DEFLATED, 
+                   include_base_dir: bool = True) -> str:
         """
         Crée une archive ZIP à partir d'un fichier ou d'un répertoire.
         
@@ -563,7 +574,9 @@ class FileManager:
             self._log(error_msg, logging.ERROR)
             raise FileError(error_msg) from e
     
-    def extract_zip(self, source: Union[str, Path], destination: Union[str, Path], 
+    def extract_zip(self, 
+                    source: Union[str, Path], 
+                    destination: Union[str, Path], 
                     password: Optional[bytes] = None) -> str:
         """
         Extrait une archive ZIP.

@@ -30,5 +30,3 @@ if __name__ == "__main__":
     else:
         print("baseblock et baseblock_bis sont différents")
 
-
-    

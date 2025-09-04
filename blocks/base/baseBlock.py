@@ -13,6 +13,10 @@ T = TypeVar('T', bound='BaseBlock')
 
 class BaseBlock(DataSet):
 
+    __name__    = None
+    __id__      = None
+    __version__ = None
+
     _mandatory_attributes = []
 
     def __new__(cls, **kwargs):
@@ -30,26 +34,20 @@ class BaseBlock(DataSet):
     def __init__(self, 
                  id=None, 
                  name="default",
-                 version=None,
-                 organizer=None,
+                 version="0.0.1",
                  **kwargs):
         """
         Initialize the BaseBlock with given options.
         Args:
             options (dict): Dictionary to be added to the block along with standard elements.
         """
-        self.__id__   = None 
-        self.__name__ = None
 
-        super().__init__(id=id, name=name, **kwargs)
+        self.vsm = VersionManager(version)
 
-
-        # Version
-
-        # Logger
-
-        # Files manager
-   
+        super().__init__(id=id, 
+                         name=name, 
+                         version=version, 
+                         **kwargs)
 
     # ===========================================
     # Properties 
@@ -90,6 +88,8 @@ class BaseBlock(DataSet):
         Args:
             id (str): The ID to set for the block.
         """
+
+        # Valeur qui ne doit être définie qu'une seule fois
         if self.__id__ is None:
 
             if id is None:
@@ -122,6 +122,52 @@ class BaseBlock(DataSet):
             return True
         except (ValueError, AttributeError, TypeError):
             return False
+
+    @property
+    def version(self):
+        """
+        Get the version of the block.
+        Returns:
+            str: The version of the block.
+        """
+        return self.__version__
+
+    @version.setter
+    def version(self, version, changelog=None):
+        """
+        Set the version of the block.
+        Args:
+            version (str): The version to set for the block.
+            changelog (str, optional): The changelog for the version update.
+        """
+        if self.vsm.current_version != version:
+            self.vsm.upgrade_version(version,changelog=changelog)
+
+        self.__version__ = self.vsm.current_version
+        self._dataset['version'] = self.vsm.current_version
+
+    @property
+    def changelog(self):
+        """
+        Get the changelog of the block.
+        Returns:
+            str: The changelog of the block.
+        """
+        return self.vsm.changelog
+
+    @property
+    def version_info(self):
+        """
+        Get the version information of the block.
+        Returns:
+            dict: A dictionary containing the version and changelog.
+        """
+        return {
+            "version": self.version,
+            "changelog": self.changelog
+        }
+    
+    
 
     # ===========================================
     # Comparisons by ID
@@ -175,7 +221,7 @@ class BaseBlock(DataSet):
         Représentation technique pour les développeurs
         """
         attrs = ", ".join(f"{k}={repr(v.__str__())}" for k, v in self._dataset.items() 
-                      if k in ['id', 'name'])
+                      if k in ['id', 'name','version'])
         return f"{self.__class__.__name__}({attrs})" 
 
 

@@ -1,0 +1,23 @@
+{
+    "id": "79c91bea-efb1-4d12-a9bd-1bb68fd001f0",
+    "name": "Sample-Dataset",
+    "version": "0.0.1",
+    "path": "myblock/",
+    "authors": [
+        "Anonymous"
+    ],
+    "files": [],
+    "data": {},
+    "doc": null,
+    "values": [
+        1,
+        2,
+        3,
+        4,
+        5
+    ],
+    "metadata": {
+        "source": "generated",
+        "version": 1.0
+    }
+}

@@ -42,6 +42,9 @@ class FileManager:
         self.base_directory = base_directory or os.getcwd()
         self.auto_create = auto_create
         self.log_enabled = log_enabled
+
+        origin = os.path.join(self.base_directory,'../')
+        self.origin = os.path.abspath(os.path.expanduser(origin))
         
         # Configuration de la journalisation
         self.logger = logging.getLogger("FileManager")
@@ -543,10 +546,10 @@ class FileManager:
         """
         src_path = self._resolve_path(source)
         dest_path = self._resolve_path(destination)
-        
+
         if not os.path.exists(src_path):
             raise FileError(f"Le chemin source n'existe pas: {src_path}")
-            
+        
         # Créer le répertoire parent de destination si nécessaire
         dest_dir = os.path.dirname(dest_path)
         if self.auto_create and not os.path.exists(dest_dir):
@@ -563,6 +566,7 @@ class FileManager:
                     base_name = os.path.basename(src_path) if include_base_dir else ''
                     for root, _, files in os.walk(src_path):
                         for file in files:
+                            if file.endswith('.zip'):continue
                             file_path = os.path.join(root, file)
                             arcname = os.path.join(base_name, os.path.relpath(file_path, src_path))
                             zipf.write(file_path, arcname)
@@ -592,9 +596,11 @@ class FileManager:
         Raises:
             FileError: Si l'archive n'existe pas ou ne peut pas être extraite
         """
-        src_path = self._resolve_path(source)
-        dest_path = self._resolve_path(destination)
-        
+        src_path = self._resolve_path(
+                    os.path.join(self.origin, source))
+        dest_path = self._resolve_path(
+                    os.path.join(self.origin, destination))
+
         if not self.file_exists(src_path):
             raise FileError(f"L'archive ZIP n'existe pas: {src_path}")
             
@@ -606,7 +612,7 @@ class FileManager:
             with zipfile.ZipFile(src_path, 'r') as zipf:
                 zipf.extractall(path=dest_path, pwd=password)
                 
-            self._log(f"Archive ZIP extraite: {src_path} -> {dest_path}", logging.INFO)
+            self._log(f"Archive ZIP extraite: {src_path} -> {dest_path}", logging.INFO)           
             return dest_path
         except Exception as e:
             error_msg = f"Erreur lors de l'extraction de l'archive ZIP {src_path}: {str(e)}"

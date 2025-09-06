@@ -82,7 +82,6 @@ class Block(BaseBlock):
         except:
             raise OriginError(f'Path unknow : {path}')
 
-        print('inp: ',path)
         super().__init__(id=id,
                          name=name,
                          version=version,
@@ -206,6 +205,19 @@ class Block(BaseBlock):
 
     # -----------------------------------------------------
     # Gestion fichiers
+    def rename(self, new_name: str) -> None:
+        """
+        Rename the block.
+        """
+        old_name = os.path.join(self.path, self.name)
+        new_path = os.path.join(self.path, new_name)
+
+        if os.path.exists(new_path):
+            print(f"Le répertoire {new_path} existe déjà.")
+            return
+        
+        self.fman.rename(old_name, new_path)
+        self.name = new_name
 
     def compose(self, 
                 filename,
@@ -222,19 +234,33 @@ class Block(BaseBlock):
                              append=append,
                              auto_create=True)
 
-
     def move(self,
-             source,
-             destination) -> None:
+             destination,
+             overwrite: bool = False) -> None:
+
         # Destination existe ?
-        
-        # Compression du dossier
+        if os.path.exists(destination): 
+            print(f"Le répertoire {destination} existe déjà.")
+            return  
+
+        _origin     = os.path.join(self.path, self.name)
+        destination = os.path.abspath(destination)
         
         # Déplacement
-        
-        # Décompression du dossier 
+        self.fman.move_files(_origin, 
+                             destination, 
+                             overwrite=overwrite)
 
-        pass
+    def delete_directory(self, directory=None) -> None:
+        """
+        Supprime le répertoire du block.
+        """
+        if directory is None:
+            directory = os.path.join(self.path, self.name)
+        else:
+            directory = os.path.abspath(directory)
+        
+        self.fman.delete_directory(directory)
 
     def compress(self, 
                  source: Union[str, Path] = None, 
@@ -247,14 +273,16 @@ class Block(BaseBlock):
             destination (Union[str, Path]): Chemin de l'archive ZIP de destination.
         """
         if source is None:
-            source = self.path
+            source = os.path.join(self.path, self.name)
 
         if destination is None:
             destination = os.path.join(self.path, f"{self.name}.zip")
 
         self.fman.create_zip(source, destination)
 
-    def decompress(self, source: Union[str, Path], destination: Union[str, Path]) -> None:
+    def decompress(self, 
+                   source: Union[str, Path], 
+                   destination: Union[str, Path] = '') -> None:
         """
         Décompresse une archive ZIP dans le répertoire de destination.
 
@@ -262,6 +290,7 @@ class Block(BaseBlock):
             source (Union[str, Path]): Chemin de l'archive ZIP à décompresser.
             destination (Union[str, Path]): Chemin du répertoire de destination.
         """
-        self.fman.extract_zip(source, destination)
+        self.fman.extract_zip(source, 
+                              destination)
 
 

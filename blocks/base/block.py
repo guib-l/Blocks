@@ -39,6 +39,10 @@ default_block = {
     "date": None,
 }
 
+class OriginError(Exception):
+    """Exception levée si le path n'est pas connu"""
+
+
 def export_metadata(block, filename: str, format: str) -> None:
     """
     Export metadata from a Block instance to a file.
@@ -60,7 +64,7 @@ class Block(BaseBlock):
                  id=None, 
                  name="default",
                  version="0.0.1",
-                 path=None,
+                 path='.',
                  authors=["Anonymous"],
                  files=[],
                  data={},
@@ -68,13 +72,21 @@ class Block(BaseBlock):
                  BUILD_BLOCK=True,
                  **kwargs):
 
-        self.fman = FileManager(base_directory=path,
-                                auto_create=BUILD_BLOCK)
+        try:
+            path = os.path.abspath(path)
+            origin = path
+            path = os.path.join(path, name)
 
+            self.fman = FileManager(base_directory=path,
+                                    auto_create=BUILD_BLOCK)
+        except:
+            raise OriginError(f'Path unknow : {path}')
+
+        print('inp: ',path)
         super().__init__(id=id,
                          name=name,
                          version=version,
-                         path=path,
+                         path=origin,
                          authors=authors,
                          files=files,
                          data=data,
@@ -107,7 +119,10 @@ class Block(BaseBlock):
 
         if content:
 
-            path = os.path.join(self.path,f"{filename}.{format}")
+            path = os.path.join(self.path,
+                                self.name,
+                                f"{filename}.{format}")
+
             with open(path, "w") as f:
                 f.write(content)
 
@@ -151,18 +166,19 @@ class Block(BaseBlock):
 
     @classmethod
     def load_from_directory(cls, 
+                            name=None,
                             path=None,
-                            metadata_file='block_metadata',
+                            metadata_file='blocks',
                             format='json',
                             encoding='utf-8'):
-        
-        assert path!=None, FileError('No directory found !')
+       
+        path = os.path.abspath(path)
+        full_path = os.path.join(path, name, 
+                                 metadata_file + f'.{format}')
 
-        full_path = path + metadata_file + f'.{format}'
-        
         with open(full_path, 'r', encoding=encoding) as file:
             content = file.read()
-        
+
         data = json.loads(content)
         return cls(**data)
 
@@ -199,7 +215,7 @@ class Block(BaseBlock):
         """
         Compose a file with the given content.
         """
-
+        
         self.fman.write_file(filename, 
                              content,
                              encoding=encoding,
@@ -221,8 +237,8 @@ class Block(BaseBlock):
         pass
 
     def compress(self, 
-                 source: Union[str, Path], 
-                 destination: Union[str, Path]) -> None:
+                 source: Union[str, Path] = None, 
+                 destination: Union[str, Path] = None) -> None:
         """
         Compresse le contenu du répertoire source dans une archive ZIP.
 
@@ -230,6 +246,12 @@ class Block(BaseBlock):
             source (Union[str, Path]): Chemin du répertoire à compresser.
             destination (Union[str, Path]): Chemin de l'archive ZIP de destination.
         """
+        if source is None:
+            source = self.path
+
+        if destination is None:
+            destination = os.path.join(self.path, f"{self.name}.zip")
+
         self.fman.create_zip(source, destination)
 
     def decompress(self, source: Union[str, Path], destination: Union[str, Path]) -> None:

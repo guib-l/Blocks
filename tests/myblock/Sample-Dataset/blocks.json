@@ -1,8 +1,8 @@
 {
-    "id": "79c91bea-efb1-4d12-a9bd-1bb68fd001f0",
+    "id": "810f1b4f-fa64-4920-b996-919d41a02d10",
     "name": "Sample-Dataset",
     "version": "0.0.1",
-    "path": "myblock/",
+    "path": "/home/workstation/Documents/block8:project/tests/myblock",
     "authors": [
         "Anonymous"
     ],

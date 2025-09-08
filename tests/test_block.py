@@ -72,6 +72,36 @@ if __name__ == "__main__":
     block.delete_directory("myblock_new")  
     print("Block directory deleted successfully.")
 
+    new_block = block.deepcopy()
+    print(new_block)
+    print("Block copied successfully.")
+
+    if block==new_block:
+        print("block et new_block sont égaux")
+    else:
+        print("block et new_block sont différents")
+
+    # Versionning de block
+    print("Current Block Version:", block.version)
+
+    block.version = "0.0.2"
+    print("Updated Block Version:", block.version)
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -4,6 +4,7 @@ import io
 import uuid
 import zipfile
 import json
+from copy import copy, deepcopy
 import csv
 from typing import *
 from abc import *
@@ -73,8 +74,7 @@ class Block(BaseBlock):
                  **kwargs):
 
         try:
-            path = os.path.abspath(path)
-            origin = path
+            origin = os.path.abspath(path)
             path = os.path.join(path, name)
 
             self.fman = FileManager(base_directory=path,
@@ -181,12 +181,21 @@ class Block(BaseBlock):
         data = json.loads(content)
         return cls(**data)
 
-    # Copy / Deepcopy
-    def __copy__(self,):
-        pass
 
-    def __deepcopy__(self,):
-        pass
+    # -----------------------------------------------------
+    # Copy / Deepcopy
+    def copy(self):
+        return type(self)(**self._dataset)
+
+    def __copy__(self):
+        return self.copy()
+    
+    def deepcopy(self):
+        return type(self)(**deepcopy(self._dataset))
+    
+    def __deepcopy__(self, memo):
+        return self.deepcopy()
+
 
     # -----------------------------------------------------
     # Versionnning
@@ -202,6 +211,7 @@ class Block(BaseBlock):
 
     @abstractmethod
     def extract(self,): ...
+
 
     # -----------------------------------------------------
     # Gestion fichiers

@@ -46,7 +46,9 @@ class TopologicGraphics:
         Returns:
             TopologicalSorter: A new instance with the same properties
         """
-        new_sorter = TopologicGraphics(links=self.link, first=self.first, last=self.last)
+        new_sorter = TopologicGraphics(links=self.link, 
+                                       first=self.first, 
+                                       last=self.last)
         new_sorter.forward = copy.deepcopy(self.forward)
         new_sorter.backward = copy.deepcopy(self.backward)
         return new_sorter
@@ -245,6 +247,18 @@ class TopologicGraphics:
         """
         for values in links:
             self.add_link(*values)
+
+    def add_node(self, node):
+        """
+        Add a node to the graph
+        Args:
+            node (int): The node to add
+        """
+        if node not in self.nodes:
+            self.nodes.add(node)
+            self.forward[node]  = []
+            self.backward[node] = []
+            self.link.append((node,node))
 
     def del_node(self, node):
         """

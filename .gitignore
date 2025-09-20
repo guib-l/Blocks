@@ -1,7 +1,8 @@
 # Personnal customization
 env/
 .env/
-tests/
+
+myblock/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

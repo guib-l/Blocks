@@ -4,6 +4,7 @@ import io
 import uuid
 import zipfile
 import json
+from datetime import *
 from copy import copy, deepcopy
 import csv
 from typing import *
@@ -22,26 +23,58 @@ from blocks.base.organizer import FileManager, FileError
 
 from blocks.base.encoder import BaseBlockJSONEncoder
 
+
+from blocks.base.signal import Signal
+
+from enum import Enum
+
 T = TypeVar('T', bound='Block')
 
-
-default_block = {
-    "id": None,
-    "name": None,
-    "langage": 'other',
-    "location": ".",
-    "description": None,
-    "doc": None,
-    "tags": None,
-    "authors": ["Anonymous"],
-    "references": None,
-    "license": "MIT",
-    "version": "1.0.0",
-    "date": None,
-}
-
-class OriginError(Exception):
-    """Exception levée si le path n'est pas connu"""
+class MESSAGE(DataSet):    
+    def __init__(self, 
+                 FROM: Optional[str] = None,
+                 TO: Optional[str] = None,
+                 DELAY: Optional[float] = None,
+                 TRANSFORM: Optional[Callable] = None,
+                 DATE_SEND: Optional[datetime] = None,
+                 DATE_RECEIVED: Optional[datetime] = None,
+                 ASYNC: bool = False,
+                 ERROR: Optional[Dict[str, Any]] = None,
+                 DATA: Dict[str, Any] = {},):
+        
+        super().__init__(FROM=FROM,
+                         TO=TO,
+                         DELAY=DELAY,
+                         TRANSFORM=TRANSFORM,
+                         ASYNC=ASYNC,
+                         DATE_RECEIVED=DATE_RECEIVED,
+                         DATE_SEND=DATE_SEND,
+                         DATA=DATA,
+                         ERROR=ERROR)
+    
+    @property
+    def has_error(self) -> bool:
+        """Check if the message contains an error."""
+        return self.ERROR is not None
+    
+    @property
+    def transmission_time(self) -> Optional[float]:
+        """Calculate the transmission time in seconds if both dates are available."""
+        if self.DATE_RECEIVED and self.DATE_SEND:
+            return (self.DATE_RECEIVED - self.DATE_SEND).total_seconds()
+        return None
+    
+    def validate(self) -> bool:
+        """Validate that the message has the required fields."""
+        return self.FROM is not None and self.TO is not None
+    
+    def __repr__(self) -> str:
+        """More concise representation focusing on key information."""
+        error_status = "ERROR" if self.has_error else "OK"
+        return (f"MESSAGE(FROM={self.FROM}, TO={self.TO}, "
+                f"STATUS={error_status}, "
+                f"DATA_KEYS={list(self.DATA.keys() if isinstance(self.DATA, dict) else [])})")
+    
 
 
 def export_metadata(block, filename: str, format: str) -> None:
@@ -55,7 +88,49 @@ def export_metadata(block, filename: str, format: str) -> None:
     block.export_metadata(filename=filename, format=format)
 
 
+
+class BlockErrorType(str, Enum):
+    INPUT       = "Wrong input"
+    OUTPUT      = "Wrong output"
+    DESTINATION = "Destination of Block unknown"
+    DIRECTORY   = "Path of Block unknown"
+    ORIGIN      = "Origin path of Block unknown"
+    VERSION     = "Version does not match"
+    LANGUAGE    = "Language not supported"
+
+
+
+class BlockError(Exception):
+
+    err_type = None
+
+    def __init__(self, 
+                 message: str = "Block error occurred", 
+                 err_type: Optional[str] = None):
+        
+        self._set_error_type(err_type)
+
+        if err_type is not None:
+            message = f"{message}: Error Block : '{self.err_type}'"
+        else:
+            message = f"{message}: Error Block unknow"
+
+        super().__init__(message)
+
+    def _set_error_type(self, value):
+
+        if value in [s.name for s in BlockErrorType]:
+            self.err_type = BlockErrorType[value]
+        
+
+
+
 class Block(BaseBlock):
+
+    __INPUT__  = {}
+    __OUTPUT__ = {}
+    __ERROR__  = None
+    __SIGNAL__ = 'NONE'
 
     _mandatory_attributes = ['install',
                              'uninstall',
@@ -70,6 +145,7 @@ class Block(BaseBlock):
                  files=[],
                  data={},
                  doc=None,
+                 SIGNAL=None,
                  BUILD_BLOCK=True,
                  **kwargs):
 
@@ -80,7 +156,8 @@ class Block(BaseBlock):
             self.fman = FileManager(base_directory=path,
                                     auto_create=BUILD_BLOCK)
         except:
-            raise OriginError(f'Path unknow : {path}')
+            self.error =  BlockError(f'Path unknow : {path}', 'ORIGIN')
+            raise self.error.ERROR
 
         super().__init__(id=id,
                          name=name,
@@ -94,6 +171,69 @@ class Block(BaseBlock):
         
         if BUILD_BLOCK:
             export_metadata(self, "blocks", 'json')
+
+        # Initialisation du signal
+        self.sgl = SIGNAL
+
+        if SIGNAL is None:
+            self.sgl = Signal('INITIALIZED')
+
+    # -----------------------------------------------------
+    # signal methods
+    # Méthodes pour accéder et modifier l'état du node via le signal
+
+    @property
+    def signal(self):
+        self.__SIGNAL__ = self.sgl.signal
+        return self.__SIGNAL__
+
+    @signal.setter
+    def signal(self, value):
+        self.sgl.signal = value
+        self.__SIGNAL__  = value
+
+    # -----------------------------------------------------
+    # Interface dataset
+
+    @property
+    def error(self): 
+        return self.__ERROR__
+
+    @error.setter
+    def error(self, err): 
+        assert isinstance(err, MESSAGE), ValueError
+        self.__ERROR__ = deepcopy(self.__INPUT__)
+        self.__ERROR__['ERROR'] = err
+        self.__ERROR__['FROM'] = self.id
+        self.__ERROR__['DATE_SEND'] = datetime.now()
+
+    @property
+    def input(self): 
+        return self.__INPUT__
+
+    @input.setter
+    def input(self, inp): 
+        assert isinstance(inp, MESSAGE), ValueError
+
+        inp['DATE_RECEIVED'] = datetime.now()
+
+        if inp.TO == self.id:
+            self.__INPUT__ = inp
+        else:
+            raise BlockError("Le message n'est pas destiné à ce block.")
+
+    @property
+    def output(self): 
+        self.__OUTPUT__ = deepcopy(self.__INPUT__)
+        self.__OUTPUT__['FROM'] = self.id
+        self.__OUTPUT__['DATE_SEND'] = datetime.now()
+        return self.__OUTPUT__
+
+    @output.setter
+    def output(self, out): 
+        assert isinstance(out, MESSAGE), ValueError
+        self.__OUTPUT__ = out
+
 
     # -----------------------------------------------------
     # Export all metadata in block.json
@@ -161,7 +301,9 @@ class Block(BaseBlock):
 
     @classmethod
     def load_from_dict(cls, data):
-        return cls(**data)
+        obj = cls(**data)
+        obj.signal = 'LOADED'
+        return obj
 
     @classmethod
     def load_from_directory(cls, 
@@ -169,7 +311,8 @@ class Block(BaseBlock):
                             path=None,
                             metadata_file='blocks',
                             format='json',
-                            encoding='utf-8'):
+                            encoding='utf-8',
+                            **kwargs):
        
         path = os.path.abspath(path)
         full_path = os.path.join(path, name, 
@@ -179,7 +322,12 @@ class Block(BaseBlock):
             content = file.read()
 
         data = json.loads(content)
-        return cls(**data)
+
+        data.update(kwargs)
+
+        obj = cls(**data)
+        obj.signal = 'LOADED'
+        return obj
 
 
     # -----------------------------------------------------
@@ -199,6 +347,9 @@ class Block(BaseBlock):
 
     # -----------------------------------------------------
     # Versionnning
+
+    def update_version(major=None,minor=None,patch=None):
+        pass
 
     @abstractmethod
     def publish(self,): ...
@@ -225,6 +376,7 @@ class Block(BaseBlock):
         if os.path.exists(new_path):
             print(f"Le répertoire {new_path} existe déjà.")
             return
+        
         
         self.fman.rename(old_name, new_path)
         self.name = new_name
@@ -254,7 +406,7 @@ class Block(BaseBlock):
             return  
 
         _origin     = os.path.join(self.path, self.name)
-        destination = os.path.abspath(destination)
+        destination = os.path.abspath(os.path.join(destination,self.name))
         
         # Déplacement
         self.fman.move_files(_origin, 

@@ -6,6 +6,8 @@ from configs import *
 from blocks.base.dataset import DataSet
 from blocks.base.block import Block
 
+from blocks.base.block import MESSAGE
+
 
 py_script = r"""
 import os
@@ -64,7 +66,7 @@ if __name__ == "__main__":
    # Rename the block
     block.rename("Sample-Dataset")
     print("Block renamed successfully.")
-
+    
    # Move the block
     block.move("myblock_new/")
     print("Block moved successfully.")
@@ -89,13 +91,21 @@ if __name__ == "__main__":
 
     
 
+    msg = MESSAGE( FROM=None,
+                   TO=block.id,
+                   DELAY=None,
+                   TRANSFORM=None,
+                   DATE_SEND=None,
+                   DATE_RECEIVED=None,
+                   ASYNC=False,
+                   DATA={},)
+
+    block.input = msg
 
 
+    print("Input: \n",block.input)
 
-
-
-
-
+    print("Output: \n",block.output)
 
 
 

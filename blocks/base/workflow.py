@@ -29,9 +29,23 @@ T = TypeVar('T', bound='Workflow')
 
 
 class Workflow(Block):
+
+    __root__ = None
+
     def __init__(self,
                  **kwargs):
         
         super().__init__(**kwargs)
+
+    
+
+
+
+
+
+
+
+
+
 
     

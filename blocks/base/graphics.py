@@ -248,18 +248,6 @@ class TopologicGraphics:
         for values in links:
             self.add_link(*values)
 
-    def add_node(self, node):
-        """
-        Add a node to the graph
-        Args:
-            node (int): The node to add
-        """
-        if node not in self.nodes:
-            self.nodes.add(node)
-            self.forward[node]  = []
-            self.backward[node] = []
-            self.link.append((node,node))
-
     def del_node(self, node):
         """
         Remove a node from the graph and its associated links

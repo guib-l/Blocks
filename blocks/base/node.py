@@ -22,6 +22,8 @@ from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
 from blocks.base.organizer import FileManager, FileError
 
+from blocks.base import BLOCK_PATH
+
 from blocks.base.encoder import BaseBlockJSONEncoder
 
 
@@ -57,7 +59,7 @@ class NodeErrorType(str, Enum):
     EXECUTION   = "Execution method failed"
     DESTINATION = "Destination of Node unknown"
     DIRECTORY   = "Path of Node unknown"
-    PROTOCOLE   = "Protocole method not provided"
+    INTERFACE   = "Interface method not provided"
     UNKNOWN     = "Unknown error"
 
 
@@ -87,21 +89,86 @@ class NodeError(Exception):
 
 class Node(Block):
 
-    __ROOT__   = None
+    __ROOT__ = None
+    __ENV__  = None # Environnement du block
+    __ITFC__ = None # Interface de communication 
 
     def __init__(self,
-                 PROTOCOLE=None,
+                 BLOCK_PATH=None,
+                 INTERFACE=None,
+                 ENVIRONMENT=None,
                  **kwargs):
         
+        self.root = BLOCK_PATH
+
         super().__init__(**kwargs)
 
-        # Methode destinée à la communication entre les nodes
-        if PROTOCOLE is None:
-            raise NodeError("PROTOCOLE methods must be provided")
+        # Methode destinée à la communication entre les node
+        self.environment = ENVIRONMENT
+        self.interface   = INTERFACE
         
-        self._protocole = PROTOCOLE
 
-            
+    @property
+    def root(self):
+        return self.__ROOT__
+    
+    @root.setter
+    def root(self, path: Optional[str] = None):
+        if path is not None:
+            self.__ROOT__ = path
+        elif path is None:
+            self.__ROOT__ = os.path.split(BLOCK_PATH)
+        else:
+            raise NodeError("Path of Node unknown", 'DIRECTORY')
+        
+
+    # -----------------------------------------------------
+    # Environment methods
+
+    @property
+    def environment(self):
+        return self.__ENV__
+    
+    @environment.setter
+    def environment(self, env = None):
+        if env is not None:
+            self.__ENV__ = env
+        else:
+            raise NodeError("ENVIRONMENT method not provided", 'ENVIRONMENT')
+        
+
+    # -----------------------------------------------------
+    # Interface methods
+
+
+    @property
+    def interface(self):
+        return self.__ITFC__
+    
+    @interface.setter
+    def interface(self, interface = None, **kwargs):
+        if interface is not None:
+            self.__ITFC__ = interface(self, **kwargs)
+        else:
+            raise NodeError("interface method not provided", 'interface')
+        
+
+    @property
+    def input(self): 
+        return self.__ITFC__.input
+
+    @property
+    def output(self): 
+        return self.__ITFC__.output
+
+    @property
+    def error(self): 
+        return self.__ITFC__.error
+
+    @property
+    def info(self): 
+        return self.__ITFC__.input
+
 
     # -----------------------------------------------------
     # Load methods
@@ -111,8 +178,9 @@ class Node(Block):
 
     # -----------------------------------------------------
     # Install methods
-    
-    def install(self, 
+
+    @classmethod
+    def install(cls, 
                 installer = None,
                 directory:str = ".",
                 **kwargs):
@@ -131,9 +199,10 @@ class Node(Block):
 
             _default_install(directory=directory,
                              **kwargs)
-        return
+        return 
 
-    def uninstall(self,
+    @classmethod
+    def uninstall(cls,
                   uninstaller = None,
                   directory:str = ".",
                   **kwargs):
@@ -152,7 +221,7 @@ class Node(Block):
             _default_uninstall(directory=directory,
                                **kwargs)
 
-        return self.destroy()
+        return cls.destroy()
     
     def destroy(self):
         """

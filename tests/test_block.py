@@ -7,6 +7,7 @@ from blocks.base.dataset import DataSet
 from blocks.base.block import Block
 
 from blocks.base.block import MESSAGE
+from blocks.base import *
 
 
 py_script = r"""
@@ -19,9 +20,7 @@ print('Hello World')
 
 
 if __name__ == "__main__":
-    
-    BLOCK_DIRECTORY = 'myblock/'
-  
+      
    # Create a sample dataset
     data = {
         'name': 'Sample-Dataset',
@@ -43,7 +42,7 @@ if __name__ == "__main__":
    # Load new Block from the first
     block_bis = Block.load_from_directory(name='Sample-Dataset',
                                           metadata_file='blocks',
-                                          path=BLOCK_DIRECTORY)
+                                          path=BLOCK_PATH)
     print(block_bis)
     print("Block instance loaded successfully.")
   
@@ -90,7 +89,7 @@ if __name__ == "__main__":
     print("Updated Block Version:", block.version)
 
     
-
+    """
     msg = MESSAGE( FROM=None,
                    TO=block.id,
                    DELAY=None,
@@ -107,7 +106,7 @@ if __name__ == "__main__":
 
     print("Output: \n",block.output)
 
-
+    """
 
 
 

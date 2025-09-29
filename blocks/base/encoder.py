@@ -19,3 +19,10 @@ class BaseBlockJSONEncoder(json.JSONEncoder):
         if isinstance(obj, obj.__class__):
             return obj.__str__()
         return super().default(obj)
+
+
+
+
+
+
+

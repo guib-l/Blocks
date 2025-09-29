@@ -26,55 +26,12 @@ from blocks.base.encoder import BaseBlockJSONEncoder
 
 from blocks.base.signal import Signal
 
+from blocks.socket.interface import MESSAGE
+
 from enum import Enum
 
 T = TypeVar('T', bound='Block')
 
-class MESSAGE(DataSet):    
-    def __init__(self, 
-                 FROM: Optional[str] = None,
-                 TO: Optional[str] = None,
-                 DELAY: Optional[float] = None,
-                 TRANSFORM: Optional[Callable] = None,
-                 DATE_SEND: Optional[datetime] = None,
-                 DATE_RECEIVED: Optional[datetime] = None,
-                 ASYNC: bool = False,
-                 ERROR: Optional[Dict[str, Any]] = None,
-                 DATA: Dict[str, Any] = {},):
-        
-        super().__init__(FROM=FROM,
-                         TO=TO,
-                         DELAY=DELAY,
-                         TRANSFORM=TRANSFORM,
-                         ASYNC=ASYNC,
-                         DATE_RECEIVED=DATE_RECEIVED,
-                         DATE_SEND=DATE_SEND,
-                         DATA=DATA,
-                         ERROR=ERROR)
-    
-    @property
-    def has_error(self) -> bool:
-        """Check if the message contains an error."""
-        return self.ERROR is not None
-    
-    @property
-    def transmission_time(self) -> Optional[float]:
-        """Calculate the transmission time in seconds if both dates are available."""
-        if self.DATE_RECEIVED and self.DATE_SEND:
-            return (self.DATE_RECEIVED - self.DATE_SEND).total_seconds()
-        return None
-    
-    def validate(self) -> bool:
-        """Validate that the message has the required fields."""
-        return self.FROM is not None and self.TO is not None
-    
-    def __repr__(self) -> str:
-        """More concise representation focusing on key information."""
-        error_status = "ERROR" if self.has_error else "OK"
-        return (f"MESSAGE(FROM={self.FROM}, TO={self.TO}, "
-                f"STATUS={error_status}, "
-                f"DATA_KEYS={list(self.DATA.keys() if isinstance(self.DATA, dict) else [])})")
-    
 
 
 def export_metadata(block, filename: str, format: str) -> None:
@@ -127,14 +84,9 @@ class BlockError(Exception):
 
 class Block(BaseBlock):
 
-    __INPUT__  = {}
-    __OUTPUT__ = {}
-    __ERROR__  = None
     __SIGNAL__ = 'NONE'
 
-    _mandatory_attributes = ['install',
-                             'uninstall',
-                             'load']
+    _mandatory_attributes = ['load']
 
     def __init__(self, 
                  id=None, 
@@ -180,7 +132,8 @@ class Block(BaseBlock):
 
     # -----------------------------------------------------
     # signal methods
-    # Méthodes pour accéder et modifier l'état du node via le signal
+    # Méthodes pour accéder et modifier l'état du node 
+    # via le signal
 
     @property
     def signal(self):
@@ -192,47 +145,6 @@ class Block(BaseBlock):
         self.sgl.signal = value
         self.__SIGNAL__  = value
 
-    # -----------------------------------------------------
-    # Interface dataset
-
-    @property
-    def error(self): 
-        return self.__ERROR__
-
-    @error.setter
-    def error(self, err): 
-        assert isinstance(err, MESSAGE), ValueError
-        self.__ERROR__ = deepcopy(self.__INPUT__)
-        self.__ERROR__['ERROR'] = err
-        self.__ERROR__['FROM'] = self.id
-        self.__ERROR__['DATE_SEND'] = datetime.now()
-
-    @property
-    def input(self): 
-        return self.__INPUT__
-
-    @input.setter
-    def input(self, inp): 
-        assert isinstance(inp, MESSAGE), ValueError
-
-        inp['DATE_RECEIVED'] = datetime.now()
-
-        if inp.TO == self.id:
-            self.__INPUT__ = inp
-        else:
-            raise BlockError("Le message n'est pas destiné à ce block.")
-
-    @property
-    def output(self): 
-        self.__OUTPUT__ = deepcopy(self.__INPUT__)
-        self.__OUTPUT__['FROM'] = self.id
-        self.__OUTPUT__['DATE_SEND'] = datetime.now()
-        return self.__OUTPUT__
-
-    @output.setter
-    def output(self, out): 
-        assert isinstance(out, MESSAGE), ValueError
-        self.__OUTPUT__ = out
 
 
     # -----------------------------------------------------
@@ -282,15 +194,6 @@ class Block(BaseBlock):
 
     def to_dict(self,):
         return self._dataset
-
-    # -----------------------------------------------------
-    # Install methods
-    
-    @abstractmethod
-    def install(self,): ...
-
-    @abstractmethod
-    def uninstall(self,): ...
 
 
     # -----------------------------------------------------

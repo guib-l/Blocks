@@ -16,7 +16,7 @@ from .dataset import DataSet
 from copy import copy, deepcopy
 
 from blocks.base.baseBlock import BaseBlock
-from blocks.base.block import Block
+from blocks.base import block
 
 from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
@@ -28,6 +28,7 @@ from blocks.base.encoder import BaseBlockJSONEncoder
 
 
 from blocks.base.signal import Signal
+from blocks.socket.interface import MESSAGE,MessageType
 
 from enum import Enum
 
@@ -87,18 +88,33 @@ class NodeError(Exception):
             self.err_type = NodeErrorType[value]
 
 
-class Node(Block):
+class Node(block.Block):
 
-    __ROOT__ = None
-    __ENV__  = None # Environnement du block
-    __ITFC__ = None # Interface de communication 
+    auth_inout = [ MessageType.RESPONSE,
+                   MessageType.REQUEST,
+                   MessageType.DIRECT, ]
+    
+    default_node = {
+        'interface':{
+            'persistant':False,
+            'restricted': False,
+            'lim_inp': (99,99),
+            'lim_out': (99,99),            
+        }
+    }
 
     def __init__(self,
                  BLOCK_PATH=None,
                  INTERFACE=None,
                  ENVIRONMENT=None,
+                 EXECUTOR=None,
                  **kwargs):
-        
+            
+        self.__ROOT__ = None
+        self.__ENV__  = None # Environnement du block
+        self.__ITFC__ = None # Interface de communication
+        self.__EXEC__ = None # Etat d'execution du block
+
         self.root = BLOCK_PATH
 
         super().__init__(**kwargs)
@@ -106,7 +122,7 @@ class Node(Block):
         # Methode destinée à la communication entre les node
         self.environment = ENVIRONMENT
         self.interface   = INTERFACE
-        
+        self.executor    = EXECUTOR
 
     @property
     def root(self):
@@ -121,6 +137,21 @@ class Node(Block):
         else:
             raise NodeError("Path of Node unknown", 'DIRECTORY')
         
+
+    # -----------------------------------------------------
+    # Executor methods
+
+    @property
+    def executor(self):
+        return self.__EXEC__
+
+    @executor.setter
+    def executor(self, exec = None):
+        if exec is not None:
+            self.__EXEC__ = exec
+        else:
+            raise NodeError("EXECUTOR method not provided", 'EXECUTOR')
+
 
     # -----------------------------------------------------
     # Environment methods
@@ -140,34 +171,81 @@ class Node(Block):
     # -----------------------------------------------------
     # Interface methods
 
-
     @property
     def interface(self):
         return self.__ITFC__
     
     @interface.setter
     def interface(self, interface = None, **kwargs):
+        
+        intern = self.default_node['interface']
+        intern.update(kwargs)
+        
         if interface is not None:
-            self.__ITFC__ = interface(self, **kwargs)
+            self.__ITFC__ = interface(self, **intern)
         else:
             raise NodeError("interface method not provided", 'interface')
         
 
+    # -----------------------------------------------------
+    # In / Out methods
+    # Implementer une limite de nombre de message en entree et sortie
+    # ainsi qu'un systeme de merge des messages
+    # et de filtrage des attributs des messages
+
     @property
     def input(self): 
-        return self.__ITFC__.input
+        return self.__ITFC__.register
+    
+    @input.setter
+    def input(self, msg, value=None, index=-1):
+        if isinstance(msg, MESSAGE):
+            if msg.TYPE in self.auth_inout:
+                self.__ITFC__.receive(msg)
+            else:
+                txt = f"Incorrect input type : {msg.TYPE}. \nAuthorized types are {self.auth_inout}"
+                raise NodeError(txt, "input")
+            
+        elif isinstance(msg,str):
+            self.__ITFC__.provide(msg, value, index)
+        else:
+            raise NodeError("Incorrect input type","input")
 
     @property
     def output(self): 
-        return self.__ITFC__.output
+        return self.__ITFC__.outputs
 
-    @property
-    def error(self): 
-        return self.__ITFC__.error
 
-    @property
-    def info(self): 
-        return self.__ITFC__.input
+    def error(self, e, err): 
+        return MESSAGE.generate_error(
+            self,
+            subject=f"Error on node {self.id}",
+            error_info={"error_type":e,"message":err},
+        )
+
+    def info(self, info='Information'): 
+        return MESSAGE.generate_info(
+            self,
+            subject=f"Information on node {self.id}",
+            info=info
+        )
+
+    # -----------------------------------------------------
+    # Serialization methods
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert node to dictionary representation"""
+        result = super().to_dict()
+        result.update({
+            "root": self.root,
+            "id": self.id,
+            "has_interface": self.__ITFC__ is not None,
+            "has_environment": self.__ENV__ is not None,
+            "has_executor": self.__EXEC__ is not None,
+            "input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
+            "output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
+        })
+        return result
 
 
     # -----------------------------------------------------
@@ -194,6 +272,7 @@ class Node(Block):
                 installer(directory=directory,
                           **kwargs)
             except Exception as e:
+                
                 raise NodeError("INSTALLER method failed", 'INSTALLER')
         else:
 
@@ -230,8 +309,6 @@ class Node(Block):
         # Add any cleanup logic here if needed
         del self
 
-    @abstractmethod
-    def move_to(self,): ...
 
     # -----------------------------------------------------
     # Build methods
@@ -239,11 +316,12 @@ class Node(Block):
     @abstractmethod
     def build(self,): ...
 
+
     # -----------------------------------------------------
     # Execute methods
 
     @abstractmethod
-    def execute(self,): ...
+    def execute(self,): ... 
 
 
 

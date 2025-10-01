@@ -16,6 +16,10 @@ class Environment:
     # could include setup, teardown, config management, etc.
 
 
+class Executor:
+    # Placeholder for executor methods 
+    # could include task execution, job management, etc.
+    ... 
 
 if __name__ == "__main__":
       
@@ -28,7 +32,8 @@ if __name__ == "__main__":
         'values': [1, 2, 3, 4, 5],
         'metadata': {'source': 'generated', 'version': 1.0},
         'INTERFACE': Interface,
-        'ENVIRONMENT': Environment
+        'ENVIRONMENT': Environment,
+        'EXECUTOR':Executor,
     }
   
    # Initialisation d'un Block
@@ -50,7 +55,7 @@ if __name__ == "__main__":
                   TO=node2.id, 
                   SUBJECT="test_subject", 
                   DATA={"key": "value"})
-    result = interface2.receive(msg)
+    result = interface2.receive(msg,1)
     print(result)
 
 
@@ -85,8 +90,9 @@ if __name__ == "__main__":
                     SUBJECT="subject1", DATA={"key1": "value1"}),
             MESSAGE(FROM=node1.id, 
                     TO=node2.id, 
-                    SUBJECT="subject2", DATA={"key2": "value2"}),
-    ]
+                    SUBJECT="subject2", DATA={"key1": "value2"}),
+            ]
+    
     results = interface1.send(msgs)
     print(results)
     print("Messages sent successfully.")
@@ -97,8 +103,21 @@ if __name__ == "__main__":
     interface1.output = msgs
     print("Interface output set successfully.")
 
+    mrg = interface1.merge()
+    print("Merged DATA:", mrg)
+    print("Messages merged successfully.")
+
     interface2.clear_register()
     print("Interface register cleared successfully.")
 
     interface1.clear_outputs()
     print("Interface outputs cleared successfully.")
+
+
+    intdict = interface1.to_dict()
+    print(intdict)
+
+
+
+
+

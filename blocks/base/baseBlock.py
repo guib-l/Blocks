@@ -13,9 +13,6 @@ T = TypeVar('T', bound='BaseBlock')
 
 class BaseBlock(DataSet):
 
-    __name__    = None
-    __id__      = None
-    __version__ = None
 
     _mandatory_attributes = []
 
@@ -41,6 +38,9 @@ class BaseBlock(DataSet):
         Args:
             options (dict): Dictionary to be added to the block along with standard elements.
         """
+        self.__name__    = None
+        self.__id__      = None
+        self.__version__ = None
 
         self.vsm = VersionManager(version)
 

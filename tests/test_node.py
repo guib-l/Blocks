@@ -19,9 +19,14 @@ print('Hello World x2')
 """
 
 class Environment:
-    ... # Placeholder for environment methods 
+    # Placeholder for environment methods 
     # could include setup, teardown, config management, etc.
+    ... 
 
+class Executor:
+    # Placeholder for executor methods 
+    # could include task execution, job management, etc.
+    ... 
 
 
 if __name__ == "__main__":
@@ -35,7 +40,8 @@ if __name__ == "__main__":
         'values': [1, 2, 3, 4, 5],
         'metadata': {'source': 'generated', 'version': 1.0},
         'INTERFACE': Interface,
-        'ENVIRONMENT': Environment
+        'ENVIRONMENT': Environment,
+        'EXECUTOR': Executor,
     }
   
    # Initialisation d'un Block
@@ -49,9 +55,11 @@ if __name__ == "__main__":
                   SUBJECT="test_subject", 
                   DATA={"key": "value"})
 
-    node.__ITFC__.input = msg
+    node.input = msg
 
-    print(node.input)
+    print("Input:", node.input)
+    print("Info:", node.info())
+    print("Output:", node.output)
 
 
 
@@ -60,18 +68,28 @@ if __name__ == "__main__":
                                         metadata_file='blocks',
                                         path=BLOCK_PATH,
                                         INTERFACE=Interface,
-                                        ENVIRONMENT=Environment)
+                                        ENVIRONMENT=Environment,
+                                        EXECUTOR=Executor)
     print(node_bis)
     print("node instance loaded successfully.")
 
+    node_bis.input = msg
+
+    print("Input:", node_bis.input)
+    print("Info:", node_bis.info())
+    print("Output:", node_bis.output)
 
 
+    # Test signal change
+    print("Current Signal:", node_bis.sgl())
+    node_bis.sgl('RUNNING')
+    print("Updated Signal:", node_bis.sgl())
+    try:
+        node_bis.sgl('INVALID_SIGNAL')
+    except Exception as e:
+        print("Caught Exception:", e)
 
-
-
-
-
-
+    
 
 
 

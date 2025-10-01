@@ -84,8 +84,6 @@ class BlockError(Exception):
 
 class Block(BaseBlock):
 
-    __SIGNAL__ = 'NONE'
-
     _mandatory_attributes = ['load']
 
     def __init__(self, 
@@ -100,7 +98,6 @@ class Block(BaseBlock):
                  SIGNAL=None,
                  BUILD_BLOCK=True,
                  **kwargs):
-
         try:
             origin = os.path.abspath(path)
             path = os.path.join(path, name)
@@ -110,6 +107,8 @@ class Block(BaseBlock):
         except:
             self.error =  BlockError(f'Path unknow : {path}', 'ORIGIN')
             raise self.error.ERROR
+        
+        self.__SIGNAL__ = 'INITIALIZED'
 
         super().__init__(id=id,
                          name=name,

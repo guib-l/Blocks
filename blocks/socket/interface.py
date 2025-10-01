@@ -28,10 +28,6 @@ class MessageType(str, Enum):
     RESPONSE = "response"
     EVENT = "event"
     ERROR = "error"
-    PING = "ping"
-    PONG = "pong"
-    SUBSCRIBE = "subscribe"
-    UNSUBSCRIBE = "unsubscribe"
     INFO = "information"
     DIRECT = "direct"
 
@@ -164,6 +160,19 @@ class MESSAGE(DataSet):
             METADATA=metadata,
             DATA=data,
             **kwargs )
+    
+    @classmethod
+    def generate_info(cls,
+                       object: Any,
+                       subject: Optional[str] = None,
+                       priority: int = MessagePriority.HIGH,
+                       info:str = None):
+        return cls(
+            FROM=object.id,
+            TYPE=MessageType.INFO,
+            SUBJECT="Information",
+            PRIORITY=priority,
+            DATA={'info':info})
 
     @classmethod
     def generate_error(cls,
@@ -182,25 +191,7 @@ class MESSAGE(DataSet):
             METADATA=metadata,
             ERROR=error_info,)
 
-    @classmethod
-    def generate_ping(cls, 
-                      object: Any, 
-                      to: str) -> MESSAGE:
-        return cls(
-            FROM=object.id,
-            TO=to,
-            TYPE=MessageType.PING,
-            data={"info": "ping"},)
 
-    @classmethod
-    def generate_pong(cls, 
-                      object: Any, 
-                      to: str) -> MESSAGE:
-        return cls(
-            FROM=object.id,
-            TO=to,
-            TYPE=MessageType.PONG,
-            data={"info": "pong"},)
 
 
 
@@ -254,26 +245,66 @@ class InterfaceError(Exception):
 
 
 class Interface:
+        
+    # Installer un nombre limite de message en mémoire
+    # Si persistant est True, les messages ne sont pas supprimés après envoi
+    # et restent disponibles pour consultation
+    # Si persistant est False, les messages sont supprimés après envoi
+    # et ne sont pas disponibles pour consultation
 
-    def __init__(self, object: Any = None):
+
+    def __init__(self, 
+                 object: Any = None,
+                 persistant: bool = False,
+                 restricted: bool = False,
+                 lim_inp: tuple = (99,99),
+                 lim_out: tuple = (99,99),):
+
         self.object = object
-        
+        # Delete input/output when output is asked
+        self.persistant = persistant # (Not implemented)
+
+        # Cannot deliver output if loower input limits and
+        # lower output limit didn't reach.
+        self.restricted = restricted # (Not implemented)
+
+        self._limits_inp = lim_inp
+        self._limits_out = lim_out
+
         # Initialize message storage
-        self.__REGISTER__ = []  
-        self.__OUTPUTS__ = []   
-        self.__ERROR__ = MESSAGE()
-        
+        self.__REGISTER__ = {}  
+        self.__OUTPUTS__  = {}   
+        self.__ERROR__    = MESSAGE()
+            
         # Current active message (for compatibility)
         self.__ACTIVE_REGISTER__ = MESSAGE()
-        self.__ACTIVE_OUTPUT__ = MESSAGE()
+        self.__ACTIVE_OUTPUT__   = MESSAGE()
+
         
-        # Message handler registry
-        self._message_handlers: Dict[str, Callable] = {}
-        
+    
     @property
     def id(self) -> str:
         """Return the ID of the associated object or a generated ID if none exists."""
         return getattr(self.object, 'id', str(uuid.uuid4()))
+
+    # -----------------------------------------------------
+    # Serialization methods
+    # A revoir
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'interface_of': self.id,
+            'persistant': self.persistant,
+            'lim_inp':self._limits_inp,
+            'lim_out':self._limits_out,
+        }
+
+    @classmethod
+    def from_dict(cls, ) -> None:
+        return cls
+
+    #-----------------------------------------------------
+    # Interface methods
 
     def provide(self, key: str, value: Any, output_index: int = -1) -> None:
         """
@@ -294,13 +325,36 @@ class Interface:
             if output_index >= len(self.__OUTPUTS__):
                 # Create new outputs until we reach the desired index
                 for _ in range(len(self.__OUTPUTS__), output_index + 1):
-                    self.__OUTPUTS__.append(deepcopy(MESSAGE()))
+                    self.__OUTPUTS__.update({_:deepcopy(MESSAGE())})
 
             if not hasattr(self.__OUTPUTS__[output_index], 'DATA') or not isinstance(self.__OUTPUTS__[output_index].DATA, dict):
                 self.__OUTPUTS__[output_index].DATA = {}
             self.__OUTPUTS__[output_index].DATA[key] = value
 
-    def receive(self, message: Union[MESSAGE, List[MESSAGE]]) -> Union[MESSAGE, List[MESSAGE]]:
+    def merge(self, 
+              key: str = None, 
+              output: bool = True) -> dict:
+        """
+        Merge data from all registered messages or outputs under a specific key. 
+        Args:
+            key: The key to merge data from
+            output: If True, merge from outputs; if False, merge from registered inputs
+        Returns:
+            A dictionary containing merged data
+        """
+        merged_data = {}
+        source = self.__OUTPUTS__ if output else self.__REGISTER__
+        for idx, msg in source.items():
+            if isinstance(msg, MESSAGE) and isinstance(msg.DATA, dict) and key in msg.DATA:
+                merged_data.update( msg.DATA[key] )
+            else:
+                merged_data.update( msg.DATA )
+        return merged_data
+
+
+    def receive(self, 
+                message: Union[MESSAGE, List[MESSAGE]],
+                index:int = -1) -> Union[MESSAGE, List[MESSAGE]]:
         """
         Process incoming message(s) and store in the register.
         
@@ -312,18 +366,18 @@ class Interface:
         """
         # Handle single message case
         if isinstance(message, MESSAGE):
-            return self._receive_single(message)
+            return self._receive_single(message, index=index)
         
         # Handle multiple messages
         if isinstance(message, list):
-            results = []
-            for msg in message:
-                results.append(self._receive_single(msg))
+            results = {}
+            for idx,msg in enumerate(message):
+                results.update({idx:self._receive_single(msg)})
             return results
             
         raise InterfaceError("Invalid message format", "VALIDATION")
     
-    def _receive_single(self, message: MESSAGE) -> MESSAGE:
+    def _receive_single(self, message: MESSAGE, index:int=-1) -> MESSAGE:
         """Process a single incoming message."""
         if not isinstance(message, MESSAGE):
             raise InterfaceError("Invalid message format", "VALIDATION")
@@ -336,28 +390,16 @@ class Interface:
             raise InterfaceError("Le message n'est pas destiné à ce block", "PERMISSION")
         
         # Store message in register
-        self.__REGISTER__.append(message)
+        if index == -1:
+            index = len(self.__REGISTER__) + 1
+
+            # If reach limits then ignore messages above
+            if index>self._limits_inp[1]:
+                return message
+            
+        self.__REGISTER__.update({index : message})
         self.__ACTIVE_REGISTER__ = message
         
-        # Handle based on message type
-        if message.SUBJECT and message.SUBJECT in self._message_handlers:
-            try:
-                result = self._message_handlers[message.SUBJECT](message)
-                if isinstance(result, MESSAGE):
-                    self.__OUTPUTS__.append(result)
-                    self.__ACTIVE_OUTPUT__ = result
-                elif isinstance(result, list) and all(isinstance(msg, MESSAGE) for msg in result):
-                    self.__OUTPUTS__.extend(result)
-                    if result:
-                        self.__ACTIVE_OUTPUT__ = result[-1]
-            except Exception as e:
-                self.error = MESSAGE.generate_error(
-                    self.object,
-                    message.FROM,
-                    {"error": str(e), "error_type": type(e).__name__},
-                    subject=f"Error processing: {message.SUBJECT}"
-                )
-                
         return message
 
     def send(self, message: Optional[Union[MESSAGE, List[MESSAGE]]] = None) -> Union[MESSAGE, List[MESSAGE]]:
@@ -373,18 +415,18 @@ class Interface:
         if message is not None:
             if isinstance(message, MESSAGE):
                 self.__ACTIVE_OUTPUT__ = message
-                self.__OUTPUTS__ = [message]
+                self.__OUTPUTS__ = {0:message}
             elif isinstance(message, list):
-                self.__OUTPUTS__ = message
+                self.__OUTPUTS__ = {idx:msg for idx,msg in enumerate(message) if idx<self._limits_out[1]}
                 if message:
                     self.__ACTIVE_OUTPUT__ = message[-1]
         
         # If we have no outputs, use the active output
         if not self.__OUTPUTS__:
-            self.__OUTPUTS__ = [self.__ACTIVE_OUTPUT__]
+            self.__OUTPUTS__ = {0:self.__ACTIVE_OUTPUT__}
             
         # Process all outputs
-        for i, output in enumerate(self.__OUTPUTS__):
+        for i,(_,output) in enumerate(self.__OUTPUTS__.items()):
             if not isinstance(output, MESSAGE):
                 raise InterfaceError(f"Invalid output message at index {i}", "VALIDATION")
             
@@ -398,19 +440,15 @@ class Interface:
         if len(self.__OUTPUTS__) == 1:
             return self.__OUTPUTS__[0]
         return self.__OUTPUTS__
-
-    def register_handler(self, subject: str, handler: Callable[[MESSAGE], Optional[Union[MESSAGE, List[MESSAGE]]]]) -> None:
-        """Register a handler for a specific message subject."""
-        self._message_handlers[subject] = handler
         
     def clear_register(self) -> None:
         """Clear the message register."""
-        self.__REGISTER__ = []
+        self.__REGISTER__ = {}
         self.__ACTIVE_REGISTER__ = MESSAGE()
         
     def clear_outputs(self) -> None:
         """Clear the output messages."""
-        self.__OUTPUTS__ = []
+        self.__OUTPUTS__ = {}
         self.__ACTIVE_OUTPUT__ = MESSAGE()
 
     # -----------------------------------------------------
@@ -442,13 +480,13 @@ class Interface:
         if isinstance(inp, MESSAGE):
             self._set_single_input(inp)
         elif isinstance(inp, list) and all(isinstance(msg, MESSAGE) for msg in inp):
-            self.__REGISTER__ = []
+            self.__REGISTER__ = {}
             for msg in inp:
                 self._set_single_input(msg)
         else:
             raise ValueError("Input must be a MESSAGE object or list of MESSAGE objects")
 
-    def _set_single_input(self, inp: MESSAGE) -> None:
+    def _set_single_input(self, inp: MESSAGE, index:int=-1) -> None:
         """Helper to set a single input message."""
         if not isinstance(inp, MESSAGE):
             raise ValueError("Input must be a MESSAGE object")
@@ -456,7 +494,12 @@ class Interface:
         inp.DATE_RECEIVED = datetime.now()
 
         if inp.TO == self.id or inp.TO is None:
-            self.__REGISTER__.append(inp)
+            if index == -1:index = len(self.__REGISTER__)+1
+
+            if index>=self._limits_inp[1]:
+                return 
+            
+            self.__REGISTER__.update({index:inp})
             self.__ACTIVE_REGISTER__ = inp
         else:
             raise InterfaceError("Le message n'est pas destiné à ce block", "PERMISSION")
@@ -469,10 +512,14 @@ class Interface:
             self.__ACTIVE_OUTPUT__ = deepcopy(self.__ACTIVE_REGISTER__)
             self.__ACTIVE_OUTPUT__.FROM = self.id
             self.__ACTIVE_OUTPUT__.DATE_SEND = datetime.now()
-            self.__OUTPUTS__ = [self.__ACTIVE_OUTPUT__]
+            self.__OUTPUTS__ = {0:self.__ACTIVE_OUTPUT__}
             
+        if self.restricted:
+            self.clear_register()
+
         if len(self.__OUTPUTS__) == 1:
             return self.__OUTPUTS__[0]
+        
         return self.__OUTPUTS__
 
     @output.setter
@@ -482,9 +529,10 @@ class Interface:
             if not isinstance(out, MESSAGE):
                 raise ValueError("Output must be a MESSAGE object")
             self.__ACTIVE_OUTPUT__ = out
-            self.__OUTPUTS__ = [out]
+            self.__OUTPUTS__ = {0:out}
         elif isinstance(out, list) and all(isinstance(msg, MESSAGE) for msg in out):
-            self.__OUTPUTS__ = out
+            self.__OUTPUTS__ = {idx:_out for idx,_out in enumerate(out) if idx<self._limits_out[1]}
+
             if out:
                 self.__ACTIVE_OUTPUT__ = out[-1]
         else:
@@ -498,4 +546,14 @@ class Interface:
     @property
     def outputs(self) -> List[MESSAGE]:
         """Get all output messages."""
+
+        if self.restricted:
+            self.clear_register()
+
         return self.__OUTPUTS__
+    
+
+
+
+
+

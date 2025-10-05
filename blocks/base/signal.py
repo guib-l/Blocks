@@ -8,17 +8,17 @@ from enum import Enum, auto
 
 class SignalType(str, Enum):
     """Enumération des types de signaux disponibles."""
-    NONE = 'No signal'
-    STAGING = 'On stage'
-    LOADED = 'Loaded process'
-    WAITING = 'Waiting process'
-    RUNNING = 'Run process'
+    NONE      = 'No signal'
+    STAGING   = 'On stage'
+    LOADED    = 'Loaded process'
+    WAITING   = 'Waiting process'
+    RUNNING   = 'Run process'
     COMPLETED = 'Process completed'
-    CANCELED = 'Process canceled'
-    ERROR = 'Raise an error'
-    WARNING = 'Warning raised'
-    PAUSED = 'Process paused'
-    RESUMED = 'Process resumed'
+    CANCELED  = 'Process canceled'
+    ERROR     = 'Raise an error'
+    WARNING   = 'Warning raised'
+    PAUSED    = 'Process paused'
+    RESUMED   = 'Process resumed'
 
     
 class SignalError(Exception):

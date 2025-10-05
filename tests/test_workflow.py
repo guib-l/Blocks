@@ -4,7 +4,7 @@ from copy import copy, deepcopy
 from typing import Any, Dict, TypeVar
 from configs import *
 
-from blocks.base.workflow import Workflow
+from blocks.nodes.workflow import Workflow
 
 
 py_script = r"""

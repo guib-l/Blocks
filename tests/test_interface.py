@@ -5,7 +5,7 @@ from copy import copy, deepcopy
 from typing import Any, Dict, TypeVar
 from configs import *
 
-from blocks.base.node import Node
+from blocks.nodes.node import Node
 from blocks.base import *
 
 from blocks.socket.interface import (MessageType,MESSAGE,Interface)
@@ -63,13 +63,16 @@ if __name__ == "__main__":
     msgs = [
             MESSAGE(FROM=node2.id, 
                     TO=node3.id, 
-                    SUBJECT="subject1", DATA={"key1": "value1"}),
+                    SUBJECT="subject1", 
+                    DATA={"key1": "value1"}),
             MESSAGE(FROM=node2.id, 
                     TO=node3.id, 
-                    SUBJECT="subject2", DATA={"key2": "value2"}),
+                    SUBJECT="subject2", 
+                    DATA={"key2": "value2"}),
             MESSAGE(FROM=node2.id, 
                     TO=node3.id, 
-                    SUBJECT="subject3", DATA={"key3": "value3"})
+                    SUBJECT="subject3", 
+                    DATA={"key3": "value3"})
         ]
 
 
@@ -87,10 +90,12 @@ if __name__ == "__main__":
     msgs = [
             MESSAGE(FROM=node1.id, 
                     TO=node2.id, 
-                    SUBJECT="subject1", DATA={"key1": "value1"}),
+                    SUBJECT="subject1", 
+                    DATA={"key1": "value1"}),
             MESSAGE(FROM=node1.id, 
                     TO=node2.id, 
-                    SUBJECT="subject2", DATA={"key1": "value2"}),
+                    SUBJECT="subject2", 
+                    DATA={"key1": "value2"}),
             ]
     
     results = interface1.send(msgs)

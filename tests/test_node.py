@@ -5,7 +5,7 @@ from copy import copy, deepcopy
 from typing import Any, Dict, TypeVar
 from configs import *
 
-from blocks.base.node import Node
+from blocks.nodes.node import Node
 from blocks.base import *
 
 from blocks.socket.interface import (MessageType,MESSAGE,Interface)

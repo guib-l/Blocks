@@ -1,11 +1,6 @@
-import os,sys
-import time
-from copy import copy, deepcopy
-from typing import Any, Dict, TypeVar
 from configs import *
 
-from blocks.base.workflow import Workflow
-from blocks.base.graphics import TopologicGraphics
+from blocks.nodes.graphics import TopologicGraphics
 
 
 

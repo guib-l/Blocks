@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union, Callable, Iterator, BinaryIO, TextIO
 
-from .dataset import DataSet
+from ..base.dataset import DataSet
 from copy import copy, deepcopy
 
 from blocks.base.baseBlock import BaseBlock
@@ -44,7 +44,7 @@ def _default_uninstall(directory:str = ".",
 
 
 
-T = TypeVar('T', bound='Node')
+Node = TypeVar('Node', bound='Node')
 
 
 
@@ -98,8 +98,8 @@ class Node(block.Block):
         'interface':{
             'persistant':False,
             'restricted': False,
-            'lim_inp': (99,99),
-            'lim_out': (99,99),            
+            'max_inp': 999,
+            'max_out': 999,
         }
     }
 
@@ -239,9 +239,9 @@ class Node(block.Block):
         result.update({
             "root": self.root,
             "id": self.id,
-            "has_interface": self.__ITFC__ is not None,
-            "has_environment": self.__ENV__ is not None,
-            "has_executor": self.__EXEC__ is not None,
+            "interface": self.__ITFC__.to_dict() if self.__ITFC__ is not None else None,
+            "environment": self.__ENV__ is not None,
+            "executor": self.__EXEC__ is not None,
             "input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
             "output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
         })

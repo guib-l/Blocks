@@ -13,6 +13,7 @@ class SignalType(str, Enum):
     LOADED    = 'Loaded process'
     WAITING   = 'Waiting process'
     RUNNING   = 'Run process'
+    INTERRUPTED = 'Interrupted process'
     COMPLETED = 'Process completed'
     CANCELED  = 'Process canceled'
     ERROR     = 'Raise an error'

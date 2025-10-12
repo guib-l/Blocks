@@ -16,7 +16,7 @@ class GraphicsError(Exception):
 
 class TopologicGraphics:
 
-    def __init__(self, links=None, first=None, last=None):
+    def __init__(self, links=None, first=None, last=None, **kwargs):
         """
         Initialize the TopologicalSorter with an optional list of links
         Args:
@@ -60,11 +60,24 @@ class TopologicGraphics:
             dict: Dictionary representation of the graph
         """
         return {
-            'nodes': list(self.nodes),
             'links': self.link,
             'first': self.first,
             'last' : self.last,
         }
+
+    @classmethod
+    def from_dict(cls, **data):
+        """
+        Create a TopologicGraphics instance from a dictionary representation
+        Args:
+            data (dict): Dictionary representation of the graph
+        Returns:
+            TopologicGraphics: A new instance with the properties from the dictionary
+        """
+        links = data.get('links', [])
+        first = data.get('first', None)
+        last = data.get('last', None)
+        return cls(links=links, first=first, last=last)
 
     def write_graphics(self, format='txt'):
         """
@@ -93,6 +106,7 @@ class TopologicGraphics:
         self.build()
         self._graphics = list(iter(self))
         return self._graphics
+    
     
     @property
     def first(self):
@@ -247,6 +261,14 @@ class TopologicGraphics:
         """
         for values in links:
             self.add_link(*values)
+
+    def add_node(self, node):
+        """
+        Add a node in graph without links
+        Args:
+            node (int): The node to add
+        """
+        self.nodes.add(node)
 
     def del_node(self, node):
         """

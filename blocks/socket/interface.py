@@ -77,6 +77,7 @@ class Interface:
     # Si persistant est False, les messages sont supprimés après envoi
     # et ne sont pas disponibles pour consultation
 
+    __ntype__ = "interface"    
 
     def __init__(self, 
                  object: Any = None,
@@ -114,24 +115,52 @@ class Interface:
 
     # -----------------------------------------------------
     # Serialization methods
-    # A revoir
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'interface_of': self.id,
+    def to_dict(self, include_messages: bool = False) -> Dict[str, Any]:
+
+        result = {
+            'interface': self.__ntype__,
+            'interface_of': getattr(self.object, '__ntype__', None) if self.object else None,
             'persistant': self.persistant,
-            'max_inp':self._limits_inp,
-            'max_out':self._limits_out,
+            'restricted': self.restricted,
+            'max_inp': self._limits_inp,
+            'max_out': self._limits_out,
         }
+        
+        if include_messages:
+            result['register'] = {idx: msg.to_dict() for idx, msg in self.__REGISTER__.items()}
+            result['outputs'] = {idx: msg.to_dict() for idx, msg in self.__OUTPUTS__.items()}
+        
+        return result
 
     @classmethod
-    def from_dict(cls, ) -> None:
-        return cls
+    def from_dict(cls, **data: Dict[str, Any]) -> 'Interface':
+        kwargs = {
+            'persistant': data.get('persistant', False),
+            'restricted': data.get('restricted', False),
+            'max_inp': data.get('max_inp', 999),
+            'max_out': data.get('max_out', 999),
+        }
+        return cls(**kwargs)
+
+    def to_json(self, include_messages: bool = False) -> str:
+        return json.dumps(
+            self.to_dict(include_messages=include_messages))
+    
+    def __str__(self) -> str:
+        obj_type = getattr(self.object, '__ntype__', 'None') if self.object else 'None'
+        return f"Interface(type={obj_type}, inputs={len(self.__REGISTER__)}, outputs={len(self.__OUTPUTS__)})"
+    
+    def __repr__(self) -> str:
+        return f"Interface(id={self.id}, persistant={self.persistant}, restricted={self.restricted})"
 
     #-----------------------------------------------------
     # Interface methods
 
-    def provide(self, key: str, value: Any, output_index: int = -1) -> None:
+    def provide(self, 
+                key: str, 
+                value: Any, 
+                output_index: int = -1) -> None:
         """
         Store a value in the output message data dictionary.
         

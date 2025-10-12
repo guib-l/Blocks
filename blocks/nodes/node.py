@@ -24,7 +24,7 @@ from blocks.base.organizer import FileManager, FileError
 
 from blocks.base import BLOCK_PATH
 
-from blocks.base.encoder import BaseBlockJSONEncoder
+from blocks.base.encoder import NodeJSONEncoder
 
 
 from blocks.base.signal import Signal
@@ -103,26 +103,54 @@ class Node(block.Block):
         }
     }
 
+    __ntype__ = "node"
+
+
     def __init__(self,
-                 BLOCK_PATH=None,
-                 INTERFACE=None,
-                 ENVIRONMENT=None,
-                 EXECUTOR=None,
+                 _mandatory_attr=True,
+                 #_block_path=None,
+                 _interface=None,
+                 _environment=None,
+                 _executor=None,
                  **kwargs):
-            
+
         self.__ROOT__ = None
         self.__ENV__  = None # Environnement du block
         self.__ITFC__ = None # Interface de communication
         self.__EXEC__ = None # Etat d'execution du block
 
-        self.root = BLOCK_PATH
-
-        super().__init__(**kwargs)
+        self._mandatory_attr = _mandatory_attr
+            
+        #self.root = _block_path
 
         # Methode destinée à la communication entre les node
-        self.environment = ENVIRONMENT
-        self.interface   = INTERFACE
-        self.executor    = EXECUTOR
+        self.environment = _environment
+        self.interface   = _interface
+        self.executor    = _executor
+
+        super().__init__(_mandatory_attr=True,
+                         _interface=self.interface,
+                         _environment=self.environment,
+                         _executor=self.executor,
+                         **kwargs)
+
+
+    # -----------------------------------------------------
+    # Load methods
+
+    @classmethod
+    def load(cls,
+             name:str,
+             directory=BLOCK_PATH,
+             **kwargs) -> Node:
+        
+        data = json.load(
+            open(os.path.join(directory, name, 'blocks.json')))
+        
+        return cls(_build=False, **data)
+
+
+    # -----------------------------------------------------
 
     @property
     def root(self):
@@ -133,7 +161,7 @@ class Node(block.Block):
         if path is not None:
             self.__ROOT__ = path
         elif path is None:
-            self.__ROOT__ = os.path.split(BLOCK_PATH)
+            self.__ROOT__ = os.path.split(path)
         else:
             raise NodeError("Path of Node unknown", 'DIRECTORY')
         
@@ -147,11 +175,11 @@ class Node(block.Block):
 
     @executor.setter
     def executor(self, exec = None):
-        if exec is not None:
-            self.__EXEC__ = exec
-        else:
+        if exec is None and self._mandatory_attr:
             raise NodeError("EXECUTOR method not provided", 'EXECUTOR')
 
+        self.__EXEC__ = exec
+                
 
     # -----------------------------------------------------
     # Environment methods
@@ -162,11 +190,12 @@ class Node(block.Block):
     
     @environment.setter
     def environment(self, env = None):
-        if env is not None:
-            self.__ENV__ = env
-        else:
+        if env is None and self._mandatory_attr:
             raise NodeError("ENVIRONMENT method not provided", 'ENVIRONMENT')
         
+        self.__ENV__ = env
+        
+
 
     # -----------------------------------------------------
     # Interface methods
@@ -176,15 +205,21 @@ class Node(block.Block):
         return self.__ITFC__
     
     @interface.setter
-    def interface(self, interface = None, **kwargs):
-        
-        intern = self.default_node['interface']
-        intern.update(kwargs)
-        
-        if interface is not None:
-            self.__ITFC__ = interface(self, **intern)
-        else:
+    def interface(self, interface = None):
+        if interface is None and self._mandatory_attr:
             raise NodeError("interface method not provided", 'interface')
+        
+        from blocks.socket.interface import Interface
+
+        if isinstance(interface, Interface):
+            self.__ITFC__ = interface
+            return
+        elif isinstance(interface, dict):
+            self.__ITFC__ = Interface.from_dict(**interface)
+            return
+        else:
+            intern = self.default_node['interface']        
+            self.__ITFC__ = interface(self, **intern)
         
 
     # -----------------------------------------------------
@@ -233,26 +268,24 @@ class Node(block.Block):
     # -----------------------------------------------------
     # Serialization methods
 
+    def to_json(self):
+        return json.dumps(self._dataset, 
+                          indent=4, 
+                          cls=NodeJSONEncoder)
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert node to dictionary representation"""
         result = super().to_dict()
         result.update({
             "root": self.root,
             "id": self.id,
-            "interface": self.__ITFC__.to_dict() if self.__ITFC__ is not None else None,
-            "environment": self.__ENV__ is not None,
-            "executor": self.__EXEC__ is not None,
+            #"interface": self.__ITFC__.to_dict() if self.__ITFC__ is not None else None,
+            #"environment": self.__ENV__ is not None,
+            #"executor": self.__EXEC__ is not None,
             "input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
             "output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
         })
         return result
-
-
-    # -----------------------------------------------------
-    # Load methods
-
-    @classmethod
-    def load(cls): ...
 
     # -----------------------------------------------------
     # Install methods

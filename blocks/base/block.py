@@ -86,6 +86,8 @@ class Block(BaseBlock):
 
     _mandatory_attributes = ['load']
 
+    __ntype__ = "block"
+
     def __init__(self, 
                  id=None, 
                  name="default",
@@ -95,15 +97,16 @@ class Block(BaseBlock):
                  files=[],
                  data={},
                  doc=None,
+                 type="blocks",
                  SIGNAL=None,
-                 BUILD_BLOCK=True,
+                 _build=False,
                  **kwargs):
         try:
             origin = os.path.abspath(path)
             path = os.path.join(path, name)
 
             self.fman = FileManager(base_directory=path,
-                                    auto_create=BUILD_BLOCK)
+                                    auto_create=_build)
         except:
             self.error =  BlockError(f'Path unknow : {path}', 'ORIGIN')
             raise self.error.ERROR
@@ -119,30 +122,10 @@ class Block(BaseBlock):
                          data=data,
                          doc=doc,
                          **kwargs)
-        
-        if BUILD_BLOCK:
-            export_metadata(self, "blocks", 'json')
 
-        # Initialisation du signal
-        self.sgl = SIGNAL
+        if _build:
+            export_metadata(self, type, 'json')
 
-        if SIGNAL is None:
-            self.sgl = Signal('INITIALIZED')
-
-    # -----------------------------------------------------
-    # signal methods
-    # Méthodes pour accéder et modifier l'état du node 
-    # via le signal
-
-    @property
-    def signal(self):
-        self.__SIGNAL__ = self.sgl.signal
-        return self.__SIGNAL__
-
-    @signal.setter
-    def signal(self, value):
-        self.sgl.signal = value
-        self.__SIGNAL__  = value
 
 
 

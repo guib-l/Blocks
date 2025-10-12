@@ -31,9 +31,9 @@ if __name__ == "__main__":
         'path': "myblock/",
         'values': [1, 2, 3, 4, 5],
         'metadata': {'source': 'generated', 'version': 1.0},
-        'INTERFACE': Interface,
-        'ENVIRONMENT': Environment,
-        'EXECUTOR':Executor,
+        '_interface': Interface,
+        '_environment': Environment,
+        '_executor': Executor,
     }
   
    # Initialisation d'un Block

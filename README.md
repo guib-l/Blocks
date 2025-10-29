@@ -1,5 +1,6 @@
-# Blocks:project
+# Blocks
 
+Projet en cours de production ...
 
 ## Blocks:blocks
 

@@ -103,8 +103,11 @@ class FileManager:
             self._log(error_msg, logging.ERROR)
             raise FileError(error_msg) from e
 
-    def copy_files(self, src: Union[str, Path], dest: Union[str, Path], 
-                 ignore: Optional[Callable] = None, overwrite: bool = False) -> str:
+    def copy_files(self, 
+                   src: Union[str, Path], 
+                   dest: Union[str, Path], 
+                   ignore: Optional[Callable] = None, 
+                   overwrite: bool = False) -> str:
         """
         Copie un fichier ou un répertoire de src vers dest.
         
@@ -129,23 +132,36 @@ class FileManager:
         try:
             # Gestion des répertoires parents de destination
             dest_dir = os.path.dirname(dest_path) if os.path.isfile(src_path) else dest_path
+
             if self.auto_create and not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
-                
+                os.makedirs(dest_dir,mode=755, exist_ok=True)
+
+            #sys.exit()
+ 
             # Si la destination existe et qu'on ne veut pas écraser
             if os.path.exists(dest_path) and not overwrite:
                 raise FileError(f"Le chemin de destination existe déjà: {dest_path}")
                 
             # Copie selon le type de la source
             if os.path.isfile(src_path):
-                shutil.copy2(src_path, dest_path)
-                self._log(f"Fichier copié de {src_path} vers {dest_path}", logging.INFO)
+                _dest_path = dest_path  # Default value
+                
+                if os.path.isdir(dest_path):
+                    _dest_path = os.path.join(dest_path, os.path.basename(src_path))
+                
+                shutil.copy2(src_path, _dest_path, follow_symlinks=True)
+
+                #self._log(f"Fichier copié de {src_path} vers {dest_path}", logging.INFO)
             elif os.path.isdir(src_path):
                 # Supprimer la destination si elle existe et qu'on veut écraser
-                if os.path.exists(dest_path) and overwrite:
-                    shutil.rmtree(dest_path)
+                #if os.path.exists(dest_path) and overwrite:
+                #    shutil.rmtree(dest_path)
                     
-                shutil.copytree(src_path, dest_path, ignore=ignore)
+                shutil.copytree(src_path, 
+                                dest_path, 
+                                ignore=ignore, 
+                                symlinks=True,
+                                dirs_exist_ok=True)
                 self._log(f"Répertoire copié de {src_path} vers {dest_path}", logging.INFO)
                 
             return dest_path
@@ -153,8 +169,10 @@ class FileManager:
             error_msg = f"Erreur lors de la copie de {src_path} vers {dest_path}: {str(e)}"
             self._log(error_msg, logging.ERROR)
             raise FileError(error_msg) from e
-
-    def create_directory(self, path: Union[str, Path], mode: int = 0o755, 
+        
+        
+    def create_directory(self, path: Union[str, Path], 
+                         mode: int = 755, 
                          exist_ok: bool = True) -> str:
         """
         Crée un répertoire s'il n'existe pas.

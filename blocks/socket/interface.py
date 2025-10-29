@@ -66,6 +66,23 @@ class InterfaceError(Exception):
             "details": self.details
         }
 
+def Exchange(args1, args2):
+        
+    def communicate(cls):
+
+        cls.decorateur_args1 = args1
+        cls.decorateur_args2 = args2
+
+        class InterfaceMixin(cls):
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._exchange_args1 = args1
+                self._exchange_args2 = args2
+        
+        return InterfaceMixin
+    
+    return communicate
 
 
 
@@ -76,17 +93,18 @@ class Interface:
     # et restent disponibles pour consultation
     # Si persistant est False, les messages sont supprimés après envoi
     # et ne sont pas disponibles pour consultation
-
-    __ntype__ = "interface"    
+ 
 
     def __init__(self, 
-                 object: Any = None,
+                 node: Any = None,
                  persistant: bool = False,
                  restricted: bool = False,
                  max_inp: int = 999,
-                 max_out: int = 999):
+                 max_out: int = 999,
+                 executor   = None,
+                 environment = None, ):
 
-        self.object = object
+        self.object = node
         # Delete input/output when output is asked
         self.persistant = persistant # (Not implemented)
 
@@ -106,8 +124,28 @@ class Interface:
         self.__ACTIVE_REGISTER__ = MESSAGE()
         self.__ACTIVE_OUTPUT__   = MESSAGE()
 
-        
+        self._executor = executor
+        self._environment = environment
+
+    # -----------------------------------------------------
+    # Execution methods
     
+    def execute(self, **data) -> Union[MESSAGE, List[MESSAGE]]:
+
+        if hasattr(self.object, 'forward') and callable(getattr(self.object, 'forward')):
+            result = self.object.forward(**data)
+            if isinstance(result, MESSAGE) or (isinstance(result, list) and all(isinstance(msg, MESSAGE) for msg in result)):
+                return result
+            else:
+                raise InterfaceError("L'exécution n'a pas retourné un message valide", "OUTPUT")
+        else:
+            raise InterfaceError("L'objet associé n'a pas de méthode 'forward' exécutable", "EXECUTION")
+    
+
+
+    # -----------------------------------------------------
+    # Identification methods
+
     @property
     def id(self) -> str:
         """Return the ID of the associated object or a generated ID if none exists."""
@@ -116,7 +154,8 @@ class Interface:
     # -----------------------------------------------------
     # Serialization methods
 
-    def to_dict(self, include_messages: bool = False) -> Dict[str, Any]:
+    def to_dict(self, 
+                include_messages: bool = False) -> Dict[str, Any]:
 
         result = {
             'interface': self.__ntype__,
@@ -134,7 +173,8 @@ class Interface:
         return result
 
     @classmethod
-    def from_dict(cls, **data: Dict[str, Any]) -> 'Interface':
+    def from_dict(cls, 
+                  **data: Dict[str, Any]) -> 'Interface':
         kwargs = {
             'persistant': data.get('persistant', False),
             'restricted': data.get('restricted', False),
@@ -178,8 +218,8 @@ class Interface:
             # Modify specific output in the list
             if output_index >= len(self.__OUTPUTS__):
                 # Create new outputs until we reach the desired index
-                for _ in range(len(self.__OUTPUTS__), output_index + 1):
-                    self.__OUTPUTS__.update({_:deepcopy(MESSAGE())})
+                for i in range(len(self.__OUTPUTS__), output_index + 1):
+                    self.__OUTPUTS__.update({i:deepcopy(MESSAGE())})
 
             if not hasattr(self.__OUTPUTS__[output_index], 'DATA') or not isinstance(self.__OUTPUTS__[output_index].DATA, dict):
                 self.__OUTPUTS__[output_index].DATA = {}
@@ -231,7 +271,9 @@ class Interface:
             
         raise InterfaceError("Invalid message format", "VALIDATION")
     
-    def _receive_single(self, message: MESSAGE, index:int=-1) -> MESSAGE:
+    def _receive_single(self, 
+                        message: MESSAGE, 
+                        index:int=-1) -> MESSAGE:
         """Process a single incoming message."""
         if not isinstance(message, MESSAGE):
             raise InterfaceError("Invalid message format", "VALIDATION")
@@ -256,7 +298,8 @@ class Interface:
         
         return message
 
-    def send(self, message: Optional[Union[MESSAGE, List[MESSAGE]]] = None) -> Union[MESSAGE, List[MESSAGE]]:
+    def send(self, 
+             message: Optional[Union[MESSAGE, List[MESSAGE]]] = None) -> Union[MESSAGE, List[MESSAGE]]:
         """
         Send message(s).
         

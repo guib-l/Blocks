@@ -11,23 +11,18 @@ Workflow = TypeVar('Workflow', bound='Workflow')
 
 
 
+
+
+
 class Workflow(node.Node):
-
-    auth_inout = [ MessageType.DIRECT, ]
-
-    default_node = {
-        'interface':{
-            'persistant':False,
-            'restricted': False,
-            'max_inp': 999,
-            'max_out': 999,          
-        }
-    }
 
     __ntype__ = "workflow"
 
     def __init__(self, 
                  graphics = None,
+                 communicator = None,
+                 global_environment=True,
+                 global_executor=True,
                  **kwargs):
         
         super().__init__(**kwargs)
@@ -44,7 +39,30 @@ class Workflow(node.Node):
 
         self.currents_nodes = {}
 
+        self.communicator       = communicator
 
+        self.global_environment = global_environment
+        self.global_executor    = global_executor
+
+
+
+    # -----------------------------------------------------
+    # Execute methods
+    
+    def forward(self, **data):
+
+        if self.communicator is None:
+
+            for node_index in self._graphics.graphics:
+                node = self.currents_nodes[node_index]
+                data = node.execute(**data)
+            
+            output = data
+            return output
+    
+
+    # -----------------------------------------------------
+    # Graphics methods
 
     def graph_to_dict(self,):
         graph = self._graphics.to_dict()
@@ -78,22 +96,22 @@ class Workflow(node.Node):
 
     @property
     def starting_node(self,):
-        ...
+        return self._graphics.first
 
     @starting_node.setter
-    def starting_node(self,):
-        ...
+    def starting_node(self, start):
+        self._graphics.first = start
 
     @property
     def ending_node(self,):
-        ...
+        return self._graphics.last
 
     @ending_node.setter
-    def ending_node(self,):
-        ...
+    def ending_node(self, end):
+        self._graphics.last = end
 
-
-
+    # -----------------------------------------------------
+    # Nodes methods
 
     def add_node(self, node, index=None):
         if index is None:

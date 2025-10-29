@@ -28,19 +28,71 @@ from blocks.base.encoder import NodeJSONEncoder
 
 
 from blocks.base.signal import Signal
-from blocks.socket.interface import MESSAGE,MessageType
+from blocks.socket.interface import MESSAGE,MessageType,Interface
 
 from enum import Enum
 
-
-
-def _default_install(directory:str = ".",
+def _default_install(name="default-node",
+                     base_directory: str = "./",
+                     code_directory: str = "",
                      **kwargs):
-    ...
+
+    print(f"Installing node '{name}' in directory '{base_directory}'")
+
+    fm = FileManager(base_directory=base_directory, auto_create=True)
+
+    target_path = os.path.join(base_directory, name)
+    #print(f"Creating node directory at: {target_path}")
+
+    try:
+        if not os.path.exists(target_path):
+            os.makedirs(target_path, mode=0o755, exist_ok=True)
+        else:
+            os.chmod(target_path, 0o755)
+
+    except PermissionError as e:
+        raise FileError(f"Permission denied creating directory {target_path}: {e}")
+    except Exception as e:
+        raise FileError(f"Failed to create directory {target_path}: {e}")
+
+    # Traitement des fichiers
+    files = kwargs.get('files', [])
+
+    for file in files:
+        try:
+            if os.path.isfile(file):
+                if not fm.file_exists(file):
+                    raise FileError(f"File {file} does not exist")
+                
+                dest_file = os.path.join(target_path, os.path.basename(file))
+                fm.copy_files(file, dest_file, overwrite=True)
+                
+            elif os.path.isdir(file):
+                if not fm.directory_exists(file):
+                    raise FileError(f"Directory {file} does not exist")
+                
+                dest_dir = os.path.join(target_path, os.path.basename(file))
+                fm.copy_files(file, dest_dir, overwrite=True)
+                
+            else:
+                print(f"Warning: {file} is neither a file nor a directory")
+                
+        except Exception as e:
+            print(f"Error processing file {file}: {e}")
+            raise FileError(f"Failed to process file {file}: {e}")
+
+    return target_path
+
+
+
 
 def _default_uninstall(directory:str = ".",
                           **kwargs):
     ...
+
+
+
+
 
 
 
@@ -90,49 +142,68 @@ class NodeError(Exception):
 
 class Node(block.Block):
 
-    auth_inout = [ MessageType.RESPONSE,
-                   MessageType.REQUEST,
-                   MessageType.DIRECT, ]
-    
-    default_node = {
-        'interface':{
-            'persistant':False,
-            'restricted': False,
-            'max_inp': 999,
-            'max_out': 999,
-        }
-    }
-
     __ntype__ = "node"
 
-
     def __init__(self,
-                 _mandatory_attr=True,
-                 #_block_path=None,
-                 _interface=None,
-                 _environment=None,
-                 _executor=None,
+                 auto            = True,
+                 _mandatory_attr = True,
+                 _environment    = None,
+                 _executor       = None,
                  **kwargs):
 
-        self.__ROOT__ = None
-        self.__ENV__  = None # Environnement du block
-        self.__ITFC__ = None # Interface de communication
-        self.__EXEC__ = None # Etat d'execution du block
-
+        # Initialisation des attributs spécifiques au Node
         self._mandatory_attr = _mandatory_attr
             
         #self.root = _block_path
 
         # Methode destinée à la communication entre les node
         self.environment = _environment
-        self.interface   = _interface
         self.executor    = _executor
 
-        super().__init__(_mandatory_attr=True,
-                         _interface=self.interface,
+        super().__init__(_mandatory_attr=_mandatory_attr,
                          _environment=self.environment,
                          _executor=self.executor,
                          **kwargs)
+        
+        if auto and self._executor:
+            self.build()
+
+    # -----------------------------------------------------
+    # Build methods
+    
+    def build(self, *args, **kwargs): 
+
+        try:
+            self.executor.build_backend(*args, **kwargs)
+        except Exception as e:
+            raise NodeError(f"BUILD method failed: {e}", 'BUILD')
+
+
+    # -----------------------------------------------------
+    # Execute methods
+        
+    def execute(self, **data):
+        
+        forward = getattr(self, 'forward', None)
+
+        try:
+            exec = self.executor.execute(forward=forward)
+            return exec(**data)
+
+        except Exception as e:
+            raise NodeError(f"EXECUTION method failed: {e}", 'EXECUTION')
+
+
+    def forward(self, name=None, **data):
+
+        print("Executing function in Node forward method")
+
+        with self.environment as env:
+
+            func   = env.get_functions(name=name)
+            output = func(**data)
+        
+        return output
 
 
     # -----------------------------------------------------
@@ -146,7 +217,8 @@ class Node(block.Block):
         
         data = json.load(
             open(os.path.join(directory, name, 'blocks.json')))
-        
+        data.update(kwargs) 
+
         return cls(_build=False, **data)
 
 
@@ -170,86 +242,36 @@ class Node(block.Block):
     # Executor methods
 
     @property
-    def executor(self):
+    def _executor(self):
         return self.__EXEC__
 
-    @executor.setter
-    def executor(self, exec = None):
+    @_executor.setter
+    def _executor(self, exec = None):
+
         if exec is None and self._mandatory_attr:
             raise NodeError("EXECUTOR method not provided", 'EXECUTOR')
 
-        self.__EXEC__ = exec
+        self.__EXEC__ = exec    
                 
 
     # -----------------------------------------------------
     # Environment methods
 
     @property
-    def environment(self):
+    def _environment(self):
         return self.__ENV__
-    
-    @environment.setter
-    def environment(self, env = None):
+
+    @_environment.setter
+    def _environment(self, env = None):
+        
         if env is None and self._mandatory_attr:
             raise NodeError("ENVIRONMENT method not provided", 'ENVIRONMENT')
-        
+
         self.__ENV__ = env
         
 
-
     # -----------------------------------------------------
-    # Interface methods
-
-    @property
-    def interface(self):
-        return self.__ITFC__
-    
-    @interface.setter
-    def interface(self, interface = None):
-        if interface is None and self._mandatory_attr:
-            raise NodeError("interface method not provided", 'interface')
-        
-        from blocks.socket.interface import Interface
-
-        if isinstance(interface, Interface):
-            self.__ITFC__ = interface
-            return
-        elif isinstance(interface, dict):
-            self.__ITFC__ = Interface.from_dict(**interface)
-            return
-        else:
-            intern = self.default_node['interface']        
-            self.__ITFC__ = interface(self, **intern)
-        
-
-    # -----------------------------------------------------
-    # In / Out methods
-    # Implementer une limite de nombre de message en entree et sortie
-    # ainsi qu'un systeme de merge des messages
-    # et de filtrage des attributs des messages
-
-    @property
-    def input(self): 
-        return self.__ITFC__.register
-    
-    @input.setter
-    def input(self, msg, value=None, index=-1):
-        if isinstance(msg, MESSAGE):
-            if msg.TYPE in self.auth_inout:
-                self.__ITFC__.receive(msg)
-            else:
-                txt = f"Incorrect input type : {msg.TYPE}. \nAuthorized types are {self.auth_inout}"
-                raise NodeError(txt, "input")
-            
-        elif isinstance(msg,str):
-            self.__ITFC__.provide(msg, value, index)
-        else:
-            raise NodeError("Incorrect input type","input")
-
-    @property
-    def output(self): 
-        return self.__ITFC__.outputs
-
+    # Message methods
 
     def error(self, e, err): 
         return MESSAGE.generate_error(
@@ -280,10 +302,10 @@ class Node(block.Block):
             "root": self.root,
             "id": self.id,
             #"interface": self.__ITFC__.to_dict() if self.__ITFC__ is not None else None,
-            #"environment": self.__ENV__ is not None,
-            #"executor": self.__EXEC__ is not None,
-            "input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
-            "output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
+            "environment": self.__ENV__ is not None,
+            "executor": self.__EXEC__ is not None,
+            #"input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
+            #"output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
         })
         return result
 
@@ -292,6 +314,7 @@ class Node(block.Block):
 
     @classmethod
     def install(cls, 
+                name="default-node",
                 installer = None,
                 directory:str = ".",
                 **kwargs):
@@ -308,10 +331,13 @@ class Node(block.Block):
                 
                 raise NodeError("INSTALLER method failed", 'INSTALLER')
         else:
-
-            _default_install(directory=directory,
+            _default_install(name=name,
+                             base_directory=directory,
                              **kwargs)
-        return 
+        return cls(name=name,
+                   path=directory,
+                   _build=kwargs.get('_build',True),
+                   **kwargs)
 
     @classmethod
     def uninstall(cls,
@@ -330,7 +356,7 @@ class Node(block.Block):
                 raise NodeError("UNINSTALLER method failed", 'UNINSTALLER')
         else:
 
-            _default_uninstall(directory=directory,
+            _default_uninstall(base_directory=directory,
                                **kwargs)
 
         return cls.destroy()
@@ -343,24 +369,74 @@ class Node(block.Block):
         del self
 
 
+
+
+
+
+
+
+
+
+
+
     # -----------------------------------------------------
-    # Build methods
+    # Interface methods
+    """
+    @property
+    def interface(self):
+        return self.__ITFC__
     
-    @abstractmethod
-    def build(self,): ...
+    @interface.setter
+    def interface(self, _interface = None):
+        if _interface is None and self._mandatory_attr:
+            raise NodeError("interface method not provided", 'interface')
+        
+        from blocks.socket.interface import Interface
 
+        if isinstance(_interface, Interface):
+            self.__ITFC__ = _interface
+            return
+        elif isinstance(_interface, dict):
+            self.__ITFC__ = Interface.from_dict(**_interface)
+            return
+        else:
+            intern = self.default_node['interface']
+            if _interface is not Interface:
+                _interface = Interface
+
+            self.__ITFC__ = _interface(self,
+                                       environment = self.environment,
+                                       executor    = self.executor, 
+                                       **intern)
+    """
 
     # -----------------------------------------------------
-    # Execute methods
+    # In / Out methods
+    # Implementer une limite de nombre de message en entree et sortie
+    # ainsi qu'un systeme de merge des messages
+    # et de filtrage des attributs des messages
 
-    @abstractmethod
-    def execute(self,): ... 
+    """
+    @property
+    def input(self): 
+        return self.__ITFC__.register
+    
+    @input.setter
+    def input(self, msg, value=None, index=-1):
+        if isinstance(msg, MESSAGE):
+            if msg.TYPE in self.auth_inout:
+                self.__ITFC__.receive(msg)
+            else:
+                txt = f"Incorrect input type : {msg.TYPE}. \nAuthorized types are {self.auth_inout}"
+                raise NodeError(txt, "input")
+            
+        elif isinstance(msg,str):
+            self.__ITFC__.provide(msg, value, index)
+        else:
+            raise NodeError("Incorrect input type","input")
 
+    @property
+    def output(self): 
+        return self.__ITFC__.outputs
 
-
-
-
-
-
-
-
+    """

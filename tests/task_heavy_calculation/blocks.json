@@ -1,0 +1,20 @@
+{
+    "id": "a1e5c98d-3b00-4cf1-8cce-db86734fa1e6",
+    "name": "task_heavy_calculation",
+    "version": "0.0.1",
+    "path": "/home/workstation/Documents/block8:project/tests",
+    "authors": [
+        "Anonymous"
+    ],
+    "files": [],
+    "data": {},
+    "doc": null,
+    "_mandatory_attr": false,
+    "_environment": "<blocks.engine.environment.Environment object at 0x710087a3f5c0>",
+    "_executor": {},
+    "metadata": {
+        "source": "Task",
+        "version": 1.0,
+        "description": ""
+    }
+}

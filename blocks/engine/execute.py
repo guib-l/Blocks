@@ -1,8 +1,13 @@
 import os
 import sys
 import typing
+import abc
+import copy
+import time
 
 import subprocess
+from typing import final,overload
+from dataclasses import dataclass
 from abc import abstractmethod
 
 from pathlib import Path
@@ -14,45 +19,40 @@ from . import (ExecutionError,
                OutputError,
                ExecutionNotFound,)
 
+import multiprocessing
+from multiprocessing import Queue, Process, Pipe, Value, Array
 
-from blocks.base.signal import Signal
 
 
-
-class BaseExecute(object):
+class BaseExecute:
     
     def __init__(self, 
-                 workdir=None, 
-                 commands=None, 
-                 use_shell=False, 
-                 langage=None,
-                 signal=None,
+                 workdir=None,
+                 commands=None,
+                 use_io=True,
+                 use_external=False,
+                 use_cache=False,
+                 language=None,
                   **kwargs):
                 
         self.workdir = workdir or ""
 
-        if not os.path.exists(self.workdir):
+        if not os.path.exists(self.workdir) and use_io:
             raise ExecutionSetupError(
                 f"Work directory '{self.workdir}' didn't exists.")
-        
-        self.commands   = commands
-        self.use_shell  = use_shell
-        self.langage    = langage 
-        self.parameters = kwargs.copy()
 
-        # Initialisation du signal
-        self.sgl = signal
+        self.commands      = commands
+        self.use_external  = use_external
+        self.use_io        = use_io
+        self.use_cache     = use_cache
+        self.language      = language
 
-        if signal is None:
-            self.sgl = Signal('LOADED')
+
+    # -------------------------------------------------------------------------
+    # Serializable / Copy functions
 
     def to_dict(self,):
-        results = {
-            'workdir':self.workdir,
-            'use_shell':self.use_shell,
-            'langage':self.langage,
-            'commands':self.commands, }
-        results.update(**self.parameters)
+        results = {}
         return results
 
     @classmethod
@@ -60,42 +60,26 @@ class BaseExecute(object):
         return cls(**data)
 
     def copy(self,):
-        ...
+        return type(self)(
+            workdir=self.workdir,
+            commands=copy.copy(self.commands),
+            use_io=self.use_io,
+            use_external=self.use_external,
+            use_cache=self.use_cache,
+            language=self.language,
+        )
 
-    def deepcopy(self,):
-        ...
 
-
-    # -----------------------------------------------------
-    # signal methods
-    # Méthodes pour accéder et modifier l'état du node 
-    # via le signal
+    # -------------------------------------------------------------------------
+    # Properties of Executor
 
     @property
-    def signal(self):
-        self.__SIGNAL__ = self.sgl.signal
-        return self.__SIGNAL__
-
-    @signal.setter
-    def signal(self, value):
-        self.sgl.signal = value
-        self.__SIGNAL__  = value
-        
-    @property
-    def langage(self) -> str:
-        """
-        Get the langage of the execution.
-        """
-        return self._langage
+    def language(self):
+        return self._lang
     
-    @langage.setter
-    def langage(self, langage: str):
-        """
-        Set the langage of the execution.
-        """
-        #if langage not in _supported_languages:
-        #    raise ExecutionError(f"Invalid langage '{langage}'.")
-        self._langage = langage
+    @language.setter
+    def language(self, lang):
+        self._lang = lang
 
     @property
     def workdir(self) -> str:
@@ -105,42 +89,136 @@ class BaseExecute(object):
     def workdir(self, workdir):
         self._workdir = str(Path(workdir))  
 
+    def __str__(self):
+        txt = f"Execute(workdir={self.workdir}, use_external={self.use_external}, language={self.language})"
+        return txt
 
 
-    @abstractmethod
-    def require(self,):
-        self.signal = "required".upper()
-        ...
+from .backend import Backend
+from .backend import (ThreadedBackend, 
+                      MultiprocessBackend, 
+                      DistributedBackend, 
+                      GPUBackend)
 
-    @abstractmethod
-    def destroy(self,):
-        self.signal = "destroyed".upper()
-        ...
-
-    @abstractmethod
-    def load(self,):
-        self.signal = "loaded".upper()
-        ...
-
-    @abstractmethod
-    def interrupt(self,):
-        self.signal = "interrupted".upper()
-        ...
-
-    @abstractmethod
-    def execute(self,):
-        self.signal = "running".upper()
-        ...
+_backend_available = {
+    'default':Backend,
+    'multiprocessing':MultiprocessBackend,
+    'threads':ThreadedBackend,
+    'distributed':DistributedBackend,
+    'gpu':GPUBackend,
+}
 
 
+# TODO list:
+# > Penser à faire une fonction submit pour soumettre les différentes taches
+#   au processus du Backend
+#   Cette méthode doit permettre d'éxécuter les nodes 
+# > Implémenter la méthode d'éxécution qui permet gère la lecture/ecriture 
+#   dans des fichier.
+# > Proposer un backend d'éxécution sur un serveur via une gate SSH
+# > Merge BaseExecute et Execute en une seule classe
+ 
+
+class Execute(BaseExecute):
+
+    def __init__(self,
+                 queue = None,
+                 backend='default',
+                 build_backend=True,
+                 *args, **kwargs):
+
+        self._proto_backend  = self.select_backend(backend)
+
+        if build_backend:
+            self._backend = self.build_backend()
+
+        if queue: 
+            self._queue = queue
+        else: 
+            self._queue = Queue()
+
+        super().__init__(*args,**kwargs)
+
+        self._is_running = False
+
+    def select_backend(self, name):
+
+        if isinstance(name,str):
+            try:
+                return _backend_available[name]
+            except:
+                raise NotImplemented(f'Backend {name} is unknown')
+        elif hasattr(name,'__object__'):
+            return name
+        else:
+            raise NotImplemented
+
+    def _base_call(self, _mandat=''):
+        try:
+            return getattr(self._backend, _mandat)
+        except:
+            raise NotImplemented
+        return None
+
+    # -------------------------------------------------------------------------
+    # Basic methods of Executor
+
+    def execute(self, forward=None):
+        
+        if forward:
+            self._backend._worker = forward
+        else:
+            raise NotImplementedError("No forward method provided for execution.")
+        
+        _exec = self._base_call(_mandat='execute')
+        return _exec
+
+    def build_backend(self, *args, **kwargs):
+
+        self._backend = self._proto_backend(*args, **kwargs)
+        return self._backend
+    
+        #_setup = self._base_call(_mandat='setup')
+        #_setup()
+
+    def __str__(self):
+        txt = f"Execute(backend={self._proto_backend}; language={self.language})"
+        return txt
 
 
 class FileIOExecute(BaseExecute):
-    ...
+    
+    @overload
+    def execute(self, 
+                input_data, 
+                _func=None,
+                format=None):
+        
+        output_data =  _func(input_data)
+
+        return output_data
 
 
-class Execute(BaseExecute):
-    ...
+
+
+class pyExecute(Execute):
+
+    def __init__(self, 
+                 queue=None, 
+                 backend='default',
+                 build_backend=False, 
+                 *args, **kwargs):
+        
+        super().__init__(queue, 
+                         backend, 
+                         build_backend, 
+                         *args, **kwargs)
+
+    # Fonction qui va stocker les méthodes du node
+
+
+
+
 
 
 

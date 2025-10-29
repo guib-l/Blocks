@@ -122,7 +122,6 @@ class Block(BaseBlock):
                          data=data,
                          doc=doc,
                          **kwargs)
-
         if _build:
             export_metadata(self, type, 'json')
 
@@ -155,7 +154,12 @@ class Block(BaseBlock):
             path = os.path.join(self.path,
                                 self.name,
                                 f"{filename}.{format}")
-
+            
+            from blocks.base.encoder import NodeJSONEncoder
+            #obj = json.dumps(content, 
+            #                 indent=4, 
+            #                 cls=NodeJSONEncoder)
+            
             with open(path, "w") as f:
                 f.write(content)
 

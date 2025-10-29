@@ -23,8 +23,9 @@ if __name__ == "__main__":
       
    # Create a sample dataset
     data = {
-        'name': 'Sample-Dataset',
+        'name': 'block-test',
         'id': None,
+        '_build':True,
         'version': '0.0.1',
         'path': "myblock/",
         'values': [1, 2, 3, 4, 5],
@@ -40,7 +41,7 @@ if __name__ == "__main__":
     Block.export_metadata(block, filename='blocks', format='json')
   
    # Load new Block from the first
-    block_bis = Block.load_from_directory(name='Sample-Dataset',
+    block_bis = Block.load_from_directory(name='block-test',
                                           metadata_file='blocks',
                                           path=BLOCK_PATH)
     print(block_bis)
@@ -55,15 +56,15 @@ if __name__ == "__main__":
     print("Block compressed successfully.")
 
    # Decompression du block
-    block.decompress(source='Sample-Dataset.zip')
+    block.decompress(source='block-test.zip')
     print("Block decompressed successfully.")
 
    # Rename the block
-    block.rename("New-Sample-Dataset")
+    block.rename("New-block-test")
     print("Block renamed successfully.")
 
    # Rename the block
-    block.rename("Sample-Dataset")
+    block.rename("block-test")
     print("Block renamed successfully.")
     
    # Move the block

@@ -9,14 +9,18 @@ import copy
 from typing import Dict, Any, TypeVar, Type
 
 class BaseJSONEncoder(json.JSONEncoder):
+    
     def default(self, obj: typing.Any) -> typing.Any:
+    
         if isinstance(obj, (set,)):
             return list(obj)
         return super().default(obj)
 
 
 class BaseBlockJSONEncoder(json.JSONEncoder):
+    
     def default(self, obj: typing.Any):
+    
         if isinstance(obj, obj.__class__):
             try:
                 return obj.to_dict()
@@ -26,9 +30,9 @@ class BaseBlockJSONEncoder(json.JSONEncoder):
 
 
 class NodeJSONEncoder(json.JSONEncoder):
+
     def default(self, obj: typing.Any) -> typing.Any:
-        #print("Encoder : \n",obj,obj.__class__)
-        
+        #print("Encoder : \n",obj,obj.__class__)    
         if isinstance(obj, set):
             return list(obj)
         

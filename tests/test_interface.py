@@ -23,33 +23,24 @@ class Executor:
 
 if __name__ == "__main__":
       
-   # Create a sample dataset
-    data = {
-        'name': 'Sample-Dataset',
-        'id': None,
-        'version': '0.0.1',
-        'path': "myblock/",
-        'values': [1, 2, 3, 4, 5],
-        'metadata': {'source': 'generated', 'version': 1.0},
-        '_interface': Interface,
-        '_environment': Environment,
-        '_executor': Executor,
-    }
   
    # Initialisation d'un Block
-    node1 = Node(**data)
+    node1 = Node.load(name='function-test',
+                      directory=BLOCK_PATH)
     print(node1)
-    node2 = Node(**data)
+    node2 = Node.load(name='function-test',
+                      directory=BLOCK_PATH)
     print(node2)
-    node3 = Node(**data)
+    node3 = Node.load(name='function-test',
+                      directory=BLOCK_PATH)
     print(node3)
 
     print("Nodes instance created successfully.")
 
 
-    interface1 = Interface(object=node1)
-    interface2 = Interface(object=node2)
-    interface3 = Interface(object=node3)
+    interface1 = Interface(node=node1)
+    interface2 = Interface(node=node2)
+    interface3 = Interface(node=node3)
 
     msg = MESSAGE(FROM=node1.id, 
                   TO=node2.id, 

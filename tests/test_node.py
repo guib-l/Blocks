@@ -8,31 +8,10 @@ from configs import *
 
 from blocks.base import *
 from blocks.nodes.node import Node
-from blocks.export import task_node
+from blocks.export import task_node,export_function
 
 from blocks.socket.interface import (MessageType,MESSAGE,Interface)
 
-
-def export_function(name='function',
-                    inp=None,
-                    out=None,
-                    execute=False,
-                    err="defaults-error"):
-
-    def wrap(function):
-        def wrapper(**kwargs):
-            
-            output = {
-                'function':function,
-                'type':type(function),
-                'results':function(**kwargs) if execute else None,
-                'input':inp,
-                'output':out,
-                }
-
-            return output
-        return wrapper
-    return wrap
 
 
 
@@ -66,7 +45,7 @@ def heavy_calculation(n=5):
 
 
 
-
+'''
 def add_features(cls):
     """Décorateur qui ajoute des fonctionnalités à une classe."""
     
@@ -103,7 +82,7 @@ class Executor(Environment):
 
     def to_dict(self,):
         return {}
-    
+'''
 
 
 
@@ -125,19 +104,21 @@ if __name__ == "__main__":
         '_executor': None,
     }
   
-   # Initialisation d'un Block
+    # ===============================================
+    # Initialisation d'un Block
+    print("\n"+"*"*40)
+    print("BUILD NODE with default_install")
     node = Node(**data)
-    print(node)
-    print("Node instance created successfully.")
-
-    print("Info:", node.info())
-    
+    print("Node instance created successfully.") 
 
 
+    # ===============================================
     # Install few nodes
+    print("\n"+"*"*40)
+    print("INSTALL NODE with default_install")
 
     script_filename = DIRECTORY + "/myscript/my_script.py" # Ne fonctionne pas
-    script_path     = DIRECTORY + "/myscript/source"              # Fonctionne okay
+    script_path     = DIRECTORY + "/myscript/source"       # Fonctionne okay
 
     node = Node.install(name='function-test',
                         directory=os.path.join(DIRECTORY, BLOCK_PATH),
@@ -149,23 +130,49 @@ if __name__ == "__main__":
                                   'script': script_filename},
                         _environment=None,
                         _executor=None,)
-    print(node)
+    #print(node)
     print("Node installed successfully.")
 
 
+
+    # ===============================================
+    print("\n"+"*"*40)
+    print("LOAD NODE with loading method")
 
     node = Node.load(name='function-test',
                      directory=BLOCK_PATH)
     print(node)
     print("Node instance created successfully.")
 
+
+
+    # ===============================================
+    print("\n"+"*"*40)
+    print("TASK NODE with loading method")
+
     x = function_test(xdata=3.0)
     print("Function output:", x)
 
-    x = heavy_calculation()
-    print("Node output:", x)
-    
-    x.execute(n=5)
+
+    # ===============================================
+    print("\n"+"*"*40)
+    print("LOAD/BUILD NODE with task_node TRANSFORMATION")
+
+    results = heavy_calculation(n=2)  
+
+    node = heavy_calculation() 
+    node.execute(n=5)
+
+    #node.install()
+
+
+    # Installation de via Task
+
+
+
+
+    # Env default python pip + conda + venv
+
 
 
 

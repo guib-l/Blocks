@@ -22,6 +22,7 @@ from . import (ExecutionError,
 import multiprocessing
 from multiprocessing import Queue, Process, Pipe, Value, Array
 
+from enum import Enum
 
 
 class BaseExecute:
@@ -32,7 +33,6 @@ class BaseExecute:
                  use_io=True,
                  use_external=False,
                  use_cache=False,
-                 language=None,
                   **kwargs):
                 
         self.workdir = workdir or ""
@@ -45,7 +45,6 @@ class BaseExecute:
         self.use_external  = use_external
         self.use_io        = use_io
         self.use_cache     = use_cache
-        self.language      = language
 
 
     # -------------------------------------------------------------------------
@@ -66,20 +65,10 @@ class BaseExecute:
             use_io=self.use_io,
             use_external=self.use_external,
             use_cache=self.use_cache,
-            language=self.language,
         )
-
 
     # -------------------------------------------------------------------------
     # Properties of Executor
-
-    @property
-    def language(self):
-        return self._lang
-    
-    @language.setter
-    def language(self, lang):
-        self._lang = lang
 
     @property
     def workdir(self) -> str:
@@ -108,6 +97,14 @@ _backend_available = {
     'gpu':GPUBackend,
 }
 
+class AvailableBackend(Enum):
+    default         = Backend,
+    multiprocessing = MultiprocessBackend,
+    threads         = ThreadedBackend,
+    distributed     = DistributedBackend,
+    gpu             = GPUBackend,
+
+
 
 # TODO list:
 # > Penser à faire une fonction submit pour soumettre les différentes taches
@@ -115,7 +112,7 @@ _backend_available = {
 #   Cette méthode doit permettre d'éxécuter les nodes 
 # > Implémenter la méthode d'éxécution qui permet gère la lecture/ecriture 
 #   dans des fichier.
-# > Proposer un backend d'éxécution sur un serveur via une gate SSH
+# ### > Proposer un backend d'éxécution sur un serveur via une gate SSH
 # > Merge BaseExecute et Execute en une seule classe
  
 
@@ -182,39 +179,39 @@ class Execute(BaseExecute):
         #_setup()
 
     def __str__(self):
-        txt = f"Execute(backend={self._proto_backend}; language={self.language})"
+        txt = f"Execute(backend={self._proto_backend};"
         return txt
+    
+    def to_dict(self):
+        return dict(
+            workdir=self.workdir,
+            commands=copy.copy(self.commands),
+            use_io=self.use_io,
+            use_external=self.use_external,
+            use_cache=self.use_cache,
+        )
 
 
-class FileIOExecute(BaseExecute):
+class FileIOExecute(Execute):
+
+    def write_input(self,):
+        pass
+
+    def read_output(self,):
+        pass
     
     @overload
-    def execute(self, 
-                input_data, 
-                _func=None,
-                format=None):
+    def execute(self, forward=None):
         
-        output_data =  _func(input_data)
-
-        return output_data
-
-
-
-
-class pyExecute(Execute):
-
-    def __init__(self, 
-                 queue=None, 
-                 backend='default',
-                 build_backend=False, 
-                 *args, **kwargs):
+        if forward:
+            self._backend._worker = forward
+        else:
+            raise NotImplementedError("No forward method provided for execution.")
         
-        super().__init__(queue, 
-                         backend, 
-                         build_backend, 
-                         *args, **kwargs)
+        _exec = self._base_call(_mandat='execute')
+        return _exec
 
-    # Fonction qui va stocker les méthodes du node
+
 
 
 

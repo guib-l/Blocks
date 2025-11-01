@@ -1,14 +1,11 @@
 import blocks
 
-
-#from blocks.engine.execute import _exporter_python_function
-
 from blocks.nodes.node import Node
 from blocks.engine.execute import Execute
 
-from blocks.engine.environment import Environment,PYTHON_DEFAULT
+from blocks.engine.environment import Environment,PYTHON
 
-#export_function = _exporter_python_function
+
 
 
 def task_node(backend='default',
@@ -16,29 +13,51 @@ def task_node(backend='default',
 
     def wrap(function):
         def wrapper(**kwargs):
-            
             data_set = {
                 'name': 'task_' + str(function.__name__),
                 'id': None,
                 'version': '0.0.1',
                 'path': "",
-                '_build': True,
+                '_build': False,
                 '_mandatory_attr': False,
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
                 '_environment': Environment(functions=[function,],
                                             language='python3', 
-                                            backend_env=PYTHON_DEFAULT,
+                                            backend_env=PYTHON,
                                             build=True,),
                 '_executor': Execute(backend=backend, 
                                      **backend_args),}
             
-            data_set.update(kwargs)
+            if not kwargs == {}:
+                return Node(**data_set).execute(**kwargs)
+            
             return Node(**data_set)
         return wrapper
     return wrap
 
+
+def export_function(name='function',
+                    inp=None,
+                    out=None,
+                    execute=False,
+                    err="defaults-error"):
+
+    def wrap(function):
+        def wrapper(**kwargs):
+            
+            output = {
+                'function':function,
+                'type':type(function),
+                'results':function(**kwargs) if execute else None,
+                'input':inp,
+                'output':out,
+                }
+
+            return output
+        return wrapper
+    return wrap
 
 
 

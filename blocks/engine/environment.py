@@ -11,9 +11,6 @@ from enum import Enum,Flag
 
 class _default_env:
 
-    def __init__(self,  **kwargs):
-        pass
-    
     def open(self,):
         print(f'> Open environment "Default"')
 
@@ -28,54 +25,23 @@ class _default_env:
 
 
 
+class PYTHON:
+    environment = _default_env
+    parameters  = {}
 
-PYTHON_DEFAULT = {
-    'env_object':_default_env,
-    'functions': [],
-}
-
-
-
-
-class _deleguation:
-    __deleguation__ = []
-
-class GetDeleguateMixin(_deleguation):
-
-    def __getattribute__(self, name):
-
-        for attr in self.__deleguation__:
-            obj = getattr(self, attr, None)
-            if obj is not None and hasattr(obj, name):
-                return getattr(obj, name)
-        raise AttributeError(f"{type(self).__name__} n'a pas d'attribut {name}")
-    
-class SetDeleguateMixin(_deleguation):
-
-    def __setattr__(self, name, value):
-
-        if name in self.__dict__ or name in getattr(self, '__slot__',()):
-            super().__setattr__(name, value)
-            return 
-        
-        for attr in self.__deleguation__:
-            obj = getattr(self, attr, None)
-            if obj is not None and hasattr(obj, name):
-                setattr(obj, name, value)
-                return 
-            
-        super().__setattr__(name, value)
+class PYTHON_PIP:
+    environment = None
+    parameters  = {}
 
 
 
 class Environment:
 
-
     def __init__(self,
                  name='env',
                  directory='./',
                  language='python3', 
-                 backend_env=PYTHON_DEFAULT,
+                 backend_env=PYTHON,
                  build=True,
                  functions=None,
                  **kwargs):
@@ -88,12 +54,12 @@ class Environment:
     
         self.language = language
 
-        self._backend_env = backend_env['env_object']
-        backend_env.pop('env_object')
-        backend_env.update(**kwargs)
+        self._backend_env = backend_env.environment
+
+        backend_env.parameters.update(**kwargs)
         
         if build:  
-            self.build(**backend_env)
+            self.build(**backend_env.parameters)
 
         self._build = build
             
@@ -153,9 +119,16 @@ class Environment:
             language=self.language,
             backend_env=self._backend_env,
             build=self._build,
-            functions=copy.copy(self.functions),
-        )
+            functions=copy.copy(self.functions),)
 
+    def to_dict(self,):
+        return dict(
+            name=self.name,
+            directory=self.directory,
+            language=self.language,
+            backend_env=self._backend_env,
+            build=self._build,
+            functions=copy.copy(self.functions),)
 
 
     def __enter__(self):
@@ -212,6 +185,7 @@ class Environment:
     def __add__(self, other):
         # Ajoute les fonctions de 'other' dans self
         # a condition que tout les paramètres soient identiques
+
         return self
 
 

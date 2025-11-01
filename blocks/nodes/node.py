@@ -302,8 +302,8 @@ class Node(block.Block):
             "root": self.root,
             "id": self.id,
             #"interface": self.__ITFC__.to_dict() if self.__ITFC__ is not None else None,
-            "environment": self.__ENV__ is not None,
-            "executor": self.__EXEC__ is not None,
+            "environment": self.__ENV__.to_dict() is not None,
+            "executor": self.__EXEC__.to_dict() is not None,
             #"input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
             #"output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
         })

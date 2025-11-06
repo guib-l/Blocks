@@ -1,6 +1,8 @@
 # Blocks
 
-Projet en cours de production ...
+Projet en cours de production 
+
+Gestioninaire de packets et  version de code en python pour tout types de languages.
 
 ## Blocks
 
@@ -8,7 +10,7 @@ Projet en cours de production ...
 
 ## Communication
 
-## Project
+## Projects
 
 
 

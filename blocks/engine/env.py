@@ -8,32 +8,7 @@ from pathlib import Path
 
 from enum import Enum,Flag
 
-
-class _default_env:
-
-    def open(self,):
-        print(f'> Open environment "Default"')
-
-    def close(self, **kwargs):
-        print(f'> Close environment "Default"')
-    
-    def create(self, **kwargs):
-        print(f'> Create ')
-
-    def update(self, **kwargs):
-        print(f'> Update ')
-
-
-
-class PYTHON:
-    environment = _default_env
-    parameters  = {}
-
-class PYTHON_PIP:
-    environment = None
-    parameters  = {}
-
-
+from .environment import PYTHON
 
 class Environment:
 
@@ -48,7 +23,6 @@ class Environment:
         
         self.name = name
         self.directory = directory
-
 
         self.functions = functions
     

@@ -1,0 +1,6 @@
+
+
+class CondaEnv:
+    pass
+
+

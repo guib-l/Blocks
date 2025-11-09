@@ -4,18 +4,89 @@ import sys
 from typing import List, Optional
 from pathlib import Path
 
+from dataclasses import dataclass
+
+from contextlib import ExitStack
+import subprocess
 
 
-class Profile:
-    def execute(self, command: str):
-        print(f"Executing command in profile: {command}")
 
+@dataclass
+class SimpleProfile:
+
+    commands: List[List[str]] = None
+    directory: str = "./"
+    shell: bool = False
+    timeout: Optional[int] = None
+
+    def __post_init__(self):
+        self.directory = Path(self.directory)
+        if not self.directory.exists():
+            raise ValueError(f"Directory {self.directory} does not exist")
+
+    def _execute_command(self, cmd: List[str]) -> tuple[str, str, int]:
+        """Execute a single command and return stdout, stderr, and return code."""
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                shell=self.shell,
+                #bufsize=1,
+                cwd=str(self.directory)
+            )
+            stdout, stderr = process.communicate(timeout=self.timeout)
+            return stdout, stderr, process.returncode
+        
+        except subprocess.TimeoutExpired:
+            process.kill()
+            raise RuntimeError(f"Command {cmd} timed out after {self.timeout} seconds")
+        
+        except Exception as e:
+            raise RuntimeError(f"Failed to execute command {cmd}: {e}")
+
+    def execute(self, commands=None) -> dict:
+        """Execute all commands and return results."""
+        
+        if commands is None:
+            commands = self.commands
+        
+        if isinstance(commands, list) and all(isinstance(c, str) for c in commands):
+            commands = [commands,]
+
+        results = {
+            'outputs': [],
+            'errors': [],
+            'return_codes': [],
+            'success': True
+        }
+
+        for i, cmd in enumerate(commands):
+            try:
+                stdout, stderr, returncode = self._execute_command(cmd)
+                results['outputs'].append(stdout)
+                results['errors'].append(stderr)
+                results['return_codes'].append(returncode)
+                
+                if returncode != 0:
+                    results['success'] = False
+                    
+            except Exception as e:
+                results['outputs'].append("")
+                results['errors'].append(str(e))
+                results['return_codes'].append(-1)
+                results['success'] = False
+
+        return results
 
 
 
 class Select:
 
-    def __init__(self, env_type: str, mng_type: str):
+    def __init__(self, 
+                 env_type: str, 
+                 mng_type: str):
         self.environ = env_type
         self.manager = mng_type
 
@@ -34,11 +105,10 @@ class Select:
             from packages.environ._venv import VenvEnv
             env_type = VenvEnv
         else:
-            #if not isinstance(env_type,PackageEnvironment):
-            raise ValueError('The environment must be a PackageEnvironment instance or a valid string identifier')
-            
-        self._environ = env_type
+            if not hasattr(env_type,'__envtype__') and env_type.__envtype__ != 'EnvironMixin' :
+                raise ValueError('The environment must be a PackageEnvironment instance or a valid string identifier')
 
+        self._environ = env_type
     @property
     def manager(self):
         return self._manager
@@ -56,8 +126,8 @@ class Select:
             from packages.manager._conda import CondaManager
             manager = CondaManager
         else:
-            #if not isinstance(manager,PackageManager):
-            raise ValueError('The manager must be a PackageManager instance or a valid string identifier')
+            if not hasattr(manager,'__envtype__') and manager.__envtype__ != 'DependenciesMixin' :
+                raise ValueError('The manager must be a PackageManager instance or a valid string identifier')
             
         self._manager = manager
 
@@ -73,36 +143,97 @@ class Packages(Select):
                  dependencies = ['numpy'],
                  auto_build = False,
                  profile = None,
-                 use_shell = True, ):
+                 **args ):
         
         self.directory = Path(directory)
         self.env_name = env_name
 
-        super().__init__(env_type=env, mng_type=mng)
+        super().__init__(env_type=env, 
+                         mng_type=mng)
 
         self.dependencies = dependencies
         self.auto_build = auto_build
-        self.profile = profile
-        self.use_shell = use_shell
+        
+        self.profile = profile or SimpleProfile()
 
-    def build(self):
+        if auto_build:
+            self.build(**args)
+        
+
+    def build(self, **kwargs):
         print(f"Building environment {self.env_name} with dependencies {self.dependencies}")
+
+        self._backend_environ = self.environ(
+            name = self.env_name,
+            directory = self.directory,
+        )
+
+        self._backend_manager = self.manager(
+            context = self._backend_environ,
+            packages = self.dependencies,
+            env_path=self._backend_environ.env_path,
+            profile=self.profile,
+        )
+
+    def install(self):
+        print(f"Installing dependencies in environment {self.env_name}")
+        self._backend_environ.install_context()
+
+    def uninstall(self):
+        print(f"Uninstalling dependencies from environment {self.env_name}")
+        self._backend_environ.uninstall_context()
 
     def activate(self):
         print(f"Activating environment {self.env_name}")
+        self._backend_environ.enable()
 
-    def update(self, dependencies: List[str]):
-        pass
+    def update(self, dependencies: List[str]=None):
+        print(f"Updating dependencies {dependencies} in environment {self.env_name}")
+        for dep in dependencies:
+            self._backend_manager.update_dependencies(dep)
+
+    def list_dependencies(self):
+        print(f"Listing dependencies for environment {self.env_name}")
+        return self._backend_manager.list_context()
+    
+    def install_dependencies(self, dependencies: List[str]):
+        print(f"Installing dependencies {dependencies} in environment {self.env_name}")
+        self._backend_manager.install_dependencies(dependencies)
+
+    def uninstall_dependencies(self, dependencies: List[str]):
+        print(f"Uninstalling dependencies {dependencies} from environment {self.env_name}")
+        self._backend_manager.uninstall_dependencies(dependencies)
 
     def deactivate(self):
         print(f"Deactivating environment {self.env_name}")
+        self._backend_environ.disable()
 
     def move_env(self, target: str):
         print(f"Moving environment {self.env_name} to {target}")
+        self._backend_environ.move_env(
+            target_dir=target,
+            delete_source=True,
+        )
+        self.directory = self._backend_environ.env_path
+        self._backend_manager.env_path = self._backend_environ.env_path
 
-    def copy(self):
+    def copy(self, 
+             new_name: Optional[str] = None, 
+             directory: Optional[str] = None,):
         print(f"Copying environment {self.env_name}")
-        
+
+        assert new_name is not None, "A new name must be provided for the copied environment"
+
+        return type(self)(
+            directory = directory or str(self.directory),
+            env_name = new_name,
+            dependencies = self.dependencies.copy(),
+            auto_build = True,
+            profile = self.profile,
+            env = self._backend_environ.__class__,
+            mng = self._backend_manager.__class__,
+        )
+
     def add_dependencies(self, dependency: str):
         print(f"Adding dependency {dependency} to environment {self.env_name}")
 
@@ -113,17 +244,31 @@ class Packages(Select):
         print(f"Comparing environment {self.env_name} with another environment")
         return {}
 
-    def merge(self, pkg, directory: str, ignore_dependencies: Optional[List[str]] = None):
+    def merge(self, 
+              pkg, 
+              directory: str, 
+              ignore_dependencies: Optional[List[str]] = None):
         print(f"Merging environment {self.env_name} with another environment into directory {directory}")
 
-    def __eq__(self, other):
-        pass
 
-    def __ne__(self, other):
-        pass
+
+    def __eq__(self, other):
+        if not isinstance(other, Packages):
+            return False
+        if len(self.dependencies) != len(other.dependencies):
+            return False
+        for dep in self.dependencies:
+            if dep not in other.dependencies:
+                return False
+        return True
+        
+    def diff(self, other):
+        raise NotImplementedError
+            
 
     def __str__(self):
-        return f"Packages(env_name={self.env_name}, env={self.env}, mng={self.mng}, dependencies={self.dependencies})"
+        return f"Packages(env_name={self.env_name}, \
+env={self._backend_environ}, mng={self._backend_manager}, dependencies={self.dependencies})"
 
     def __repr__(self):
         return self.__str__()
@@ -135,7 +280,6 @@ class Packages(Select):
             "dependencies": self.dependencies,
             "auto_build": self.auto_build,
             "profile": self.profile,
-            "use_shell": self.use_shell,
         }
     
     def from_dict(self, data: dict):
@@ -145,18 +289,6 @@ class Packages(Select):
         self.auto_build = data.get("auto_build", False)
         self.profile = data.get("profile", None)
         self.use_shell = data.get("use_shell", True)
-
-    def copy(self):
-        return type(self)(
-            directory = str(self.directory),
-            env_name = self.env_name,
-            dependencies = self.dependencies,
-            auto_build = self.auto_build,
-            profile = self.profile,
-            use_shell = self.use_shell,
-            env = self.environ.__name__.lower(),
-            mng = self.manager.__name__.lower(),
-        )
 
 
 

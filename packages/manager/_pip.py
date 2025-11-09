@@ -2,26 +2,116 @@ import os
 import sys
 import subprocess
 
-from . import DependenciesManager
+from packages.dependencies import DependenciesMixin
 
 
-class PipManager(DependenciesManager):
-    def __init__(self, env_path=None):
-        super().__init__(env_path)
+class PipManager(DependenciesMixin):
+    
+    def __init__(self, 
+                 env_path=None, 
+                 profile=None,
+                 packages=None,
+                 **kwargs):
+        
+        self.env_path = env_path
+        self.profile = profile
+        self.dependencies = packages or []
 
-    def install(self, package):
+        if self.dependencies:
+            self.install_dependencies(self.dependencies)
+
+    def copy(self, **kwargs):
+        return type(self)(
+            env_path=self.env_path,
+            profile=self.profile,
+            dependencies=self.dependencies,
+            **kwargs
+        )
+
+    def _exec_pip(self, command):
+        try:
+            if self.profile is None:
+                subprocess.run(command, check=True)
+            else:
+                self.profile.execute(commands=command)
+        except Exception as e:
+            print(f"Error executing pip command {' '.join(command)}: {e}")
+            return False
+        return True
+
+    def install_dependencies(self, package):
+        
+        if isinstance(package, list):
+            for pkg in package:
+                self.install_dependencies(pkg)
+            return True
+        
+        if package in self.dependencies:
+            return True
+        
+        self.dependencies.append(package)
+        
         cmd = [sys.executable, '-m', 'pip', 'install', package]
         if self.env_path:
             cmd.extend(['--target', self.env_path])
-        subprocess.run(cmd)
-        print(f'✓ Installed {package} via pip')
+        
+        return self._exec_pip(cmd)
 
-    def uninstall(self, package):
+    def uninstall_dependencies(self, package):
+
+
+        if isinstance(package, list):
+            for pkg in package:
+                self.uninstall_dependencies(pkg)
+            return True
+        
+        print(package,self.dependencies)
+        if package not in self.dependencies:
+            return True
+        
+        self.dependencies.remove(package)
+
         cmd = [sys.executable, '-m', 'pip', 'uninstall', package, '-y']
         if self.env_path:
             cmd.extend(['--target', self.env_path])
-        subprocess.run(cmd)
-        print(f'✓ Uninstalled {package} via pip')
+
+        return self._exec_pip(cmd)
+
+    def update_dependencies(self, package):
+        cmd = [sys.executable, '-m', 'pip', 'install', '--upgrade', package]
+        if self.env_path:
+            cmd.extend(['--target', self.env_path])
+
+        return self._exec_pip(cmd)
+
+    def list_dependencies(self):
+        cmd = [sys.executable, '-m', 'pip', 'list']
+        if self.env_path:
+            cmd.extend(['--target', self.env_path])
+
+        try:
+            if self.profile is None:
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            else:
+                result = self.profile.execute(cmd, capture_output=True, text=True)
+            output = result.stdout
+            packages = []
+            for line in output.splitlines()[2:]:  # Skip header lines
+                parts = line.split()
+                if len(parts) >= 2:
+                    packages.append((parts[0], parts[1]))
+            return packages
+        except Exception as e:
+            print(f"Error listing dependencies via pip: {e}")
+            return []
+        
+
+
+
+
+
+
+
 
 
 

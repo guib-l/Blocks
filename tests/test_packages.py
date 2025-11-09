@@ -9,6 +9,17 @@ from configs import *
 
 from packages.package import Packages
 
+from packages.package import SimpleProfile
+
+
+cmds = [
+    ['python3','--version'],
+    ['pip','list']
+]
+
+# Test d'execution de profile
+prf = SimpleProfile()
+out = prf.execute(commands=cmds)
 
 
 
@@ -17,9 +28,9 @@ if __name__ == "__main__":
 
     pkg = Packages(
         directory = '.',
-        env_name = 'conda-env.01',
-        env = 'conda',
-        mng = 'conda',
+        env_name = 'pip-env.01',
+        env = 'venv',
+        mng = 'pip',
         dependencies = ['numpy'],
         auto_build = False,
         profile = None,
@@ -33,26 +44,29 @@ if __name__ == "__main__":
     pkg.activate()
 
     # Ajoute des dépendances dans l'environement
-    pkg.update(
-        dependencies=["scipy"],
-    )
+    #pkg.install_dependencies( dependencies=["scipy"],)
+    #pkg.uninstall_dependencies( dependencies=["scipy"])
 
     # Sort de l'environement
     pkg.deactivate()
 
     pkg.move_env(
-        target="myblocks/"
+        target="myblock/"
+    )
+    pkg_copy = pkg.copy(
+        new_name="pip-env.02",
+        directory=".",
     )
 
-    pkg_copy = pkg.copy()
-
-    pkg_copy.add_dependencies('matplotlib')
-
+    pkg_copy.install_dependencies(
+        dependencies=['matplotlib']
+    )
+    
     if pkg == pkg_copy:
-        print("Same objects")
+        print(" > Same objects")
+    else:
+        print(" > Different objects")
 
-    diff = pkg.diff(pkg_copy)
-    print('Differences : ',diff)
 
     pkg.merge(
         pkg = pkg_copy,
@@ -60,11 +74,13 @@ if __name__ == "__main__":
         ignore_dependencies = None,
     )
 
-    pkg.del_dependencies('numpy')
+    pkg.uninstall_dependencies('numpy')
 
-    
+    print(" > Cleanup environments")
+    print(pkg.dependencies)
 
-
+    pkg.uninstall()
+    pkg_copy.uninstall()
 
 
     sys.exit()

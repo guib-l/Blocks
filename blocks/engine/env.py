@@ -8,7 +8,7 @@ from pathlib import Path
 
 from enum import Enum,Flag
 
-from .environment import PYTHON
+from blocks.engine import PYTHON
 
 class Environment:
 
@@ -86,9 +86,9 @@ class Environment:
     def from_dict(cls, **data):
         return cls(**data)
 
-    def copy(self,):
+    def copy(self, new_name=None):
         return type(self)(
-            name=self.name,
+            name=new_name,
             directory=self.directory,
             language=self.language,
             backend_env=self._backend_env,

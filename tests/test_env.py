@@ -14,8 +14,9 @@ from blocks.socket.interface import (MessageType,MESSAGE,Interface)
 
 from blocks.engine.execute import Execute
 
-from blocks.engine.pyenv import _python_env
-from blocks.engine.env import Environment, PYTHON
+from blocks.engine.python_env import _empty_env,_python_env
+from blocks.engine import PYTHON,PYTHON_PIP
+from blocks.engine.env import Environment
 
 import time
 
@@ -35,30 +36,52 @@ def heavy_calculation(n=5):
 
 if __name__ == "__main__":
       
-
+    # ============================================
+    # --- Create new environment with functions ---
 
     with Environment(functions=heavy_calculation) as ENV:
         print("Do somethings ...")
 
-        print(ENV.backend_env)
-        print(ENV.functions)
+        print('Backend   : ',ENV.backend)
+        print('Functions : ',ENV.functions)
 
     print('Out from env')
 
+    # ============================================
+    # --- Create new environment with packages ---
 
-    temp = copy(PYTHON)
+    temp = copy(PYTHON_PIP)
     temp.environment = _python_env
     temp.parameters['packages'] = ['numpy','pandas']
 
     print('Create new env with packages numpy and pandas')
-    print(temp.parameters)
 
-    Environment(name='pip',
-                directory='./envs/pip_env',
-                language='python3',
-                build=False,
-                backend_env=temp,
-                functions=heavy_calculation)
+    env = Environment(name='pip',
+                      directory='./envs/pip_env/',
+                      language='python3',
+                      build=False,
+                      backend_env=temp,
+                      functions=heavy_calculation,
+                      env_name='generic-env.02'
+                      )
+
+    print('Build the environment')
+
+    with env as e:
+        
+        func    = e.get_functions(name='heavy_calculation')
+        results = func()
+
+    #env.backend.uninstall()
+
+
+    # ====================================
+    # --- Serialization of environment ---
+    
+    dict_env = env.to_dict()
+    print('Environment as dict : \n',dict_env)
+    env = Environment.from_dict(**dict_env)
+
 
 
 

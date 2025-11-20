@@ -6,12 +6,13 @@ from packages.dependencies import DependenciesMixin
 
 
 class PipManager(DependenciesMixin):
+
+    __mng_name__ = 'pip'
     
     def __init__(self, 
                  env_path=None, 
                  profile=None,
-                 packages=None,
-                 **kwargs):
+                 packages=None,):
         
         self.env_path = env_path
         self.profile = profile
@@ -26,6 +27,21 @@ class PipManager(DependenciesMixin):
             profile=self.profile,
             dependencies=self.dependencies,
             **kwargs
+        )
+    
+    def to_dict(self):
+        return {
+            'env_path': self.env_path,
+            'profile': self.profile,
+            'packages': self.dependencies,
+        }
+    
+    @classmethod
+    def from_dict(cls, **kwargs):
+        return cls(
+            env_path=kwargs.get('env_path'),
+            profile=kwargs.get('profile'),
+            packages=kwargs.get('dependencies', []),
         )
 
     def _exec_pip(self, command):

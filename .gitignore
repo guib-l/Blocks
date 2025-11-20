@@ -1,7 +1,8 @@
 # Personnal customization
 env/
+envs/
 .env/
-
+.envs/
 myblock/
 
 # Byte-compiled / optimized / DLL files

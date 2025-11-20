@@ -1,6 +1,9 @@
 import os
 import sys
 
+from enum import Enum
+
+from .python_env import _empty_env,_python_env
 
 class ExecutionError(RuntimeError):
     """Base class of error types related to Execution."""
@@ -22,6 +25,38 @@ class InputError(ExecutionSetupError):
 
 class OutputError(ExecutionSetupError):
     """Raised if inputs given to the calculator were incorrect."""
+
+
+class Language(Enum):
+    PYTHON   = 'python'
+    R        = 'r'
+    JULIA    = 'julia'
+    MATLAB   = 'matlab'
+    BASH     = 'bash'
+
+
+
+class PYTHON:
+    environment = _empty_env
+    language    = Language.PYTHON
+    parameters  = {}
+
+
+
+class PYTHON_PIP:
+    environment = _python_env
+    language    = Language.PYTHON
+    parameters  = {
+        'directory': '.',
+        'env_name': 'generic-env.01',
+        'env': 'venv',
+        'mng': 'pip',
+        'dependencies': [],
+        'auto_build': True,
+        'profile': None,
+    }
+
+
 
 
 

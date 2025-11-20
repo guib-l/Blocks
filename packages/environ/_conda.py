@@ -3,10 +3,12 @@ import sys
 import subprocess
 
 import venv
-from packages.virtualenv import EnvManager
+from packages.virtualenv import EnvironMixin
 
 
-class CondaEnv(EnvManager):
+class CondaEnv(EnvironMixin):
+    
+    __mng_name__ = 'conda'
     
     def enable(self,):
         pass

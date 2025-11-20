@@ -79,6 +79,15 @@ if __name__ == "__main__":
     print(" > Cleanup environments")
     print(pkg.dependencies)
 
+    data = pkg.to_dict()
+    print(data)
+
+    X = Packages.from_dict(**data)
+    X.build()
+
+
+
+
     pkg.uninstall()
     pkg_copy.uninstall()
 

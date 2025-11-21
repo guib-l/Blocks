@@ -3,12 +3,15 @@ import sys
 import typing
 import abc
 import copy
+import json
 
 from packages.package import Packages
 
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
+
+from serializable import simple_serializable
 
 class abstract_env(ABC):
 
@@ -36,6 +39,7 @@ class abstract_env(ABC):
 
 
 @dataclass
+@simple_serializable
 class _empty_env(abstract_env):
 
     @classmethod
@@ -55,16 +59,13 @@ class _empty_env(abstract_env):
         print(f'> Update ')
 
 
-
-
-
 class _python_env(Packages,abstract_env):
 
     def __init__(self, 
                  directory = '.',
                  env_name = 'pip-venv.01',
-                 env = 'venv',
-                 mng = 'pip',
+                 env_type = 'venv',
+                 mng_type = 'pip',
                  dependencies = [],
                  auto_build = False,
                  profile = None,
@@ -72,8 +73,8 @@ class _python_env(Packages,abstract_env):
         
         super().__init__(directory=directory,
                          env_name=env_name,
-                         env=env,
-                         mng=mng,
+                         env_type=env_type,
+                         mng_type=mng_type,
                          dependencies=dependencies,
                          auto_build=auto_build,
                          profile=profile,
@@ -99,6 +100,8 @@ class _python_env(Packages,abstract_env):
     def update(self, **kwargs):
         print(f'> Update Python environment ')
 
+    # ============================================
+    # Serialization of _python_env object
 
 
 

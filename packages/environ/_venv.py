@@ -259,7 +259,7 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
                 continue
 
 
-
+    """
     def to_dict(self,):
         return {
             "name": self.env_name,
@@ -274,13 +274,16 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
             "auto_build": True,
             "env_name": self.env_name,
             "env_path": self.env_path
-        }
+        }"""
     
     @classmethod
     def from_dict(cls, **kwargs):
-        return cls(
-            **kwargs
-        )
+        return cls( **kwargs )
+
+    def to_json(self,):
+        import json
+        return json.dumps(self.to_dict(),
+                          indent=4)
     
 
 

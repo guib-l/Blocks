@@ -3,6 +3,7 @@ import sys
 import typing
 import abc
 import copy
+import json
 
 import inspect
 from pathlib import Path
@@ -11,9 +12,9 @@ from enum import Enum,Flag
 
 from blocks.engine import PYTHON
 
+from serializable import auto_serializable,simple_serializable
 
-
-
+from ..encoder import EnvJSONEncoder
 
 class Environment:
 
@@ -47,7 +48,10 @@ class Environment:
             self.backend = self.backend.sub_build(
                 **self._backend_env.parameters
                 )  
-            
+    
+    # ============================================
+    # Attributes definition
+
     @property
     def functions(self, name=None):
         if name is None:
@@ -93,12 +97,8 @@ class Environment:
     def language(self, lang):
         self._lang = lang
 
-
-    
-
-    @classmethod
-    def from_dict(cls, **data):
-        return cls(**data)
+    # ============================================
+    # Copy of Environment object
 
     def copy(self, new_name=None):
         return type(self)(
@@ -108,6 +108,15 @@ class Environment:
             build=self._build,
             functions=copy.copy(self.functions),)
 
+
+    # ============================================
+    # Serialization of Environment object
+
+    @classmethod
+    def from_dict(cls, data):
+        print('DATA : \n',data)
+        return cls(**data)
+    
     def to_dict(self,):
         return dict(
             name=self.name,
@@ -117,22 +126,28 @@ class Environment:
             functions=copy.copy(self.functions),)
 
     def to_json(self,):
-        import json
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(),
+                          indent=4,
+                          cls=EnvJSONEncoder)
     
+    @classmethod
+    def from_json(cls, data):
+        data = json.loads(data)
+        return cls.from_dict(data)
+
+
+    # ============================================
+    # Definition Build-in functions
 
     def __enter__(self):
-        
         self.open()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        
+    def __exit__(self, exc_type, exc_value, traceback):        
         try:
             self.close()
         except:
             raise EnvironmentError("Not closed env.")
-
 
     def __call__(self, _mandat=''):
         try:
@@ -141,30 +156,6 @@ class Environment:
             raise NotImplementedError(
                 f'Method {_mandat} not in object {self.backend.__class__}')
    
-   
-   
-    def open(self):
-        value =  self.__call__("open")
-        return value()
-
-
-    def close(self,):
-        value = self.__call__("close")
-        return value()
-    
-
-    def create(self, **kwargs):
-        value = self.__call__("create")
-        return value(**kwargs)
-    
-    
-    def update(self,**kwargs):
-        value = self.__call__("update")
-        return value(**kwargs)
-
-
-
-
     def __ckeck(self, other):
         # Check si tout les paramètres sont identiques
         return False
@@ -174,6 +165,29 @@ class Environment:
         # a condition que tout les paramètres soient identiques
 
         return self
+
+   
+   
+    # ============================================
+    # Standard function from Backend attribute
+
+    def open(self):
+        value =  self.__call__("open")
+        return value()
+
+    def close(self,):
+        value = self.__call__("close")
+        return value()
+    
+    def create(self, **kwargs):
+        value = self.__call__("create")
+        return value(**kwargs)
+    
+    def update(self,**kwargs):
+        value = self.__call__("update")
+        return value(**kwargs)
+
+
 
 
 

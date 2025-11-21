@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from contextlib import ExitStack
 import subprocess
 
-
+from serializable import auto_serializable
 
 @dataclass
 class SimpleProfile:
@@ -92,12 +92,6 @@ class Select:
         self.environ = env_type
         self.manager = mng_type
     
-    def to_dict(self):
-        return {
-            "env": self._environ.__class__,
-            "mng": self._manager.__class__,
-        }
-    
     @property
     def environ(self):
         return self._environ
@@ -117,6 +111,7 @@ class Select:
                 raise ValueError('The environment must be a PackageEnvironment instance or a valid string identifier')
 
         self._environ = env_type
+
     @property
     def manager(self):
         return self._manager
@@ -140,28 +135,31 @@ class Select:
         self._manager = manager
 
 
-
+@auto_serializable(exclude_private=True)
 class Packages(Select):
 
     __slots__ = ("directory","dependencies","env_name",
                  "auto_build","profile","_backend_manager",
-                 "_backend_environ")
+                 "_backend_environ",'env_type','mng_type')
 
     def __init__(self,
                  directory = '.',
                  env_name = 'conda-env.01',
-                 env = 'conda',
-                 mng = 'conda',
+                 env_type = 'conda',
+                 mng_type = 'conda',
                  dependencies = ['numpy'],
                  auto_build = False,
                  profile = None,
                  **args ):
-        
+        print('>>>>> Initialized Packages')
         self.directory = Path(directory)
         self.env_name = env_name
 
-        super().__init__(env_type=env, 
-                         mng_type=mng)
+        self.env_type = env_type
+        self.mng_type = mng_type
+
+        super().__init__(env_type=env_type, 
+                         mng_type=mng_type)
 
         self.dependencies = dependencies
         self.auto_build = auto_build
@@ -170,21 +168,10 @@ class Packages(Select):
 
         if auto_build:
             self.build(**args)
-        
-    @classmethod
-    def from_dict(cls, **data: dict):
-        return cls(**data)
-    
-    def to_dict(self):
-        return {
-            "directory": str(self.directory),
-            "env_name": self.env_name,
-            "dependencies": self.dependencies,
-            "auto_build": self.auto_build,
-            "env": self._environ.to_dict(),
-            "mng": self._manager.to_dict(),          
-        }
 
+
+    # ============================================
+    # Build of Packages object
 
     def build(self, **kwargs):
         print(f"Building environment {self.env_name} with dependencies {self.dependencies}")
@@ -257,8 +244,8 @@ class Packages(Select):
             dependencies = self.dependencies.copy(),
             auto_build = True,
             profile = self.profile,
-            env = self._backend_environ.__class__,
-            mng = self._backend_manager.__class__,
+            env_type = self._backend_environ.__class__,
+            mng_type = self._backend_manager.__class__,
         )
 
     def add_dependencies(self, dependency: str):

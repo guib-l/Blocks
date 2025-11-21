@@ -29,8 +29,8 @@ if __name__ == "__main__":
     pkg = Packages(
         directory = '.',
         env_name = 'pip-env.01',
-        env = 'venv',
-        mng = 'pip',
+        env_type = 'venv',
+        mng_type = 'pip',
         dependencies = ['numpy'],
         auto_build = False,
         profile = None,
@@ -58,9 +58,9 @@ if __name__ == "__main__":
         directory=".",
     )
 
-    pkg_copy.install_dependencies(
-        dependencies=['matplotlib']
-    )
+    #pkg_copy.install_dependencies(
+    #    dependencies=['matplotlib']
+    #)
     
     if pkg == pkg_copy:
         print(" > Same objects")
@@ -80,13 +80,12 @@ if __name__ == "__main__":
     print(pkg.dependencies)
 
     data = pkg.to_dict()
-    print(data)
+    print('DATA from pkg object : \n',data)
 
-    X = Packages.from_dict(**data)
+    X = Packages.from_dict(data)
+    
     X.build()
-
-
-
+    print(X)
 
     pkg.uninstall()
     pkg_copy.uninstall()

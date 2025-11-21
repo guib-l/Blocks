@@ -16,7 +16,7 @@ from blocks.engine.execute import Execute
 
 from blocks.engine.python_env import _empty_env,_python_env
 from blocks.engine import PYTHON,PYTHON_PIP
-from blocks.engine.env import Environment
+from blocks.engine.environment import Environment
 
 import time
 
@@ -49,6 +49,7 @@ if __name__ == "__main__":
 
     # ============================================
     # --- Create new environment with packages ---
+    print()
 
     temp = copy(PYTHON_PIP)
     temp.environment = _python_env
@@ -63,12 +64,12 @@ if __name__ == "__main__":
                       backend_env=temp,
                       functions=heavy_calculation,
                       env_name='generic-env.02'
-                      )
+                )
 
     print('Build the environment')
 
     with env as e:
-        
+        print("Test of Environment")
         func    = e.get_functions(name='heavy_calculation')
         results = func()
 
@@ -77,13 +78,27 @@ if __name__ == "__main__":
 
     # ====================================
     # --- Serialization of environment ---
+    print()
     
     dict_env = env.to_dict()
     print('Environment as dict : \n',dict_env)
-    env = Environment.from_dict(**dict_env)
+    env = Environment.from_dict(dict_env)
 
 
+    with env as e:
+        print("Test of Environment")
+        func    = e.get_functions(name='heavy_calculation')
+        results = func(2)
+        
 
+    # ====================================
+    # --- JSON of the environment ---
+    print()
+
+    json_results = env.to_json()
+    print(json_results)
+
+    env = Environment.from_json(json_results)
 
 
 

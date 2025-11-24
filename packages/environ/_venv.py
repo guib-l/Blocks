@@ -13,6 +13,7 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
     and configuration for a particular use case.
     """
     context_exists: bool = False
+    __env_name__ = 'venv'
     
     def __init__(self, 
                  name=None,
@@ -33,10 +34,12 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
                          with_pip=with_pip,
                          prompt=prompt,)
         self.env_name = name
+        self.directory = directory
         self.env_path = os.path.join(directory, name) if directory and name else None
         self.requirements = requirements or []
 
-        if self.env_path and os.path.isdir(self.env_path):
+
+        if self.env_path and os.path.exists(self.env_path):
             self.context_exists = True
             print(f"Virtual environment {self.env_name} already exists.")
 
@@ -49,6 +52,7 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
     def copy(self, 
              new_name: str = None,
              new_directory: str = None):
+        
         return type(self)(
             name = new_name or self.env_name,
             directory = new_directory or os.path.dirname(self.env_path),
@@ -141,6 +145,7 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
     def uninstall_context(self,):
         import shutil
         env_dir = self.env_path
+        
         if not env_dir or not os.path.exists(env_dir):
             return False
             
@@ -177,7 +182,7 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
         if target_dir.split('/')[-1] != self.env_name and os.path.isdir(target_dir):
             target_dir = os.path.join(target_dir, self.env_name)
             self.env_path = target_dir
-        print(f"Moving environment from {source_dir} to {target_dir}...")
+        #print(f"Moving environment from {source_dir} to {target_dir}...")
 
         if not source_dir or not target_dir:
             return False
@@ -188,7 +193,7 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
         if os.path.exists(target_dir):
             return False  # Target already exists, won't overwrite
         
-        print(f"Copying environment to {target_dir}...")
+        #print(f"Copying environment to {target_dir}...")
 
         try:            
             # Copy the environment to the new location
@@ -196,9 +201,9 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
             
             # Fix scripts that might contain the old path
             self._fix_scripts_after_move(source_dir, target_dir)
+            self.directory = target_dir.rsplit('/',1)[0]
             
             if delete_source:
-                # Remove the old environment
                 shutil.rmtree(source_dir)
             
             return True
@@ -254,12 +259,31 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
                 continue
 
 
-
-    def todict(self,):
-        return {}
+    """
+    def to_dict(self,):
+        return {
+            "name": self.env_name,
+            "directory": os.path.dirname(self.env_path) if self.env_path else None,
+            "system_site_packages": self.system_site_packages, 
+            "clear": self.clear, 
+            "symlinks": self.symlinks,
+            "upgrade": self.upgrade, 
+            "with_pip": self.with_pip, 
+            "prompt": self.prompt, 
+            "requirements": self.requirements,
+            "auto_build": True,
+            "env_name": self.env_name,
+            "env_path": self.env_path
+        }"""
     
-    def fromdict(self, **kwargs):
-        raise NotImplementedError
+    @classmethod
+    def from_dict(cls, **kwargs):
+        return cls( **kwargs )
+
+    def to_json(self,):
+        import json
+        return json.dumps(self.to_dict(),
+                          indent=4)
     
 
 

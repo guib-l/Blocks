@@ -1,17 +1,20 @@
 import os
 import sys
+import json
+
 import subprocess
 
 from packages.dependencies import DependenciesMixin
 
 
 class PipManager(DependenciesMixin):
+
+    __mng_name__ = 'pip'
     
     def __init__(self, 
                  env_path=None, 
                  profile=None,
-                 packages=None,
-                 **kwargs):
+                 packages=None,):
         
         self.env_path = env_path
         self.profile = profile
@@ -20,6 +23,7 @@ class PipManager(DependenciesMixin):
         if self.dependencies:
             self.install_dependencies(self.dependencies)
 
+
     def copy(self, **kwargs):
         return type(self)(
             env_path=self.env_path,
@@ -27,6 +31,35 @@ class PipManager(DependenciesMixin):
             dependencies=self.dependencies,
             **kwargs
         )
+    
+
+    # ============================================
+    # Serialization of PipManager object
+
+    """def to_dict(self):
+        return {
+            'env_path': self.env_path,
+            'profile': self.profile,
+            'packages': self.dependencies,
+        }"""
+    
+    @classmethod
+    def from_dict(cls, **kwargs):
+        return cls(
+            env_path=kwargs.get('env_path'),
+            profile=kwargs.get('profile'),
+            packages=kwargs.get('dependencies', []),
+        )    
+
+    def to_json(self,):
+        return json.dumps(self.to_dict(),
+                          indent=4)
+
+
+
+
+    # ============================================
+    # Methods of PIP utils
 
     def _exec_pip(self, command):
         try:

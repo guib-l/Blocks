@@ -9,7 +9,7 @@ import copy
 from pathlib import Path
 from typing import Dict, Any, TypeVar, Union, Type
 
-from .encoder import BaseJSONEncoder
+from ..encoder import BaseJSONEncoder
 
 
 

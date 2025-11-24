@@ -21,7 +21,7 @@ from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
 from blocks.base.organizer import FileManager, FileError
 
-from blocks.base.encoder import BaseBlockJSONEncoder
+from blocks.encoder import BaseBlockJSONEncoder
 
 
 from blocks.base.signal import Signal
@@ -155,7 +155,7 @@ class Block(BaseBlock):
                                 self.name,
                                 f"{filename}.{format}")
             
-            from blocks.base.encoder import NodeJSONEncoder
+            from blocks.encoder import NodeJSONEncoder
             #obj = json.dumps(content, 
             #                 indent=4, 
             #                 cls=NodeJSONEncoder)

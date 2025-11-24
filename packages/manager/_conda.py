@@ -2,11 +2,13 @@ import os
 import sys
 import subprocess
 
-from packages.dependencies import DependenciesManager
+from packages.dependencies import DependenciesMixin
 
 
-class CondaManager(DependenciesManager):
+class CondaManager(DependenciesMixin):
 
+    __env_name__ = 'conda'
+    
     def __init__(self, env_name=None, **kwargs):
         super().__init__(**kwargs)
         self.env_name = env_name

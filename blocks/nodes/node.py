@@ -24,7 +24,7 @@ from blocks.base.organizer import FileManager, FileError
 
 from blocks.base import BLOCK_PATH
 
-from blocks.base.encoder import NodeJSONEncoder
+from blocks.encoder import NodeJSONEncoder
 
 
 from blocks.base.signal import Signal

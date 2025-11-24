@@ -40,14 +40,15 @@ class DependenciesMixin:
     
     def uninstall_dependencies(self, package: str) -> None:
         raise NotImplementedError("Subclasses must implement uninstall_dependencies")
-
-    def todict(self) -> dict:
+    
+    '''
+    def to_dict(self) -> dict:
         return {
             'context': self.context,
             'packages': self.packages
-        }
+        }'''
     
-    def fromdict(self, data: dict) -> None:
+    def from_dict(self, data: dict) -> None:
         self.context = data.get('context')
         self.packages = data.get('packages', [])
 

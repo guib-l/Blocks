@@ -55,3 +55,30 @@ class NodeJSONEncoder(json.JSONEncoder):
             
         return super().default(obj)
 
+
+class EnvJSONEncoder(json.JSONEncoder):
+
+    def default(self, obj: typing.Any) -> typing.Any:
+        if isinstance(obj, set):
+            return list(obj)
+                
+        if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
+
+            try:
+                return obj.to_dict()
+            except Exception:
+                return str(obj)
+            
+        if isinstance(obj, obj.__class__):
+            try:
+                return obj.to_json()
+            except:
+                return obj.__str__()
+            finally:
+                return str(obj)
+            
+        return super().default(obj)
+    
+
+
+

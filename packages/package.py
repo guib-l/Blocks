@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from contextlib import ExitStack
 import subprocess
 
-
+from serializable import auto_serializable
 
 @dataclass
 class SimpleProfile:
@@ -84,12 +84,14 @@ class SimpleProfile:
 
 class Select:
 
+    __slots__ = ("_environ","_manager")
+
     def __init__(self, 
                  env_type: str, 
                  mng_type: str):
         self.environ = env_type
         self.manager = mng_type
-
+    
     @property
     def environ(self):
         return self._environ
@@ -109,6 +111,7 @@ class Select:
                 raise ValueError('The environment must be a PackageEnvironment instance or a valid string identifier')
 
         self._environ = env_type
+
     @property
     def manager(self):
         return self._manager
@@ -132,24 +135,31 @@ class Select:
         self._manager = manager
 
 
-
+@auto_serializable(exclude_private=True)
 class Packages(Select):
+
+    __slots__ = ("directory","dependencies","env_name",
+                 "auto_build","profile","_backend_manager",
+                 "_backend_environ",'env_type','mng_type')
 
     def __init__(self,
                  directory = '.',
                  env_name = 'conda-env.01',
-                 env = 'conda',
-                 mng = 'conda',
+                 env_type = 'conda',
+                 mng_type = 'conda',
                  dependencies = ['numpy'],
                  auto_build = False,
                  profile = None,
                  **args ):
-        
+        print('>>>>> Initialized Packages')
         self.directory = Path(directory)
         self.env_name = env_name
 
-        super().__init__(env_type=env, 
-                         mng_type=mng)
+        self.env_type = env_type
+        self.mng_type = mng_type
+
+        super().__init__(env_type=env_type, 
+                         mng_type=mng_type)
 
         self.dependencies = dependencies
         self.auto_build = auto_build
@@ -158,7 +168,10 @@ class Packages(Select):
 
         if auto_build:
             self.build(**args)
-        
+
+
+    # ============================================
+    # Build of Packages object
 
     def build(self, **kwargs):
         print(f"Building environment {self.env_name} with dependencies {self.dependencies}")
@@ -169,7 +182,7 @@ class Packages(Select):
         )
 
         self._backend_manager = self.manager(
-            context = self._backend_environ,
+            #context = self._backend_environ,
             packages = self.dependencies,
             env_path=self._backend_environ.env_path,
             profile=self.profile,
@@ -214,7 +227,8 @@ class Packages(Select):
             target_dir=target,
             delete_source=True,
         )
-        self.directory = self._backend_environ.env_path
+        self.directory = self._backend_environ.directory
+        print(f"New environment path: {self.directory}")
         self._backend_manager.env_path = self._backend_environ.env_path
 
     def copy(self, 
@@ -230,8 +244,8 @@ class Packages(Select):
             dependencies = self.dependencies.copy(),
             auto_build = True,
             profile = self.profile,
-            env = self._backend_environ.__class__,
-            mng = self._backend_manager.__class__,
+            env_type = self._backend_environ.__class__,
+            mng_type = self._backend_manager.__class__,
         )
 
     def add_dependencies(self, dependency: str):
@@ -240,16 +254,17 @@ class Packages(Select):
     def del_dependencies(self, dependency: str):
         print(f"Deleting dependency {dependency} from environment {self.env_name}")
 
+    # TODO : implement diff logic
     def diff(self, other_pkg):
         print(f"Comparing environment {self.env_name} with another environment")
         return {}
 
+    # TODO : implement merge logic
     def merge(self, 
               pkg, 
               directory: str, 
               ignore_dependencies: Optional[List[str]] = None):
         print(f"Merging environment {self.env_name} with another environment into directory {directory}")
-
 
 
     def __eq__(self, other):
@@ -260,11 +275,7 @@ class Packages(Select):
         for dep in self.dependencies:
             if dep not in other.dependencies:
                 return False
-        return True
-        
-    def diff(self, other):
-        raise NotImplementedError
-            
+        return True           
 
     def __str__(self):
         return f"Packages(env_name={self.env_name}, \
@@ -273,22 +284,5 @@ env={self._backend_environ}, mng={self._backend_manager}, dependencies={self.dep
     def __repr__(self):
         return self.__str__()
     
-    def to_dict(self):
-        return {
-            "directory": str(self.directory),
-            "env_name": self.env_name,
-            "dependencies": self.dependencies,
-            "auto_build": self.auto_build,
-            "profile": self.profile,
-        }
-    
-    def from_dict(self, data: dict):
-        self.directory = Path(data.get("directory", '.'))
-        self.env_name = data.get("env_name", 'conda-env.01')
-        self.dependencies = data.get("dependencies", ['numpy'])
-        self.auto_build = data.get("auto_build", False)
-        self.profile = data.get("profile", None)
-        self.use_shell = data.get("use_shell", True)
-
 
 

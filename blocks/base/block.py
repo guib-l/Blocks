@@ -19,14 +19,16 @@ from copy import copy, deepcopy
 from blocks.base.baseBlock import BaseBlock
 from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
-from blocks.base.organizer import FileManager, FileError
+from tools.organizer import FileManager, FileError
 
-from blocks.encoder import BaseBlockJSONEncoder
+from tools.encoder import BaseBlockJSONEncoder
 
 
 from blocks.base.signal import Signal
 
 from blocks.socket.interface import MESSAGE
+
+from tools.serializable import SerializableMixin
 
 from enum import Enum
 
@@ -82,7 +84,7 @@ class BlockError(Exception):
 
 
 
-class Block(BaseBlock):
+class Block(BaseBlock,SerializableMixin):
 
     _mandatory_attributes = ['load']
 
@@ -155,7 +157,7 @@ class Block(BaseBlock):
                                 self.name,
                                 f"{filename}.{format}")
             
-            from blocks.encoder import NodeJSONEncoder
+            from tools.encoder import NodeJSONEncoder
             #obj = json.dumps(content, 
             #                 indent=4, 
             #                 cls=NodeJSONEncoder)

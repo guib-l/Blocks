@@ -12,16 +12,18 @@ from enum import Enum,Flag
 
 from blocks.engine import PYTHON
 
-from serializable import auto_serializable,simple_serializable
+from tools.serializable import SerializableMixin
 
-from ..encoder import EnvJSONEncoder
+from tools.encoder import EnvJSONEncoder
 
-class Environment:
 
-    __slots__ = (
-        "name","_functions","_language","_lang",
-        "_build","backend","_backend_env"
-    )
+
+class Environment(SerializableMixin):
+
+    #__slots__ = (
+    #    "name","_functions","_language","_lang",
+    #    "_build","backend","_backend_env"
+    #)
 
     def __init__(self,
                  name='env',
@@ -112,6 +114,17 @@ class Environment:
     # ============================================
     # Serialization of Environment object
 
+    """
+    def __serialize__(self,):
+        return dict(
+            name=self.name,
+            language=self.language,
+            backend_env=self._backend_env,
+            build=self._build,
+            functions=copy.copy(self.functions),)
+    """
+
+    """
     @classmethod
     def from_dict(cls, data):
         print('DATA : \n',data)
@@ -134,7 +147,7 @@ class Environment:
     def from_json(cls, data):
         data = json.loads(data)
         return cls.from_dict(data)
-
+    """
 
     # ============================================
     # Definition Build-in functions

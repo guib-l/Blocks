@@ -1,5 +1,6 @@
 import os,sys
 import time
+import json
 from datetime import *
 from copy import copy, deepcopy
 from typing import Any, Dict, TypeVar
@@ -80,14 +81,16 @@ if __name__ == "__main__":
     print(pkg.dependencies)
 
     data = pkg.to_dict()
-    print('DATA from pkg object : \n',data)
+    print('DATA from pkg object : \n NONE',)#json.dumps(data,indent=4))
 
     X = Packages.from_dict(data)
-    
-    X.build()
-    print(X)
+    print('Re-build packages : \n',X)
 
-    pkg.uninstall()
+    X.build()
+    X.uninstall()
+
+
+    #pkg.uninstall()
     pkg_copy.uninstall()
 
 

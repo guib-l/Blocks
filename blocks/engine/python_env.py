@@ -10,10 +10,10 @@ from packages.package import Packages
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
+from tools.serializable import SerializableMixin, _std_serialize, _std_deserialize
 
-from serializable import simple_serializable
 
-class abstract_env(ABC):
+class abstract_env(ABC,SerializableMixin):
 
     @classmethod  
     @abstractmethod  
@@ -39,7 +39,6 @@ class abstract_env(ABC):
 
 
 @dataclass
-@simple_serializable
 class _empty_env(abstract_env):
 
     @classmethod
@@ -102,8 +101,33 @@ class _python_env(Packages,abstract_env):
 
     # ============================================
     # Serialization of _python_env object
+    '''
+    def __serialize__(self):
+        """Méthode personnalisée pour sérialiser _python_env"""
+        return {
+            'directory': str(self.directory) if hasattr(self, 'directory') else '.',
+            'env_name': self.env_name if hasattr(self, 'env_name') else 'pip-venv.01',
+            'env_type': self.env_type if hasattr(self, 'env_type') else 'venv',
+            'mng_type': self.mng_type if hasattr(self, 'mng_type') else 'pip',
+            'dependencies': self.dependencies if hasattr(self, 'dependencies') else [],
+            'auto_build': self.auto_build if hasattr(self, 'auto_build') else False,
+            'profile': self.profile if hasattr(self, 'profile') else None
+        }
+    
+    @classmethod
+    def __deserialize__(cls, attributes):
+        """Méthode personnalisée pour désérialiser _python_env"""
+        from tools.serializable import _std_deserialize
+        
+        # Désérialiser les attributs
+        deserialized = {
+            k: _std_deserialize(v) for k, v in attributes.items()
+        }
+        
+        # Créer une nouvelle instance
+        return cls(**deserialized)
 
-
+    '''
 
 
 

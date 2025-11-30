@@ -5,7 +5,7 @@ import json
 from enum import Enum
 
 from .python_env import _empty_env,_python_env
-from serializable import simple_serializable
+from tools.serializable import SerializableMixin
 
 class ExecutionError(RuntimeError):
     """Base class of error types related to Execution."""
@@ -36,33 +36,17 @@ class Language(Enum):
     MATLAB   = 'matlab'
     BASH     = 'bash'
 
-
-class _env_mixin:
-    
-    @classmethod
-    def to_dict(cls):
-        attr = {
-            k:v for k,v in cls.__dict__.items()
-                if not k.startswith('__')
-        }
-        return attr
-    
-    @classmethod
-    def to_json(cls):
-        return json.dump(cls.to_dict)
     
 
 
-#@simple_serializable
-class PYTHON(_env_mixin):
+class PYTHON(SerializableMixin):
     environment = _empty_env
     language    = Language.PYTHON
     parameters  = {}
 
 
 
-#@simple_serializable
-class PYTHON_PIP(_env_mixin):
+class PYTHON_PIP(SerializableMixin):
     environment = _python_env
     language    = Language.PYTHON
     parameters  = {

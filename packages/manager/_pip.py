@@ -14,11 +14,11 @@ class PipManager(DependenciesMixin):
     def __init__(self, 
                  env_path=None, 
                  profile=None,
-                 packages=None,):
+                 dependencies=None,):
         
         self.env_path = env_path
         self.profile = profile
-        self.dependencies = packages or []
+        self.dependencies = dependencies or []
 
         if self.dependencies:
             self.install_dependencies(self.dependencies)

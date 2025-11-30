@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from contextlib import ExitStack
 import subprocess
 
-from serializable import auto_serializable
+
+from tools.serializable import SerializableMixin
 
 @dataclass
 class SimpleProfile:
@@ -89,9 +90,11 @@ class Select:
     def __init__(self, 
                  env_type: str, 
                  mng_type: str):
+        
         self.environ = env_type
         self.manager = mng_type
     
+
     @property
     def environ(self):
         return self._environ
@@ -106,6 +109,8 @@ class Select:
         elif env_type == 'venv':
             from packages.environ._venv import VenvEnv
             env_type = VenvEnv
+        elif hasattr(env_type,'__dict__'):
+            pass
         else:
             if not hasattr(env_type,'__envtype__') and env_type.__envtype__ != 'EnvironMixin' :
                 raise ValueError('The environment must be a PackageEnvironment instance or a valid string identifier')
@@ -128,6 +133,8 @@ class Select:
         elif manager == 'conda':
             from packages.manager._conda import CondaManager
             manager = CondaManager
+        elif hasattr(manager,'__dict__'):
+            pass
         else:
             if not hasattr(manager,'__envtype__') and manager.__envtype__ != 'DependenciesMixin' :
                 raise ValueError('The manager must be a PackageManager instance or a valid string identifier')
@@ -135,8 +142,7 @@ class Select:
         self._manager = manager
 
 
-@auto_serializable(exclude_private=True)
-class Packages(Select):
+class Packages(Select, SerializableMixin):
 
     __slots__ = ("directory","dependencies","env_name",
                  "auto_build","profile","_backend_manager",
@@ -151,7 +157,7 @@ class Packages(Select):
                  auto_build = False,
                  profile = None,
                  **args ):
-        print('>>>>> Initialized Packages')
+
         self.directory = Path(directory)
         self.env_name = env_name
 
@@ -176,17 +182,21 @@ class Packages(Select):
     def build(self, **kwargs):
         print(f"Building environment {self.env_name} with dependencies {self.dependencies}")
 
-        self._backend_environ = self.environ(
-            name = self.env_name,
-            directory = self.directory,
-        )
+        try:
+            self._backend_environ = self.environ(
+                name = self.env_name,
+                directory = self.directory,
+            )
 
-        self._backend_manager = self.manager(
-            #context = self._backend_environ,
-            packages = self.dependencies,
-            env_path=self._backend_environ.env_path,
-            profile=self.profile,
-        )
+            self._backend_manager = self.manager(
+                #context = self._backend_environ,
+                dependencies = self.dependencies,
+                env_path=self._backend_environ.env_path,
+                profile=self.profile,
+            )
+        except:
+            print('Manager and environ are build.')
+            pass
 
     def install(self):
         print(f"Installing dependencies in environment {self.env_name}")

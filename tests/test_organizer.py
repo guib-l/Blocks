@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from configs import *
-from blocks.base.organizer import FileManager, FileError
+from tools.organizer import FileManager, FileError
 
 if __name__ == "__main__":
     

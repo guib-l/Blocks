@@ -5,7 +5,7 @@ from copy import copy, deepcopy
 
 from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
-from blocks.base.organizer import FileManager, FileError
+from tools.organizer import FileManager, FileError
 
 
 T = TypeVar('T', bound='BaseBlock')

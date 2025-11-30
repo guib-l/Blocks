@@ -75,15 +75,18 @@ if __name__ == "__main__":
 
     #env.backend.uninstall()
 
-
+    
     # ====================================
     # --- Serialization of environment ---
     print()
+    
+    print(env)
     
     dict_env = env.to_dict()
     print('Environment as dict : \n',dict_env)
     env = Environment.from_dict(dict_env)
 
+    print(env)
 
     with env as e:
         print("Test of Environment")
@@ -94,11 +97,11 @@ if __name__ == "__main__":
     # ====================================
     # --- JSON of the environment ---
     print()
+    import json
 
-    json_results = env.to_json()
-    print(json_results)
+    dict_results = env.to_dict()
 
-    env = Environment.from_json(json_results)
+    env = Environment.from_dict(dict_results)
 
 
 

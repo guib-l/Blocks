@@ -8,8 +8,16 @@ from blocks.engine.environment import Environment,PYTHON
 
 
 
-def task_node(backend='default',
-              **backend_args):
+def task_node(backend   = 'default',
+              directory = '',
+              auto      = False,
+              install   = False,
+              execute   = None,
+              **env_args):
+    
+    if execute is None:
+        execute = Execute(backend=backend,
+                          build_backend=True)
 
     def wrap(function):
         def wrapper(**kwargs):
@@ -17,23 +25,33 @@ def task_node(backend='default',
                 'name': 'task_' + str(function.__name__),
                 'id': None,
                 'version': '0.0.1',
-                'path': "",
-                '_build': False,
-                '_mandatory_attr': False,
+                'path': directory,
+                'auto': auto,
+                'install': install,
+                'mandatory_attr': True,
+                'codes':[function,],
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
-                '_environment': Environment(functions=[function,],
-                                            language='python3', 
-                                            backend_env=PYTHON,
-                                            build=True,),
-                '_executor': Execute(backend=backend, 
-                                     **backend_args),}
+                'environment': Environment(functions=[function,],
+                                           language='python3', 
+                                           backend_env=PYTHON,
+                                           build=True,
+                                           **env_args),
+                'executor': execute}
             
+            tmp_node = Node(**data_set)
+            
+            if install:
+                tmp_node.__install__(
+                    directory=directory,
+                    **data_set
+                )
+
             if not kwargs == {}:
-                return Node(**data_set).execute(**kwargs)
+                return tmp_node.execute(**kwargs)
             
-            return Node(**data_set)
+            return tmp_node
         return wrapper
     return wrap
 

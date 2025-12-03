@@ -90,7 +90,7 @@ if __name__ == "__main__":
     X.uninstall()
 
 
-    #pkg.uninstall()
+    pkg.uninstall()
     pkg_copy.uninstall()
 
 

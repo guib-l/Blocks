@@ -28,9 +28,63 @@ from tools.encoder import NodeJSONEncoder
 
 
 from blocks.base.signal import Signal
-from blocks.socket.interface import MESSAGE,MessageType,Interface
+from blocks.interface._interface import MESSAGE,MessageType,Interface
 
 from enum import Enum
+
+
+
+
+import ast
+import inspect
+
+# TODO: inclure toutes les dependances (objets et autre)
+# TODO: faire un fichier qui fait cela à l'extérieur du module Node
+
+
+def extract_dependencies(func):
+    module = inspect.getmodule(func)
+    if module is None:
+        raise ValueError('No function detected')
+    
+    source = inspect.getsource(module)
+    tree   = ast.parse(source)
+
+    func_name = func.__name__
+
+    module_function = {
+        node.name: node 
+        for node in tree.body 
+        if isinstance(node,ast.FunctionDef)
+    }
+
+    called_name = set()
+
+    class CallVisitor(ast.NodeVisitor):
+        def visit_call(self,node):
+            if isinstance(node.func, ast.Name):
+                called_name.add(node.func.id)
+            self.generic_visit(node)
+
+    CallVisitor().visit(module_function[func_name])
+
+    dependencies = {
+        name: module_function[name] 
+        for name in called_name 
+        if name in module_function
+    }
+
+    module_imports = [
+        node for node in tree.body 
+        if isinstance(node,ast.Import) 
+        or isinstance(node,ast.ImportFrom)
+    ]
+
+    return dependencies,module_imports
+    
+
+# TODO: Faire un installer propre (dans un module dédié aux installation
+# de module python)
 
 def _default_install(name="default-node",
                      base_directory: str = "./",
@@ -42,7 +96,7 @@ def _default_install(name="default-node",
     fm = FileManager(base_directory=base_directory, auto_create=True)
 
     target_path = os.path.join(base_directory, name)
-    #print(f"Creating node directory at: {target_path}")
+    print(f"Creating node directory at: {target_path}")
 
     try:
         if not os.path.exists(target_path):
@@ -80,6 +134,45 @@ def _default_install(name="default-node",
         except Exception as e:
             print(f"Error processing file {file}: {e}")
             raise FileError(f"Failed to process file {file}: {e}")
+
+    # Traitement des fonctions
+    codes = kwargs.get('codes', [])
+
+    filename = os.path.join(target_path,f'{name}.py')
+
+    for code in codes:
+        import textwrap
+        deps,mods = extract_dependencies(code)
+
+        with open(filename, 'w') as fout:
+            for imp in mods:
+                fout.write(textwrap.dedent(ast.unparse(imp))+'\n')
+            
+            src = inspect.getsource(code)
+
+            def remove_wrapper(src, wrap_name='@task_node'):
+                lines = src.split('\n')
+                new_lines = []
+                skipping = True
+                
+                for line in lines:
+                    stripped = line.strip()
+                    if stripped.startswith(wrap_name):
+                        continue
+                    if stripped.startswith('def '):
+                        skipping = False
+                    if skipping:continue
+                    
+                    new_lines.append(line)
+
+                return "\n".join(new_lines)
+
+            fout.write(remove_wrapper(src))
+            module = inspect.getmodule(code)
+
+            for name,node in deps.items():
+                fout.write(textwrap.dedent( 
+                    inspect.getsource(getattr(module,name)) )+'\n')
 
     return target_path
 
@@ -145,27 +238,27 @@ class Node(block.Block):
     __ntype__ = "node"
 
     def __init__(self,
-                 auto            = True,
-                 _mandatory_attr = True,
-                 _environment    = None,
-                 _executor       = None,
+                 auto           = True,
+                 mandatory_attr = True,
+                 environment    = None,
+                 executor       = None,
                  **kwargs):
 
         # Initialisation des attributs spécifiques au Node
-        self._mandatory_attr = _mandatory_attr
+        self.mandatory_attr = mandatory_attr
             
         #self.root = _block_path
 
         # Methode destinée à la communication entre les node
-        self.environment = _environment
-        self.executor    = _executor
+        self.environment = environment
+        self.executor    = executor
 
-        super().__init__(_mandatory_attr=_mandatory_attr,
-                         _environment=self.environment,
-                         _executor=self.executor,
+        super().__init__(mandatory_attr=mandatory_attr,
+                         #environment=self.environment,
+                         #executor=self.executor,
                          **kwargs)
         
-        if auto and self._executor:
+        if auto and self.executor:
             self.build()
 
     # -----------------------------------------------------
@@ -219,7 +312,7 @@ class Node(block.Block):
             open(os.path.join(directory, name, 'blocks.json')))
         data.update(kwargs) 
 
-        return cls(_build=False, **data)
+        return cls(auto=False, **data)
 
 
     # -----------------------------------------------------
@@ -242,13 +335,13 @@ class Node(block.Block):
     # Executor methods
 
     @property
-    def _executor(self):
+    def executor(self):
         return self.__EXEC__
 
-    @_executor.setter
-    def _executor(self, exec = None):
+    @executor.setter
+    def executor(self, exec = None):
 
-        if exec is None and self._mandatory_attr:
+        if exec is None and self.mandatory_attr:
             raise NodeError("EXECUTOR method not provided", 'EXECUTOR')
 
         self.__EXEC__ = exec    
@@ -258,13 +351,13 @@ class Node(block.Block):
     # Environment methods
 
     @property
-    def _environment(self):
+    def environment(self):
         return self.__ENV__
 
-    @_environment.setter
-    def _environment(self, env = None):
+    @environment.setter
+    def environment(self, env = None):
         
-        if env is None and self._mandatory_attr:
+        if env is None and self.mandatory_attr:
             raise NodeError("ENVIRONMENT method not provided", 'ENVIRONMENT')
 
         self.__ENV__ = env
@@ -323,6 +416,23 @@ class Node(block.Block):
         Args:
             path (str): Path to install the block.
         """
+
+        cls.__install__(name=name,
+                        directory=directory,
+                        installer=installer,
+                        **kwargs)
+        
+        return cls(name=name,
+                   path=directory,
+                   _build=kwargs.get('_build',True),
+                   **kwargs )
+
+    @staticmethod
+    def __install__(name="default-node",
+                    installer=None, 
+                    directory=".",
+                    **kwargs):
+        
         if installer is not None:
             try:
                 installer(directory=directory,
@@ -334,10 +444,7 @@ class Node(block.Block):
             _default_install(name=name,
                              base_directory=directory,
                              **kwargs)
-        return cls(name=name,
-                   path=directory,
-                   _build=kwargs.get('_build',True),
-                   **kwargs)
+        return True
 
     @classmethod
     def uninstall(cls,
@@ -388,7 +495,7 @@ class Node(block.Block):
     
     @interface.setter
     def interface(self, _interface = None):
-        if _interface is None and self._mandatory_attr:
+        if _interface is None and self.mandatory_attr:
             raise NodeError("interface method not provided", 'interface')
         
         from blocks.socket.interface import Interface

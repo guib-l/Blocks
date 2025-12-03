@@ -26,7 +26,7 @@ from tools.encoder import BaseBlockJSONEncoder
 
 from blocks.base.signal import Signal
 
-from blocks.socket.interface import MESSAGE
+from blocks.interface._interface import MESSAGE
 
 from tools.serializable import SerializableMixin
 
@@ -100,15 +100,14 @@ class Block(BaseBlock,SerializableMixin):
                  data={},
                  doc=None,
                  type="blocks",
-                 SIGNAL=None,
-                 _build=False,
+                 install=False,
                  **kwargs):
         try:
             origin = os.path.abspath(path)
             path = os.path.join(path, name)
 
             self.fman = FileManager(base_directory=path,
-                                    auto_create=_build)
+                                    auto_create=install)
         except:
             self.error =  BlockError(f'Path unknow : {path}', 'ORIGIN')
             raise self.error.ERROR
@@ -124,7 +123,7 @@ class Block(BaseBlock,SerializableMixin):
                          data=data,
                          doc=doc,
                          **kwargs)
-        if _build:
+        if install:
             export_metadata(self, type, 'json')
 
 

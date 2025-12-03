@@ -10,10 +10,10 @@ from blocks.base import *
 from blocks.nodes.node import Node
 from blocks.export import task_node,export_function
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface._interface import (MessageType,MESSAGE,Interface)
 
 
-
+install_directory = os.path.join(DIRECTORY, BLOCK_PATH)
 
 
 
@@ -28,8 +28,14 @@ def function_test(xdata):
     return {'ydata':value}
 
 
+@task_node()
+def print_data(args):
+    print(f'> Argument {args}')
 
-@task_node(backend='default')
+
+
+@task_node(install=True,
+           directory=install_directory)
 def heavy_calculation(n=5):
     """Fonction qui sera interruptible."""
     import time
@@ -39,50 +45,9 @@ def heavy_calculation(n=5):
         result += i
         time.sleep(0.2)
         print(f"Calcul en cours... étape {i+1}/{n}")
-            
     return result
 
 
-
-
-'''
-def add_features(cls):
-    """Décorateur qui ajoute des fonctionnalités à une classe."""
-    
-    class EnhancedClass(cls):
-        def __init__(self, node=None, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.enhanced = True
-            self.node = node
-        
-        def new_feature(self):
-            return f"New feature added to {self.__class__.__bases__[0].__name__}"
-    
-    return EnhancedClass
-
-@add_features   
-class Environment:
-    # Placeholder for environment methods 
-    # could include setup, teardown, config management, etc.
-    __ntype__ = "environment"
-
-    def __init__(self):
-        pass
-    def to_dict(self,):
-        return {}
-
-
-class Executor(Environment):
-    # Placeholder for executor methods 
-    # could include task execution, job management, etc.
-    __ntype__ = "executor"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def to_dict(self,):
-        return {}
-'''
 
 
 
@@ -95,13 +60,14 @@ if __name__ == "__main__":
         'version': '0.0.1',
         'path': "myblock/",
         'values': [1, 2, 3, 4, 5],
-        '_build': True,
-        '_mandatory_attr': False,
+        'auto': True,
+        'install': True,
+        'mandatory_attr': False,
         'metadata': {'source': 'generated', 
                      'version': 1.0,
                      'description': 'A sample dataset for testing'},
-        '_environment': None,
-        '_executor': None,
+        'environment': None,
+        'executor': None,
     }
   
     # ===============================================
@@ -123,14 +89,14 @@ if __name__ == "__main__":
     node = Node.install(name='function-test',
                         directory=os.path.join(DIRECTORY, BLOCK_PATH),
                         files=[script_filename,],
-                        _mandatory_attr=False,
+                        mandatory_attr=False,
                         version='0.0.2',
-                        authors=['Block8 Team'],
+                        authors=['Blocks Team'],
                         metadata={'description': 'A test function node',
                                   'script': script_filename},
-                        _environment=None,
-                        _executor=None,)
-    #print(node)
+                        environment=None,
+                        executor=None,)
+    print(node)
     print("Node installed successfully.")
 
 
@@ -159,17 +125,13 @@ if __name__ == "__main__":
     print("LOAD/BUILD NODE with task_node TRANSFORMATION")
 
     results = heavy_calculation(n=2)  
-
+    
     node = heavy_calculation() 
+    print('> Type of object : ',node.__class__)
+
     node.execute(n=5)
 
-    #node.install()
-
-
-    # Installation de via Task
-
-
-
+    # Installation de via Task (DONE)
 
     # Env default python pip + conda + venv
 

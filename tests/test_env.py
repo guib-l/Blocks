@@ -9,7 +9,7 @@ from configs import *
 from blocks.base import *
 from blocks.nodes.node import Node
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface._interface import (MessageType,MESSAGE,Interface)
 
 
 from blocks.engine.execute import Execute
@@ -103,6 +103,6 @@ if __name__ == "__main__":
 
     env = Environment.from_dict(dict_results)
 
-
+    env.backend.uninstall()
 
     sys.exit()

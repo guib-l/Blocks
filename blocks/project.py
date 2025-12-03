@@ -1,7 +1,7 @@
 import os
 import sys
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface._interface import (MessageType,MESSAGE,Interface)
 from blocks.nodes.workflow import Workflow
 
 class Project(Workflow):

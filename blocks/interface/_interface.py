@@ -19,7 +19,7 @@ from blocks.base.dataset import DataSet
 
 from enum import Enum
 
-from blocks.socket.message import MESSAGE,MessageType
+from blocks.interface.message import MESSAGE,MessageType
 
 
 
@@ -93,7 +93,7 @@ class Interface:
     # et restent disponibles pour consultation
     # Si persistant est False, les messages sont supprimés après envoi
     # et ne sont pas disponibles pour consultation
- 
+    __ntype__ = 'interface'
 
     def __init__(self, 
                  node: Any = None,

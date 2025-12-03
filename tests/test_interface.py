@@ -8,7 +8,7 @@ from configs import *
 from blocks.nodes.node import Node
 from blocks.base import *
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface._interface import (MessageType,MESSAGE,Interface)
 
 
 class Environment:
@@ -22,9 +22,9 @@ class Executor:
     ... 
 
 if __name__ == "__main__":
-      
+
   
-   # Initialisation d'un Block
+    # Initialisation d'un Block
     node1 = Node.load(name='function-test',
                       directory=BLOCK_PATH)
     print(node1)

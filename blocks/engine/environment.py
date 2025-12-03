@@ -20,10 +20,10 @@ from tools.encoder import EnvJSONEncoder
 
 class Environment(SerializableMixin):
 
-    #__slots__ = (
-    #    "name","_functions","_language","_lang",
-    #    "_build","backend","_backend_env"
-    #)
+    __slots__ = (
+        "name","_functions","_language","_lang",
+        "build","backend","_backend_env"
+    )
 
     def __init__(self,
                  name='env',
@@ -38,7 +38,7 @@ class Environment(SerializableMixin):
         self.functions = functions
     
         self.language = language
-        self._build = build
+        self.build = build
 
 
         self._backend_env = backend_env
@@ -107,22 +107,20 @@ class Environment(SerializableMixin):
             name=new_name or self.name,
             language=self.language,
             backend_env=self._backend_env,
-            build=self._build,
+            build=self.build,
             functions=copy.copy(self.functions),)
 
 
     # ============================================
     # Serialization of Environment object
 
-    """
     def __serialize__(self,):
         return dict(
             name=self.name,
             language=self.language,
             backend_env=self._backend_env,
-            build=self._build,
+            build=self.build,
             functions=copy.copy(self.functions),)
-    """
 
     """
     @classmethod

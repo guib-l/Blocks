@@ -1,62 +1,38 @@
 import os
-import sys
 import io
+import sys
 import uuid
-import zipfile
 import json
 from datetime import *
 from copy import copy, deepcopy
 import csv
 from typing import *
-from abc import *
-import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, Callable, Iterator, BinaryIO, TextIO
-
+from abc import *
 from .dataset import DataSet
 from copy import copy, deepcopy
 
-from blocks.base.baseBlock import BaseBlock
 from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
 from tools.organizer import FileManager, FileError
 
-from tools.encoder import BaseBlockJSONEncoder
-
-
-from blocks.base.signal import Signal
-
-from blocks.interface._interface import MESSAGE
+from tools.encoder import BlockJSONEncoder
 
 from tools.serializable import SerializableMixin
 
 from enum import Enum
 
-T = TypeVar('T', bound='Block')
 
 
 
-def export_metadata(block, filename: str, format: str) -> None:
-    """
-    Export metadata from a Block instance to a file.
-    Args:
-        block (Block): The Block instance to export metadata from.
-        filename (str): The name of the file to export to (without extension).
-        format (str): The format to export the metadata in ('json', 'csv', etc.).
-    """
-    block.export_metadata(filename=filename, format=format)
 
 
 
 class BlockErrorType(str, Enum):
-    INPUT       = "Wrong input"
-    OUTPUT      = "Wrong output"
-    DESTINATION = "Destination of Block unknown"
     DIRECTORY   = "Path of Block unknown"
     ORIGIN      = "Origin path of Block unknown"
     VERSION     = "Version does not match"
     LANGUAGE    = "Language not supported"
-
 
 
 class BlockError(Exception):
@@ -82,146 +58,239 @@ class BlockError(Exception):
             self.err_type = BlockErrorType[value]
         
 
-
-
-class Block(BaseBlock,SerializableMixin):
-
-    _mandatory_attributes = ['load']
+class Block(DataSet):
 
     __ntype__ = "block"
+    _mandatory_attributes = []
 
+    def __new__(cls, **kwargs):
+        """
+        Create a new instance of Block.
+        This method ensures all parameters can be properly passed
+        to Block instance creation.
+        """
+        for attr in cls._mandatory_attributes:
+            if not hasattr(cls, attr):
+                raise AttributeError(f"{cls.__name__} didn't have any {attr} method.")
+
+        return super().__new__(cls)
+    
     def __init__(self, 
-                 id=None, 
-                 name="default",
-                 version="0.0.1",
-                 path='.',
-                 authors=["Anonymous"],
-                 files=[],
-                 data={},
-                 doc=None,
-                 type="blocks",
-                 install=False,
+                 id   = None, 
+                 name = "default",
+                 version = "0.0.1",
+                 directory = '.',
+                 authors = ["Anonymous"],
+                 files = [],
+                 codes = [],
+                 data = {},
+                 doc = None,
+                 #auto_create = False,
                  **kwargs):
-        try:
-            origin = os.path.abspath(path)
-            path = os.path.join(path, name)
+        """
+        Initialize the BaseBlock with given options.
+        Args:
+            options (dict): Dictionary to be added to the block along with standard elements.
+        """
+        self.__name__    = None
+        self.__id__      = None
+        self.__version__ = None
 
-            self.fman = FileManager(base_directory=path,
-                                    auto_create=install)
-        except:
-            self.error =  BlockError(f'Path unknow : {path}', 'ORIGIN')
-            raise self.error.ERROR
-        
-        self.__SIGNAL__ = 'INITIALIZED'
+        self.vsm = VersionManager(version)
 
         super().__init__(id=id,
                          name=name,
                          version=version,
-                         path=origin,
+                         directory=directory,
                          authors=authors,
                          files=files,
+                         codes=codes,
                          data=data,
                          doc=doc,
                          **kwargs)
-        if install:
-            export_metadata(self, type, 'json')
-
-
-
-
-    # -----------------------------------------------------
-    # Export all metadata in block.json
-    
-    @final
-    def export_metadata(self,
-                        filename='blocks',
-                        format='json'):
         
-        if os.path.splitext(filename)[1] != '':
-            if os.path.splitext(filename)[1] != f".{format}":
-                raise ValueError("Le nom de fichier doit se terminer par l'extension correspondant au format spécifié.")    
-            
-        content = None
 
-        if format == 'json':
-            content = self.to_json()
-        elif format == 'csv':
-            content = self.to_csv()
+
+    # ===========================================
+    # Properties 
+    # ===========================================
+
+    @property
+    def name(self):
+        """
+        Get the name of the block.
+        Returns:
+            str: The name of the block.
+        """
+        return self.__name__
+    
+    @name.setter
+    def name(self, name):
+        """
+        Set the name of the block.
+        Args:
+            name (str): The name to set for the block.
+        """
+        self.__name__ = name
+        self._dataset['name'] = name
+
+    @property
+    def id(self):
+        """
+        Get the ID of the block.
+        Returns:
+            str: The ID of the block.
+        """
+        return self.__id__
+        
+    @id.setter
+    def id(self, id=None):
+        """
+        Set the ID of the block.
+        Args:
+            id (str): The ID to set for the block.
+        """
+
+        # Valeur qui ne doit être définie qu'une seule fois
+        if self.__id__ is None:
+
+            if id is None:
+                id = uuid.uuid4()
+            
+            if isinstance(id, str):
+                if not self.is_valid_uuid(id):
+                    raise ValueError("ID must be a valid valid UUID.")
+                id = uuid.UUID(id)
+
+            if not isinstance(id, uuid.UUID):
+                raise ValueError("ID must be a UUID.")
+            
+            self.__id__ = id
+            self._dataset['id'] = id
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            print(f"ID is set to {self.__id__}.")
+            print("It's not allowed to change it.")
 
-        if content:
+    def is_valid_uuid(self, val):
+        """
+        Check if the given value is a valid UUID.
+        Args:
+            val (str): The value to check.
+        Returns:
+            bool: True if the value is a valid UUID, False otherwise.
+        """
+        try:
+            _ = uuid.UUID(str(val))
+            return True
+        except (ValueError, AttributeError, TypeError):
+            return False
 
-            path = os.path.join(self.path,
-                                self.name,
-                                f"{filename}.{format}")
-            
-            from tools.encoder import NodeJSONEncoder
-            #obj = json.dumps(content, 
-            #                 indent=4, 
-            #                 cls=NodeJSONEncoder)
-            
-            with open(path, "w") as f:
-                f.write(content)
+    @property
+    def version(self):
+        """
+        Get the version of the block.
+        Returns:
+            str: The version of the block.
+        """
+        return self.__version__
 
-    # -----------------------------------------------------
-    # Serialization
+    @version.setter
+    def version(self, version, changelog=None):
+        """
+        Set the version of the block.
+        Args:
+            version (str): The version to set for the block.
+            changelog (str, optional): The changelog for the version update.
+        """
+        if self.vsm.current_version != version:
+            self.vsm.upgrade_version(version,changelog=changelog)
 
-    def to_csv(self):
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(self._dataset.keys())
-        writer.writerow(self._dataset.values())
-        return output.getvalue()
+        self.__version__ = self.vsm.current_version
+        self._dataset['version'] = self.vsm.current_version
 
-    def to_json(self):
-        return json.dumps(self._dataset, 
-                          indent=4, 
-                          cls=BaseBlockJSONEncoder)
+    @property
+    def changelog(self):
+        """
+        Get the changelog of the block.
+        Returns:
+            str: The changelog of the block.
+        """
+        return self.vsm.changelog
 
-    def to_dict(self,):
-        return self._dataset
+    @property
+    def version_info(self):
+        """
+        Get the version information of the block.
+        Returns:
+            dict: A dictionary containing the version and changelog.
+        """
+        return {
+            "version": self.version,
+            "changelog": self.changelog
+        }
+    
+    
+
+    # ===========================================
+    # Comparisons by ID
+    # ===========================================
+
+    def __eq__(self, other):
+        """
+        Compare two Block instances.
+        Args:
+            other (Block): The other instance to compare with.
+        Returns:
+            bool: True if the instances are equal, False otherwise.
+        """
+        if not isinstance(other, Block):
+            return False
+        return self.id == other.id
+
+    def __ne__(self, other):
+        """
+        Compare two Block instances for inequality.
+        Args:
+            other (Block): The other instance to compare with.
+        Returns:
+            bool: True if the instances are not equal, False otherwise.
+        """
+        if not isinstance(other, Block):
+            return True
+        return self.id != other.id
+    
+    def __hash__(self):
+        """
+        Generate a hash for the Block instance.
+        Returns:
+            int: Hash value of the instance.
+        """
+        return hash(self.id)
+    
+
+    # ===========================================
+    # Representations
+    # ===========================================
+
+    def __str__(self):
+        """
+        Représentation pour les utilisateurs
+        """
+        return self.__repr__()
+
+    def __repr__(self):
+        """
+        Représentation technique pour les développeurs
+        """
+        attrs = ", ".join(f"{k}={repr(v.__str__())}" for k, v in self._dataset.items() 
+                      if k in ['id', 'name','version'])
+        return f"{self.__class__.__name__}({attrs})" 
 
 
-    # -----------------------------------------------------
-    # Load methods
+    # ===========================================
+    # Copy object
+    # ===========================================
 
-    @classmethod
-    def load(cls): ...
-
-    @classmethod
-    def load_from_dict(cls, data):
-        obj = cls(**data)
-        obj.signal = 'LOADED'
-        return obj
-
-    @classmethod
-    def load_from_directory(cls, 
-                            name=None,
-                            path=None,
-                            metadata_file='blocks',
-                            format='json',
-                            encoding='utf-8',
-                            **kwargs):
-       
-        path = os.path.abspath(path)
-        full_path = os.path.join(path, name, 
-                                 metadata_file + f'.{format}')
-
-        with open(full_path, 'r', encoding=encoding) as file:
-            content = file.read()
-
-        data = json.loads(content)
-
-        data.update(kwargs)
-
-        obj = cls(**data)
-        obj.signal = 'LOADED'
-        return obj
-
-
-    # -----------------------------------------------------
-    # Copy / Deepcopy
     def copy(self):
         return type(self)(**self._dataset)
 
@@ -234,9 +303,31 @@ class Block(BaseBlock,SerializableMixin):
     def __deepcopy__(self, memo):
         return self.deepcopy()
 
+    # ===========================================
+    # Serialization
+    # ===========================================
 
-    # -----------------------------------------------------
-    # Versionnning
+
+    def to_csv(self):
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(self._dataset.keys())
+        writer.writerow(self._dataset.values())
+        return output.getvalue()
+
+    def to_json(self):
+        return json.dumps(self._dataset, 
+                          indent=4, 
+                          cls=BlockJSONEncoder)
+
+    def to_dict(self,):
+        return self._dataset
+
+
+    # ===========================================
+    # Versionnig
+    # ===========================================
+
 
     def update_version(major=None,minor=None,patch=None):
         pass
@@ -253,96 +344,5 @@ class Block(BaseBlock,SerializableMixin):
     @abstractmethod
     def extract(self,): ...
 
-
-    # -----------------------------------------------------
-    # Gestion fichiers
-    def rename(self, new_name: str) -> None:
-        """
-        Rename the block.
-        """
-        old_name = os.path.join(self.path, self.name)
-        new_path = os.path.join(self.path, new_name)
-
-        if os.path.exists(new_path):
-            print(f"Le répertoire {new_path} existe déjà.")
-            return
-        
-        
-        self.fman.rename(old_name, new_path)
-        self.name = new_name
-
-    def compose(self, 
-                filename,
-                content = None,
-                encoding='utf-8',
-                append=False):
-        """
-        Compose a file with the given content.
-        """
-        
-        self.fman.write_file(filename, 
-                             content,
-                             encoding=encoding,
-                             append=append,
-                             auto_create=True)
-
-    def move(self,
-             destination,
-             overwrite: bool = False) -> None:
-
-        # Destination existe ?
-        if os.path.exists(destination): 
-            print(f"Le répertoire {destination} existe déjà.")
-            return  
-
-        _origin     = os.path.join(self.path, self.name)
-        destination = os.path.abspath(os.path.join(destination,self.name))
-        
-        # Déplacement
-        self.fman.move_files(_origin, 
-                             destination, 
-                             overwrite=overwrite)
-
-    def delete_directory(self, directory=None) -> None:
-        """
-        Supprime le répertoire du block.
-        """
-        if directory is None:
-            directory = os.path.join(self.path, self.name)
-        else:
-            directory = os.path.abspath(directory)
-        
-        self.fman.delete_directory(directory)
-
-    def compress(self, 
-                 source: Union[str, Path] = None, 
-                 destination: Union[str, Path] = None) -> None:
-        """
-        Compresse le contenu du répertoire source dans une archive ZIP.
-
-        Args:
-            source (Union[str, Path]): Chemin du répertoire à compresser.
-            destination (Union[str, Path]): Chemin de l'archive ZIP de destination.
-        """
-        if source is None:
-            source = os.path.join(self.path, self.name)
-
-        if destination is None:
-            destination = os.path.join(self.path, f"{self.name}.zip")
-
-        self.fman.create_zip(source, destination)
-
-    def decompress(self, 
-                   source: Union[str, Path], 
-                   destination: Union[str, Path] = '') -> None:
-        """
-        Décompresse une archive ZIP dans le répertoire de destination.
-
-        Args:
-            source (Union[str, Path]): Chemin de l'archive ZIP à décompresser.
-            destination (Union[str, Path]): Chemin du répertoire de destination.
-        """
-        self.fman.extract_zip(source, 
-                              destination)
 
 

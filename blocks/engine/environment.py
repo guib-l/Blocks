@@ -6,6 +6,7 @@ import copy
 import json
 
 import inspect
+import importlib.util
 from pathlib import Path
 
 from enum import Enum,Flag
@@ -18,27 +19,30 @@ from tools.encoder import EnvJSONEncoder
 
 
 
+
+
+
+
 class Environment(SerializableMixin):
 
+    __format__ = 'pickle'
     __slots__ = (
-        "name","_functions","_language","_lang",
-        "build","backend","_backend_env"
+        "name","_functions","_language",
+        "_lang","backend","_backend_env"
     )
 
     def __init__(self,
                  name='env',
                  language='python3', 
                  backend_env=PYTHON,
-                 build=True,
                  functions=None,
                  **kwargs):
         
         self.name = name
 
-        self.functions = functions
+        self.set_functions( functions )
     
         self.language = language
-        self.build = build
 
 
         self._backend_env = backend_env
@@ -61,34 +65,55 @@ class Environment(SerializableMixin):
         else:
             return self._functions[name]
         
-    @functions.setter
-    def functions(self, defaults=None, **kwfunc):
+    def set_functions(self, defaults=None, **kwfunc):
+        print('defaults = ',defaults, **kwfunc)
 
         if defaults:
+        
             if isinstance(defaults, typing.Callable):
-                defaults = {defaults.__name__: defaults}
+                defaults = {defaults.__name__: inspect.getfile(defaults)}
+        
             elif isinstance(defaults, dict):
                 for k,v in defaults.items():
                     if not isinstance(v, typing.Callable):
                         continue
-                    defaults[k] = v
+                    defaults[k] = inspect.getfile(v)
+        
             elif isinstance(defaults, typing.List):
                 funcs = {}
                 for func in defaults:
                     if not isinstance(func, typing.Callable):
                         continue
-                    funcs[func.__name__] = func
+                    print( 'unwrap : ',inspect.getfile(func) )
+                    funcs[func.__name__] = inspect.getfile(func)
                 defaults = funcs
+        
             else:
                 raise TypeError("Defaults must be a callable or a dict.")
             self._functions = defaults
+        
         else:
             self._functions.update(kwfunc)
+
+        print('Function : ',self._functions)
+
+
+    def get_import(self, name, path):
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return getattr(mod, name)
 
     def get_functions(self, index=-1, name=None):
         if name is None:
             name = list(self._functions.keys())[index]
-        return self._functions[name]
+        
+        location = self._functions[name]
+
+        func = self.get_import(name, location)
+        print(inspect.unwrap(func))
+        sys.exit()
+        return func
 
 
     @property
@@ -107,13 +132,13 @@ class Environment(SerializableMixin):
             name=new_name or self.name,
             language=self.language,
             backend_env=self._backend_env,
-            build=self.build,
             functions=copy.copy(self.functions),)
 
 
     # ============================================
     # Serialization of Environment object
 
+    """
     def __serialize__(self,):
         return dict(
             name=self.name,
@@ -122,7 +147,6 @@ class Environment(SerializableMixin):
             build=self.build,
             functions=copy.copy(self.functions),)
 
-    """
     @classmethod
     def from_dict(cls, data):
         print('DATA : \n',data)

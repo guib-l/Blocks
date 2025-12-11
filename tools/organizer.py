@@ -39,7 +39,7 @@ class FileManager:
             log_enabled (bool): Si True, active la journalisation des opérations.
             log_level (int): Niveau de journalisation (logging.DEBUG, logging.INFO, etc.)
         """
-        self.base_directory = base_directory or os.getcwd()
+        self.base_directory = os.path.abspath(os.path.expanduser(base_directory)) if base_directory else os.getcwd()
         self.auto_create = auto_create
         self.log_enabled = log_enabled
 
@@ -199,7 +199,9 @@ class FileManager:
             self._log(error_msg, logging.ERROR)
             raise FileError(error_msg) from e
 
-    def delete_directory(self, path: Union[str, Path], ignore_errors: bool = False) -> None:
+    def delete_directory(self, 
+                         path: Union[str, Path], 
+                         ignore_errors: bool = False) -> None:
         """
         Supprime un répertoire s'il existe.
         
@@ -211,7 +213,7 @@ class FileManager:
             FileError: Si le répertoire ne peut pas être supprimé et ignore_errors=False
         """
         full_path = self._resolve_path(path)
-        
+
         if not os.path.exists(full_path):
             self._log(f"Répertoire non trouvé pour suppression: {full_path}", logging.WARNING)
             return

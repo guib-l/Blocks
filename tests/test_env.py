@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from configs import *
 
 from blocks.base import *
-from blocks.nodes.node import Node
 
 from blocks.interface._interface import (MessageType,MESSAGE,Interface)
 
@@ -60,7 +59,6 @@ if __name__ == "__main__":
     env = Environment(name='pip',
                       directory='./envs/pip_env/',
                       language='python3',
-                      build=False,
                       backend_env=temp,
                       functions=heavy_calculation,
                       env_name='generic-env.02'
@@ -79,8 +77,6 @@ if __name__ == "__main__":
     # ====================================
     # --- Serialization of environment ---
     print()
-    
-    print(env)
     
     dict_env = env.to_dict()
     print('Environment as dict : \n',dict_env)
@@ -106,3 +102,10 @@ if __name__ == "__main__":
     env.backend.uninstall()
 
     sys.exit()
+
+
+
+
+
+
+

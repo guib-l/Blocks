@@ -82,6 +82,7 @@ if __name__ == "__main__":
     # Install few nodes
     print("\n"+"*"*40)
     print("INSTALL NODE with default_install")
+    print(f' > Directory : {DIRECTORY}')
 
     script_filename = DIRECTORY + "/myscript/my_script.py" # Ne fonctionne pas
     script_path     = DIRECTORY + "/myscript/source"       # Fonctionne okay
@@ -119,19 +120,38 @@ if __name__ == "__main__":
     x = function_test(xdata=3.0)
     print("Function output:", x)
 
+    from tools.load import _load_function_from_file
 
+    func = _load_function_from_file(
+        '/home/workstation/Documents/Blocks/tests/myscript/my_script.py', 
+        'say')
+
+    print(func)
+    func('helle')
+
+
+
+
+    sys.exit()
     # ===============================================
     print("\n"+"*"*40)
     print("LOAD/BUILD NODE with task_node TRANSFORMATION")
 
     results = heavy_calculation(n=2)  
+
     
     node = heavy_calculation() 
     print('> Type of object : ',node.__class__)
 
     node.execute(n=5)
 
+    print(node.executor)
+    print(node.environment)
+
     # Installation de via Task (DONE)
+    node = Node.load('task_heavy_calculation',
+                      directory=BLOCK_PATH)
+    node.execute(n=3)
 
     # Env default python pip + conda + venv
 

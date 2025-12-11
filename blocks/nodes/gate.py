@@ -1,6 +1,6 @@
 from typing import *
 
-from blocks.base.signal import Signal
+from blocks.interface.signal import Signal
 from blocks.interface._interface import MESSAGE,MessageType
 import node 
 

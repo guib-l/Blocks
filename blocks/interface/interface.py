@@ -3,8 +3,8 @@ import sys
 
 
 
-class COMMUNICATE:
-    # Placeholder for communication methods 
+class Interface:
+    # Placeholder for interface methods 
     # could include send, receive, connect, disconnect, etc.
     def __init__(self,):
         pass

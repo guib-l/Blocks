@@ -15,8 +15,8 @@ from typing import List, Dict, Any, Optional, Union, Callable, Iterator, BinaryI
 from ..base.dataset import DataSet
 from copy import copy, deepcopy
 
-from blocks.base.baseBlock import BaseBlock
-from blocks.base import block
+from blocks.base._baseBlock import BaseBlock
+from blocks.base import _block
 
 from typing import Any, Dict, TypeVar, Optional
 from blocks.base.version import VersionManager
@@ -27,7 +27,7 @@ from blocks.base import BLOCK_PATH
 from tools.encoder import NodeJSONEncoder
 
 
-from blocks.base.signal import Signal
+from blocks.interface.signal import Signal
 from blocks.interface._interface import MESSAGE,MessageType,Interface
 
 from enum import Enum
@@ -85,12 +85,14 @@ def extract_dependencies(func):
 
 # TODO: Faire un installer propre (dans un module dédié aux installation
 # de module python)
+# TODO: faire en sorte que cela fonctionne avec de multiple fichiers et
+# fonctions dans les fichiers.
 
 def _default_install(name="default-node",
                      base_directory: str = "./",
                      code_directory: str = "",
                      **kwargs):
-
+    codes_from_files = []
     print(f"Installing node '{name}' in directory '{base_directory}'")
 
     fm = FileManager(base_directory=base_directory, auto_create=True)
@@ -134,13 +136,31 @@ def _default_install(name="default-node",
         except Exception as e:
             print(f"Error processing file {file}: {e}")
             raise FileError(f"Failed to process file {file}: {e}")
+        
+        print('file : ',file)
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('mod_temp',file)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            codes_from_files = [obj for nom,obj in inspect.getmembers(mod) if callable(obj)]
+        except:
+            pass
+
 
     # Traitement des fonctions
     codes = kwargs.get('codes', [])
 
-    filename = os.path.join(target_path,f'{name}.py')
-
     for code in codes:
+
+        filename = os.path.join(target_path,f'{name}.py')
+        full_filename = os.path.join(base_directory,filename)
+
+        if full_filename not in files:
+            files.append(full_filename)
+            kwargs['files'] = files
+
+
         import textwrap
         deps,mods = extract_dependencies(code)
 
@@ -173,8 +193,11 @@ def _default_install(name="default-node",
             for name,node in deps.items():
                 fout.write(textwrap.dedent( 
                     inspect.getsource(getattr(module,name)) )+'\n')
-
-    return target_path
+    
+    for code in codes_from_files:
+        kwargs['codes'].append(code)
+    
+    return kwargs
 
 
 
@@ -233,7 +256,7 @@ class NodeError(Exception):
             self.err_type = NodeErrorType[value]
 
 
-class Node(block.Block):
+class Node(_block.Block):
 
     __ntype__ = "node"
 
@@ -310,7 +333,7 @@ class Node(block.Block):
         
         data = json.load(
             open(os.path.join(directory, name, 'blocks.json')))
-        data.update(kwargs) 
+        data.update(kwargs)
 
         return cls(auto=False, **data)
 
@@ -410,6 +433,7 @@ class Node(block.Block):
                 name="default-node",
                 installer = None,
                 directory:str = ".",
+                codes=[],
                 **kwargs):
         """
         Install the block in the given path.
@@ -417,34 +441,39 @@ class Node(block.Block):
             path (str): Path to install the block.
         """
 
-        cls.__install__(name=name,
-                        directory=directory,
-                        installer=installer,
-                        **kwargs)
+
+        kwargs = cls.__install__(cls, 
+                                 name=name,
+                                 directory=directory,
+                                 installer=installer,
+                                 codes=codes,
+                                 **kwargs)
         
         return cls(name=name,
                    path=directory,
-                   _build=kwargs.get('_build',True),
                    **kwargs )
 
-    @staticmethod
-    def __install__(name="default-node",
+    def __install__(self,
+                    name="default-node",
                     installer=None, 
                     directory=".",
                     **kwargs):
         
         if installer is not None:
             try:
-                installer(directory=directory,
+                installer(name=name,
+                          directory=directory,
                           **kwargs)
             except Exception as e:
                 
                 raise NodeError("INSTALLER method failed", 'INSTALLER')
         else:
-            _default_install(name=name,
-                             base_directory=directory,
-                             **kwargs)
-        return True
+            args = _default_install(name=name,
+                                    base_directory=directory,
+                                    **kwargs)
+                        
+            return args
+        return kwargs
 
     @classmethod
     def uninstall(cls,

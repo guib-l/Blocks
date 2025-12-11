@@ -6,7 +6,6 @@ from configs import *
 from blocks.base.dataset import DataSet
 from blocks.base.block import Block
 
-from blocks.base.block import MESSAGE
 from blocks.base import *
 
 
@@ -25,10 +24,10 @@ if __name__ == "__main__":
     data = {
         'name': 'block-test',
         'id': None,
-        '_build':True,
         'version': '0.0.1',
         'path': "myblock/",
         'values': [1, 2, 3, 4, 5],
+        'auto_create': True,
         'metadata': {'source': 'generated', 'version': 1.0}
     }
   
@@ -37,16 +36,34 @@ if __name__ == "__main__":
     print(block)
     print("Block instance created successfully.")
     
-    # Write metadata (block.json)
-    Block.export_metadata(block, filename='blocks', format='json')
-  
-   # Load new Block from the first
-    block_bis = Block.load_from_directory(name='block-test',
-                                          metadata_file='blocks',
-                                          path=BLOCK_PATH)
-    print(block_bis)
-    print("Block instance loaded successfully.")
-  
+
+    new_block = block.deepcopy()
+    print(new_block)
+    print("Block copied successfully.")
+
+    if block==new_block:
+        print("block et new_block sont égaux")
+    else:
+        print("block et new_block sont différents")
+
+    # Versionning de block
+    print("Current Block Version:", block.version)
+
+    block.version = "0.0.2"
+    print("Updated Block Version:", block.version)
+
+    """
+   # Compression du block
+    block.compress()
+    print("Block compressed successfully.")
+
+   # Decompression du block
+    block.decompress(source='block-test.zip')
+    print("Block decompressed successfully.")
+
+    block.delete_directory("myblock_new")  
+    print("Block directory deleted successfully.")
+ 
    # Save a script file in the block directory
     block.compose("src/script.py", content=py_script)
     print("Script file composed successfully.")
@@ -73,6 +90,7 @@ if __name__ == "__main__":
 
     block.delete_directory("myblock_new")  
     print("Block directory deleted successfully.")
+    """
 
     new_block = block.deepcopy()
     print(new_block)
@@ -90,29 +108,3 @@ if __name__ == "__main__":
     print("Updated Block Version:", block.version)
 
     
-    """
-    msg = MESSAGE( FROM=None,
-                   TO=block.id,
-                   DELAY=None,
-                   TRANSFORM=None,
-                   DATE_SEND=None,
-                   DATE_RECEIVED=None,
-                   ASYNC=False,
-                   DATA={},)
-
-    block.input = msg
-
-
-    print("Input: \n",block.input)
-
-    print("Output: \n",block.output)
-
-    """
-
-
-
-
-
-
-
-

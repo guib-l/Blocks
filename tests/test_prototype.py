@@ -117,35 +117,30 @@ if __name__ == "__main__":
     proto.import_method( os.path.join(BLOCK_PATH,"export.py") )
 
     print(proto._register_methods)
-    
 
 
-    sys.exit()
+
 
     proto = Prototype.install( **data )
     print(proto)
     print("Prototype instance installed successfully.")
     
 
-
-
-    sys.exit()
-
-    from tools.load import _load_function_from_file
-    func = _load_function_from_file(
-        proto.files[0],"basic_function"
-    )
-    results = func(6)
-
     proto.uninstall()
     print("Prototype instance uninstalled successfully.")
+
+
 
 
     # ===============================================
     # Installation d'un Prototype via l'appel de @task
     print("\n"+"*"*40)
 
-    results = heavy_calculation(n=3)
+    results = heavy_calculation()
+    print(results)
+
+    
+    sys.exit()
 
 
     # ===============================================

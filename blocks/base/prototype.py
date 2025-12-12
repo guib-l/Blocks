@@ -133,9 +133,20 @@ class Register:
     # Register of methods
     # ===========================================
 
+    def get_methods(self, name=''):
+
+        func = self.get_register_methods(name=name)
+        return func.call
+
     def get_register_methods(self, name=''):
         # On récupère la méthode souhaité dans le registre
         # enregistré à l'instanciation
+        if name=='' and len(self._register_methods)==1:
+            name = list(self._register_methods.keys())[0]
+            
+        if name not in self._register_methods:
+            raise ValueError(
+                f"Method '{name}' is not registered in the method registry")
 
         return self._register_methods[name]
 
@@ -245,7 +256,8 @@ class Register:
 
 
     def import_method(self,
-                      source: str=None):
+                      source: str=None, 
+                      allowed_methods=None):
         
         if not os.path.isabs(source):
             source = os.path.abspath(source)
@@ -254,8 +266,13 @@ class Register:
                                              ignore_restriction=True)
         
         self.set_register_methods(functions)
-        self.filter_register_methods(allowed_name=self.allowed_name)
 
+        self.filter_register_methods(allowed_name=allowed_methods or self.allowed_name)
+
+
+
+from blocks.engine.environment import Environ
+from blocks.engine import PYTHON
 
 class Prototype(block.Block, Register):
 
@@ -263,58 +280,71 @@ class Prototype(block.Block, Register):
 
 
     def __new__(cls, **kwargs):
-        _installer = kwargs.get('installer', INSTALLER.DEFAULT)
+        _installer   = kwargs.get('installer', INSTALLER.DEFAULT)
+        _environment = kwargs.get('environment', Environ)
 
         if isinstance(_installer,Enum):
             _installer = _installer.value
 
-        if _installer is not None:
-            _cls = type(
-                cls.__name__,
-                (_installer,cls),
-                {}
-            )
-        return super().__new__(_cls)
+        print('Creating Prototype class with installer:', _installer)
+        print('and environment:', _environment)
+
+        cls = type(
+            cls.__name__,
+            (_installer,_environment,cls),
+            {}
+        )
+        
+        return super().__new__(cls)
 
 
     def __init__(self,
-                 auto_create    = False,
-                 mandatory_attr = True,
-                 environment    = None,
-                 executor       = None,
-                 installer      = INSTALLER.DEFAULT,
-                 methods        = [],
-                 files          = [],
-                 allowed_name   = None,
+                 auto_create     = False,
+                 mandatory_attr  = True,
+                 environment     = Environ,
+                 environ_backend = PYTHON,
+                 environ_arguments = {},
+                 executor        = None,
+                 installer       = INSTALLER.DEFAULT,
+                 methods         = [],
+                 files           = [],
+                 allowed_name    = None,
                  **kwargs):
 
         # Initialisation des attributs spécifiques au Prototype
         self.mandatory_attr = mandatory_attr
             
+        # Initialisation de l'environnement
+        self.__init_env__(environ_backend,
+                          **environ_arguments)
+
+
         # Methode destinée à la communication entre les Prototype
-        self.environment = environment
         self.executor    = executor
+
 
         # Enregistrement des méthodes
         # TODO: gérer les duplicatas
-        # TODO: améliorer le code (refactor addition tableau)
+        # TODO: améliorer le code (refactor l'addition tableau)
         if methods + files != []:
             self.set_register_methods(methods + files, 
                                       ignore_duplicata=False)
-        self.allowed_name = allowed_name or self._register_methods.keys()
+        self.allowed_name = allowed_name or list(self._register_methods.keys())
         self.filter_register_methods(allowed_name=self.allowed_name)
 
 
+
+
         super().__init__(mandatory_attr = mandatory_attr,
-                         #auto_create = auto_create,
                          allowed_name = self.allowed_name,
                          **kwargs)
         
-        if hasattr(self,'__post_init__'):
-            self.__post_init__(name=self.name,
-                               directory=self.directory,
-                               auto_create=auto_create)
+        #if hasattr(self,'__post_init__'):
+        #    self.__post_init__(name=self.name,
+        #                       directory=self.directory,
+        #                       auto_create=auto_create)
     
+
 
 
 
@@ -386,7 +416,8 @@ class Prototype(block.Block, Register):
             return exec(**data)
 
         except Exception as e:
-            raise PrototypeErrorType(f"EXECUTION method failed: {e}", 'EXECUTION')
+            raise PrototypeErrorType(
+                f"EXECUTION method failed: {e}", 'EXECUTION')
 
 
     def forward(self, name=None, **data):
@@ -395,7 +426,8 @@ class Prototype(block.Block, Register):
 
         with self.environment as env:
 
-            func   = env.get_functions(name=name)
+            #func   = env.get_functions(name=name)
+            func   = self.get_register_methods(name=name).call
             output = func(**data)
         
         return output
@@ -468,8 +500,6 @@ class Prototype(block.Block, Register):
                 name="default-node",
                 installer = INSTALLER.DEFAULT,
                 directory:str = ".",
-                codes:List = [],
-                files:List[str] = [],
                 **kwargs):
         """
         Install the block in the given path.
@@ -478,6 +508,7 @@ class Prototype(block.Block, Register):
         """
         if 'auto_create' in kwargs:
             del kwargs['auto_create']
+
 
         instance =  cls(name=name,
                         directory=directory,
@@ -491,10 +522,11 @@ class Prototype(block.Block, Register):
 
         instance.__install__(name=name,
                              directory=directory,
-                             installer=installer,
-                             files=files,
-                             codes=codes,)
+                             installer=installer,)
         
+        print(instance.files)
+        print(instance._dataset)
+
         export_metadata(
             instance,
             filename=instance.__ntype__,

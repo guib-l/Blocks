@@ -20,156 +20,36 @@ from tools.encoder import EnvJSONEncoder
 
 
 
+class Environ:
 
+    __environ__ = PYTHON
 
-
-class Environment(SerializableMixin):
-
-    __format__ = 'pickle'
-    __slots__ = (
-        "name","_functions","_language",
-        "_lang","backend","_backend_env"
-    )
-
-    def __init__(self,
-                 name='env',
-                 language='python3', 
-                 backend_env=PYTHON,
-                 functions=None,
-                 **kwargs):
+    def __init_env__(self,
+                     backend_env=PYTHON,
+                     **kwargs):
         
-        self.name = name
+        self.env = backend_env
+        _backend = backend_env.environment
 
-        self.set_functions( functions )
-    
-        self.language = language
+        self.env.parameters.update(**kwargs)
+
+        self.backend = _backend( **self.env.parameters ) 
 
 
-        self._backend_env = backend_env
-        self.backend      = backend_env.environment
-
-        self._backend_env.parameters.update(**kwargs)
-        
-        if inspect.isclass(self.backend):
-            self.backend = self.backend.sub_build(
-                **self._backend_env.parameters
-                )  
-    
     # ============================================
-    # Attributes definition
+    # Variables definition
 
     @property
-    def functions(self, name=None):
-        if name is None:
-            return self._functions
-        else:
-            return self._functions[name]
-        
-    def set_functions(self, defaults=None, **kwfunc):
-        print('defaults = ',defaults, **kwfunc)
+    def env(self,):
+        return self.__environ__
 
-        if defaults:
-        
-            if isinstance(defaults, typing.Callable):
-                defaults = {defaults.__name__: inspect.getfile(defaults)}
-        
-            elif isinstance(defaults, dict):
-                for k,v in defaults.items():
-                    if not isinstance(v, typing.Callable):
-                        continue
-                    defaults[k] = inspect.getfile(v)
-        
-            elif isinstance(defaults, typing.List):
-                funcs = {}
-                for func in defaults:
-                    if not isinstance(func, typing.Callable):
-                        continue
-                    print( 'unwrap : ',inspect.getfile(func) )
-                    funcs[func.__name__] = inspect.getfile(func)
-                defaults = funcs
-        
-            else:
-                raise TypeError("Defaults must be a callable or a dict.")
-            self._functions = defaults
-        
-        else:
-            self._functions.update(kwfunc)
+    @env.setter
+    def env(self, new_env):
+        self.__environ__ = new_env
 
-        print('Function : ',self._functions)
+    # Define alias
+    environment = env
 
-
-    def get_import(self, name, path):
-        spec = importlib.util.spec_from_file_location(name, path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return getattr(mod, name)
-
-    def get_functions(self, index=-1, name=None):
-        if name is None:
-            name = list(self._functions.keys())[index]
-        
-        location = self._functions[name]
-
-        func = self.get_import(name, location)
-        print(inspect.unwrap(func))
-        sys.exit()
-        return func
-
-
-    @property
-    def language(self):
-        return self._lang
-
-    @language.setter
-    def language(self, lang):
-        self._lang = lang
-
-    # ============================================
-    # Copy of Environment object
-
-    def copy(self, new_name=None):
-        return type(self)(
-            name=new_name or self.name,
-            language=self.language,
-            backend_env=self._backend_env,
-            functions=copy.copy(self.functions),)
-
-
-    # ============================================
-    # Serialization of Environment object
-
-    """
-    def __serialize__(self,):
-        return dict(
-            name=self.name,
-            language=self.language,
-            backend_env=self._backend_env,
-            build=self.build,
-            functions=copy.copy(self.functions),)
-
-    @classmethod
-    def from_dict(cls, data):
-        print('DATA : \n',data)
-        return cls(**data)
-    
-    def to_dict(self,):
-        return dict(
-            name=self.name,
-            language=self.language,
-            backend_env=self._backend_env,
-            build=self._build,
-            functions=copy.copy(self.functions),)
-
-    def to_json(self,):
-        return json.dumps(self.to_dict(),
-                          indent=4,
-                          cls=EnvJSONEncoder)
-    
-    @classmethod
-    def from_json(cls, data):
-        data = json.loads(data)
-        return cls.from_dict(data)
-    """
 
     # ============================================
     # Definition Build-in functions
@@ -191,17 +71,31 @@ class Environment(SerializableMixin):
             raise NotImplementedError(
                 f'Method {_mandat} not in object {self.backend.__class__}')
    
-    def __ckeck(self, other):
+    def __diff__(self, other):
         # Check si tout les paramètres sont identiques
+        if other == self.env:
+            return True
+        else:
+            if other.language == self.env.language:
+                if other.environment == self.env.environment:
+                    return True
+            
         return False
 
-    def __add__(self, other):
+    def __mix__(self, other):
         # Ajoute les fonctions de 'other' dans self
         # a condition que tout les paramètres soient identiques
 
         return self
 
-   
+
+    # ============================================
+    # Copy of Environment object
+
+    def copy(self,):
+        _env = type(self)(
+            backend_env=self._backend_env,)
+        return _env
    
     # ============================================
     # Standard function from Backend attribute
@@ -221,6 +115,39 @@ class Environment(SerializableMixin):
     def update(self,**kwargs):
         value = self.__call__("update")
         return value(**kwargs)
+
+
+class Environment(Environ,SerializableMixin):
+
+    __slots__ = (
+        'name',
+        'language',
+        'backend_env',
+    )
+
+    def __init__(self,
+                 name='env',
+                 language='python3', 
+                 backend_env=PYTHON,
+                 **kwargs):
+         
+         super().__init_env__(
+             backend_env=backend_env,
+             **kwargs
+         )
+         self.name = name
+         self.language = language
+
+
+
+
+
+
+
+
+
+
+
 
 
 

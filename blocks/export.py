@@ -9,9 +9,8 @@ from blocks.engine.environment import Environment,PYTHON
 
 
 def task_node(backend    = 'default',
-              directory  = '',
-              install    = False,
               execute    = None,
+              directory  = '.',
               objectType = Prototype,
               **env_args):
     
@@ -26,7 +25,7 @@ def task_node(backend    = 'default',
                 'id': None,
                 'version': '0.0.1',
                 'mandatory_attr': False,
-                'codes':[function,],
+                'methods':[function,],
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
@@ -37,18 +36,10 @@ def task_node(backend    = 'default',
                 'executor': execute
             }
             
-            if install:
-                tmp_node = objectType.install(
-                    directory=directory,
-                    **data_set
-                )
-            else:
-                tmp_node = objectType(**data_set)
-            
-            if not kwargs == {}:
-                return tmp_node.execute(**kwargs)
+            tmp_node = objectType(**data_set)
             
             return tmp_node
+            
         return wrapper_func
     return wrap
 

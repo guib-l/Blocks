@@ -58,6 +58,8 @@ class _empty_env(abstract_env):
         print(f'> Update ')
 
 
+
+
 class _python_env(Packages,abstract_env):
 
     def __init__(self, 
@@ -98,6 +100,9 @@ class _python_env(Packages,abstract_env):
 
     def update(self, **kwargs):
         print(f'> Update Python environment ')
+
+
+
 
     # ============================================
     # Serialization of _python_env object

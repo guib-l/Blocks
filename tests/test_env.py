@@ -16,7 +16,7 @@ from blocks.engine.execute import Execute
 
 from blocks.engine.python_env import _empty_env,_python_env
 from blocks.engine import PYTHON,PYTHON_PIP
-from blocks.engine.environment import Environ, Environment
+from blocks.engine.environment import EnvironMixin, Environment
 
 import time
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         'metadata': {'source': 'generated', 
                      'version': 1.0,
                      'description': 'A sample dataset for testing'},
-        'environment': Environ,
+        'environment': EnvironMixin,
         'executor': None,
     }
   

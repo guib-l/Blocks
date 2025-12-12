@@ -42,7 +42,7 @@ def heavy_calculation(n=5):
     return result
 
 
-
+from blocks.engine.environment import EnvironMixin
 
 if __name__ == "__main__":
       
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         'metadata': {'source': 'generated', 
                      'version': 1.0,
                      'description': 'A sample dataset for testing'},
-        'environment': None,
+        'environment': EnvironMixin,
         'executor': None,
     }
   
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     results = heavy_calculation()
     print(results)
 
-    
+
     sys.exit()
 
 

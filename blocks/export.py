@@ -3,7 +3,7 @@ import blocks
 from blocks.base.prototype import Prototype
 from blocks.engine.execute import Execute
 
-from blocks.engine.environment import Environment,PYTHON
+from blocks.engine.environment import EnvironMixin,PYTHON
 
 
 
@@ -29,10 +29,7 @@ def task_node(backend    = 'default',
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
-                'environment': Environment(language='python3', 
-                                           backend_env=PYTHON,
-                                           functions=function,
-                                           **env_args),
+                'environment': EnvironMixin,
                 'executor': execute
             }
             

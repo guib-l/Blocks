@@ -20,7 +20,7 @@ from tools.encoder import EnvJSONEncoder
 
 
 
-class Environ:
+class EnvironMixin:
 
     __environ__ = PYTHON
 
@@ -46,9 +46,6 @@ class Environ:
     @env.setter
     def env(self, new_env):
         self.__environ__ = new_env
-
-    # Define alias
-    environment = env
 
 
     # ============================================
@@ -92,10 +89,10 @@ class Environ:
     # ============================================
     # Copy of Environment object
 
-    def copy(self,):
-        _env = type(self)(
-            backend_env=self._backend_env,)
-        return _env
+    #def copy(self,):
+   #     _env = type(self)(
+   #         backend_env=self._backend_env,)
+   #     return _env
    
     # ============================================
     # Standard function from Backend attribute
@@ -117,7 +114,7 @@ class Environ:
         return value(**kwargs)
 
 
-class Environment(Environ,SerializableMixin):
+class Environment(EnvironMixin,SerializableMixin):
 
     __slots__ = (
         'name',

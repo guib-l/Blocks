@@ -42,12 +42,14 @@ class Register:
         func = self.get_register_methods(name=name)
         return func.call
 
-    def get_register_methods(self, name=''):
+    def get_register_methods(self, name=None):
         # On récupère la méthode souhaité dans le registre
         # enregistré à l'instanciation
-        if name=='' and len(self._register_methods)==1:
+        if (name is None) and len(self._register_methods)==1:
             name = list(self._register_methods.keys())[0]
             
+        print(f"Getting registered method: {name}")
+        
         if name not in self._register_methods:
             raise ValueError(
                 f"Method '{name}' is not registered in the method registry")

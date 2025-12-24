@@ -1,222 +1,157 @@
+import os,sys
 from typing import *
 
-from blocks.interface.signal import Signal
-from blocks.interface._interface import MESSAGE,MessageType
-import blocks.nodes.node as node
+import blocks.nodes.node as Node
 
-from blocks.nodes.graphics import TopologicGraphics 
+from blocks.base import prototype 
+from blocks.base.prototype import INSTALLER
+from blocks.nodes.graphics import AcyclicGraphMixin 
 
 
 Workflow = TypeVar('Workflow', bound='Workflow')
 
 
 
+def export_metadata(block: prototype.Prototype, 
+                    filename: str,
+                    format: str = 'json',
+                    directory: str = None, ) -> None:
+    """
+    Export metadata from a Block instance to a file.
+    Args:
+        block (Block): The Block instance to export metadata from.
+        filename (str): The name of the file to export to (without extension).
+        format (str): The format to export the metadata in ('json', 'csv', etc.).
+    """
+    if os.path.splitext(filename)[1] != '':
+        if os.path.splitext(filename)[1] != f".{format}":
+            raise ValueError("Le nom de fichier doit se terminer par " \
+"l'extension correspondant au format spécifié.")    
+        
+    content = None
+    if format == 'json':
+        content = block.to_json()
+    elif format == 'csv':
+        content = block.to_csv()
+    else:
+        raise ValueError(f"Unsupported format: {format}")
+    
+    if content:
+        path = os.path.join(directory or block.directory,
+                            block.name,
+                            f"{filename}.{format}")
+
+        with open(path, "w") as f:
+            f.write(content)
+
+
+def Install(object,
+            name=None,
+            directory=None,
+            installer=INSTALLER.WORKFLOW):
+
+    if directory:
+        object.directory = directory
+    if name:
+        object.name = name
+
+    
+    object = object.__install__(name=object.name,
+                       install_directory=object.directory,
+                       installer=installer,)
+
+    export_metadata(
+        object,
+        filename=object.__ntype__,
+        format='json',
+        directory=object.directory
+    )
 
 
 
-class Workflow(node.Node):
+class Workflow(prototype.Prototype):
 
     __ntype__ = "workflow"
 
-    def __init__(self, 
-                 graphics = None,
-                 communicator = None,
-                 global_environment=True,
-                 global_executor=True,
+    def __new__(cls, **kwargs):
+        print('Creating Workflow subclass instance...')
+
+        graphics    = kwargs.pop('graphics', AcyclicGraphMixin)
+
+        cls = type(
+            cls.__name__,
+            (graphics,cls),
+            {}
+        )
+        return super().__new__(cls, **kwargs)
+
+    def __init__(self,
+                 graphics=AcyclicGraphMixin, 
+                 links:List[Tuple[Any,Any]] = [],
+                 first_node:Any = None,
+                 last_node:Any = None,
+                 nodes:Dict[str,Node.Node] = {},
                  **kwargs):
-        
+
         super().__init__(**kwargs)
 
-        if isinstance(graphics, TopologicGraphics):
-            self._graphics = graphics
-        elif isinstance(graphics, dict):
-            self._graphics = TopologicGraphics.from_dict(**graphics)
-        else:
-            if self._mandatory_attr: raise NotImplementedError('Graphics not informed')
-            else: self._graphics = TopologicGraphics()
-    
-        self._graphics.build()
+        self.__init_graph__(links=links, 
+                            first=first_node, 
+                            last=last_node)
+        
+        self._registred_nodes = {}
 
-        self.currents_nodes = {}
-
-        self.communicator       = communicator
-
-        self.global_environment = global_environment
-        self.global_executor    = global_executor
-
-
+        for label, node in nodes.items():
+            if isinstance(node, Node.Node):
+                self.import_node(node, label=label)
+            elif isinstance(node, dict):
+                self.import_node(label=label,**node)
+            else:
+                raise TypeError("Node must be an instance of Node or a dict.")
+        
 
     # -----------------------------------------------------
-    # Execute methods
-    
-    def forward(self, **data):
-
-        if self.communicator is None:
-
-            for node_index in self._graphics.graphics:
-                node = self.currents_nodes[node_index]
-                data = node.execute(**data)
-            
-            output = data
-            return output
-    
-
-    # -----------------------------------------------------
-    # Graphics methods
-
-    def graph_to_dict(self,):
-        graph = self._graphics.to_dict()
-        graph.update({'nodes':None})
-        return graph
-
-    @property
-    def graphics(self,):
-        return self._graphics.graphics
-    
-    @graphics.setter
-    def graphics(self, value):
-        if isinstance(value, TopologicGraphics):
-            self._graphics = value
-        elif isinstance(value, dict):
-            self._graphics = TopologicGraphics.from_dict(**value)
-        else:
-            raise TypeError("Value not 'TopologicGraphics' or 'dict'")
-
-    @property
-    def node(self,idx):
-        return self._graphics.nodes[idx]
-    
-    @property
-    def nodes(self,):
-        return self._graphics.nodes
-    
-    @property
-    def links(self,):
-        return self._graphics.link
-
-    @property
-    def starting_node(self,):
-        return self._graphics.first
-
-    @starting_node.setter
-    def starting_node(self, start):
-        self._graphics.first = start
-
-    @property
-    def ending_node(self,):
-        return self._graphics.last
-
-    @ending_node.setter
-    def ending_node(self, end):
-        self._graphics.last = end
-
-    # -----------------------------------------------------
-    # Nodes methods
-
-    def add_node(self, node, index=None):
-        if index is None:
-            index = len(self.currents_nodes) + 1
-            while True:
-                if index not in self.currents_nodes.keys():
-                    break
-                index += 1
-        if index not in self.currents_nodes.keys():
-            self.currents_nodes.update({index:node})
-        else:
-            raise ValueError("Index exist in currend nodes")
+    # Logique du noeud à exécuter
         
-    def add_nodes(self,):
-        ...
-
-    def remove_node(self, index: int):
-        if index in self.currents_nodes.keys():
-            del self.currents_nodes[index]
-        else:
-            raise ValueError("Index didn't exist in currend nodes")
-
-    def remove_nodes(self,):
-        ...
+    def execute(self, **data):
         
+        forward = getattr(self, 'forward', None)
+
+        try:
+            exec = self.executor.execute(forward=forward)
+            return exec(**data)
+
+        except Exception as e:
+            raise TypeError(f"Workflow execution failed: {e}")
+
+    def forward(self, name=None, **data):
+
+        print("Executing function in Workflow forward method")
+        print(f"Function name: {name}")
+
+        for item in self.graphics:
+
+            print(f"Processing node: {item}")
+            node_info = self._registred_nodes.get(item)
+
+            if node_info:
+                node = node_info['node']
+                output = node.execute(**data)
+                print(f"Node '{item}' output: {output}")
+            else:
+                print(f"Node '{item}' not found in registered nodes.")
+
+        return None
 
 
-
-    def connect_nodes(self, from_node: str, to_node: str = None):
+    def import_node(self, node,
+                    label=None,
+                    **kwargs):
         
-        if isinstance(from_node,int):
-            if from_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'from_node'")
-            
-            if to_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'to_node'")
-            
-            self._graphics.add_link(from_node,to_node)
-        else:
-            try:
-                self._graphics.add_links(from_node)
-            except:
-                raise TypeError("'from_node' not <int> or <iterable>")
+        self._registred_nodes[label or node.name] = {
+            'node': node,
+            'name':node.name,
+            'function_name':None,
+            **kwargs
+        }
 
-    def disconnect_nodes(self, from_node: str, to_node: str = None):
-        
-        if isinstance(from_node,int):
-            if from_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'from_node'")
-            
-            if to_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'to_node'")
-            
-            self._graphics.del_link(from_node,to_node)
-        else:
-            try:
-                self._graphics.del_links(from_node)
-            except:
-                raise TypeError("'from_node' not <int> or <iterable>")
-        
-
-    
-
-    def handler_transformer(self,):
-        ...
-    def handler_message(self,):
-        ...
-
-
-    def to_dict(self,):
-        ...
-    def to_json(self,):
-        ...
-    def from_dict(self,):
-        ...
-
-
-
-
-
-
-    def __str__(self,):
-        return super().__str__()
-    
-    def __len__(self,):
-        return len(self.currents_nodes)
-    
-    def __getstate__(self):
-        return super().__getstate__()
-    
-    def __setstate__(self, state):
-        return super().__setstate__(state)
-    
-    def __contains__(self, key):
-        return super().__contains__(key)
-    
-    def __copy__(self):
-        return super().__copy__()
-    
-    def __deepcopy__(self, memo):
-        return super().__deepcopy__(memo)
-    
-    def __sizeof__(self):
-        return super().__sizeof__()
-
-
-
-    

@@ -14,31 +14,40 @@ class GraphicsError(Exception):
     pass
 
 
-class TopologicGraphics:
 
-    def __init__(self, links=None, first=None, last=None, **kwargs):
+
+
+
+class AcyclicGraphMixin:
+
+    def __init_graph__(self, 
+                 links=None, 
+                 first=None, 
+                 last=None):
         """
         Initialize the TopologicalSorter with an optional list of links
         Args:
             links (list of tuples): List of directed edges (src, dst)
+            first (int): The first node to start the sort
+            last (int): The last node to end the sort
         """
-        self.forward  = {}
+        self.frontward  = {}
         self.backward = {}
 
         self.queue    = []
         self.link     = []
-
         self.progress = {}
         self.nodes    = set()
         self.visited  = set()
 
         self._graphics = None
 
-        self.first = first
-        self.last  = last
+        self._first = first
+        self._last  = last
 
         if links:
             self.add_links(links)
+
 
     def copy(self):
         """
@@ -46,10 +55,10 @@ class TopologicGraphics:
         Returns:
             TopologicalSorter: A new instance with the same properties
         """
-        new_sorter = TopologicGraphics(links=self.link, 
+        new_sorter = AcyclicGraph(links=self.link, 
                                        first=self.first, 
                                        last=self.last)
-        new_sorter.forward = copy.deepcopy(self.forward)
+        new_sorter.frontward = copy.deepcopy(self.frontward)
         new_sorter.backward = copy.deepcopy(self.backward)
         return new_sorter
 
@@ -162,17 +171,17 @@ class TopologicGraphics:
         Get the nodes linked to a given node in the graph
         Args:
             node (int): The node to check
-            dtype (str): The type of links to return ('forward', 'backward', 'resume')
+            dtype (str): The type of links to return ('frontward', 'backward', 'resume')
         Returns:
             list: List of nodes linked to the given node
         """
-        if dtype=='forward':
-            return self.forward[node]
+        if dtype=='frontward':
+            return self.frontward[node]
         if dtype=='backward':
             return self.backward[node]
         if dtype=='resume' or dtype==None:
             return {
-                'next':self.forward[node],
+                'next':self.frontward[node],
                 'from':self.backward[node],
             }
 
@@ -185,7 +194,7 @@ class TopologicGraphics:
             list: List of nodes that are required to execute the given node
         """
         try:
-            value = self.linked_to(node, dtype='forward')
+            value = self.linked_to(node, dtype='frontward')
         except:
             value = []
         return value
@@ -217,9 +226,9 @@ class TopologicGraphics:
 
         self.link.append((src,dst))
 
-        if src not in self.forward:
-            self.forward[src] = []
-        self.forward[src].append(dst)
+        if src not in self.frontward:
+            self.frontward[src] = []
+        self.frontward[src].append(dst)
 
         if dst not in self.backward:
             self.backward[dst] = []
@@ -233,11 +242,11 @@ class TopologicGraphics:
             dst (int): Destination node
         """
         self.link = [l for l in self.link if l[0]!=src and l[1]!=dst ]
-        self.forward[src] = [l for l in self.forward[src] if l!=dst ]
+        self.frontward[src] = [l for l in self.frontward[src] if l!=dst ]
         self.backward[dst] = [l for l in self.backward[dst] if l!=src ]
 
-        if self.forward[src]==[]:
-            del self.forward[src]
+        if self.frontward[src]==[]:
+            del self.frontward[src]
             self.nodes.remove(src)
             
         if self.backward[dst]==[]:
@@ -282,10 +291,10 @@ class TopologicGraphics:
 
             for elm in self.nodes:
                 
-                if elm in self.forward.keys():
-                    self.forward[elm] = [l for l in self.forward[elm] if l!=dst ]
-                    if self.forward[elm]==[]:
-                        del self.forward[elm]
+                if elm in self.frontward.keys():
+                    self.frontward[elm] = [l for l in self.frontward[elm] if l!=dst ]
+                    if self.frontward[elm]==[]:
+                        del self.frontward[elm]
                                 
                 if elm in self.backward.keys():
                     self.backward[elm] = [l for l in self.backward[elm] if l!=src ]
@@ -295,8 +304,8 @@ class TopologicGraphics:
             if self.backward[src]:
                 del self.backward[src]
                     
-            if self.forward[src]:
-                del self.forward[src]
+            if self.frontward[src]:
+                del self.frontward[src]
 
             self.nodes.remove(node)
             self.link = [l for l in self.link if l[0]!=src and l[1]!=dst ]
@@ -360,14 +369,25 @@ class TopologicGraphics:
         node = self.queue.pop(0)
         self.visited.add(node)
 
-        if node in self.forward:
-            for neighbor in self.forward[node]:
+        if node in self.frontward:
+            for neighbor in self.frontward[node]:
                 self.progress[neighbor] -= 1
                 if self.progress[neighbor] == 0:
                     self.queue.append(neighbor)
                     
         return node
+        
 
 
-
+class AcyclicGraph(AcyclicGraphMixin):
+    
+    def __init__(self, 
+                 links=None, 
+                 first=None, 
+                 last=None,
+                 **kwargs):
+        
+        super().__init_graph__(links=links, 
+                         first=first, 
+                         last=last) 
 

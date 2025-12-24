@@ -9,12 +9,12 @@ from configs import *
 from blocks.base import *
 from blocks.base.prototype import Prototype
 
-from blocks.interface._interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.interface import (MessageType,MESSAGE,Interface)
 
 
 from blocks.engine.execute import Execute
 
-from blocks.engine.python_env import _empty_env,_python_env
+from blocks.engine.envPy import _empty_env,_python_env
 from blocks.engine import PYTHON,PYTHON_PIP
 from blocks.engine.environment import EnvironMixin, Environment
 

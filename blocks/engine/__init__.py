@@ -4,7 +4,7 @@ import json
 
 from enum import Enum
 
-from .python_env import _empty_env,_python_env
+from .envPy import EnvEmpty,EnvPython
 from tools.serializable import SerializableMixin
 
 class ExecutionError(RuntimeError):
@@ -39,14 +39,14 @@ class Language(Enum):
     
 
 class PYTHON(SerializableMixin):
-    environment = _empty_env
+    environment = EnvEmpty
     language    = Language.PYTHON
     parameters  = {}
 
 
 
 class PYTHON_PIP(SerializableMixin):
-    environment = _python_env
+    environment = EnvPython
     language    = Language.PYTHON
     parameters  = {
         'directory': '.',

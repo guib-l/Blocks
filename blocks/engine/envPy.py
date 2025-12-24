@@ -39,7 +39,7 @@ class abstract_env(ABC,SerializableMixin):
 
 
 @dataclass
-class _empty_env(abstract_env):
+class EnvEmpty(abstract_env):
 
     @classmethod
     def sub_build(cls, **kwargs):
@@ -60,7 +60,7 @@ class _empty_env(abstract_env):
 
 
 
-class _python_env(Packages,abstract_env):
+class EnvPython(Packages,abstract_env):
 
     def __init__(self, 
                  directory = '.',

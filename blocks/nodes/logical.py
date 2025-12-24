@@ -1,7 +1,7 @@
 from typing import *
 
 from blocks.interface.signal import Signal
-from blocks.interface._interface import MESSAGE,MessageType
+from blocks.interface.interface import MESSAGE,MessageType
 import node 
 import workflow
 

@@ -19,11 +19,12 @@ from typing import *
 
 
 from enum import Enum
-from blocks.engine.python_install import _python_installer
+from blocks.engine.installerPy import InstallerPython,InstallerPythonWorkflow
 
 
 from blocks.base.register import Register, MethodObjects
 
+from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironMixin
 from blocks.engine import PYTHON
 
@@ -31,9 +32,10 @@ from blocks.engine import PYTHON
 Prototype = TypeVar('Prototype', bound='Prototype')
 
 class INSTALLER(Enum):
-    NONE    = None
-    DEFAULT = _python_installer
-    PYTHON  = _python_installer
+    NONE     = None
+    DEFAULT  = InstallerPython
+    PYTHON   = InstallerPython
+    WORKFLOW = InstallerPythonWorkflow
 
 
 
@@ -70,6 +72,32 @@ def export_metadata(block: Prototype,
 
         with open(path, "w") as f:
             f.write(content)
+
+
+def Install(object,
+            name=None,
+            directory=None,
+            installer=INSTALLER.DEFAULT):
+
+    if directory:
+        object.directory = directory
+    if name:
+        object.name = name
+
+    
+    object = object.__install__(name=object.name,
+                       install_directory=object.directory,
+                       installer=installer,)
+
+    export_metadata(
+        object,
+        filename=object.__ntype__,
+        format='json',
+        directory=object.directory
+    )
+
+
+
 
 
 
@@ -130,8 +158,7 @@ class Prototype(block.Block, Register):
             (_installer,_environment,cls),
             {}
         )
-        
-        return super().__new__(cls)
+        return super().__new__(cls, **kwargs)
 
 
     def __init__(self,
@@ -155,19 +182,21 @@ class Prototype(block.Block, Register):
                           **environ_arguments)
 
 
-        # Methode destinée à la communication entre les Prototype
-        self.executor    = executor
-
-
+        # Methode destinée à l'éxécution des codes/blocks
+        if executor is None:
+            executor = Execute(backend='default',
+                               build_backend=True)
+        self.executor = executor
+        
         # Enregistrement des méthodes
         # TODO: gérer les duplicatas
         # TODO: améliorer le code (refactor l'addition tableau)
         if methods + files != []:
             self.set_register_methods(methods + files, 
                                       ignore_duplicata=False)
+            
         self.allowed_name = allowed_name or list(self._register_methods.keys())
         self.filter_register_methods(allowed_name=self.allowed_name)
-
 
 
 
@@ -193,9 +222,12 @@ class Prototype(block.Block, Register):
              name:str,
              directory=BLOCK_PATH,
              format='json',
+             ntype=None, 
              **kwargs) -> Prototype:
         
-        ntype = cls.__ntype__
+        if not ntype:
+            ntype = cls.__ntype__
+
         origin = os.path.join(
             os.path.abspath(directory), name, ntype + f'.{format}')
         
@@ -205,6 +237,7 @@ class Prototype(block.Block, Register):
         if kwargs.get('auto_create') is not None:
             return cls(auto_create=kwargs.get('auto_create'),
                        **data)
+        
         return cls(auto_create=False, **data)
 
 
@@ -258,11 +291,11 @@ class Prototype(block.Block, Register):
 
     def forward(self, name=None, **data):
 
-        print("Executing function in Node forward method")
+        print("Executing function in Prototype forward method")
+        print(f"Function name: {name}")
 
-        with self.environment as env:
+        with self as env:
 
-            #func   = env.get_functions(name=name)
             func   = self.get_register_methods(name=name).call
             output = func(**data)
         
@@ -276,17 +309,17 @@ class Prototype(block.Block, Register):
 
     @property
     def root(self):
-        return self.__ROOT__
+        return self._root
     
     @root.setter
     def root(self, path: Optional[str] = None):
-        if path is not None:
-            self.__ROOT__ = path
-        elif path is None:
-            self.__ROOT__ = os.path.split(path)
-        else:
-            raise PrototypeErrorType(
-                "Path of Node unknown", 'DIRECTORY')
+        #if path is not None:
+        self._root = os.path.abspath(path)
+        #elif path is None:
+        #    self._root = os.path.split(path)
+        #else:
+        #    raise PrototypeErrorType(
+        #        "Path of Node unknown", 'DIRECTORY')
         
 
     # ===========================================
@@ -357,12 +390,9 @@ class Prototype(block.Block, Register):
         
 
         instance.__install__(name=name,
-                             directory=directory,
+                             install_directory=directory,
                              installer=installer,)
         
-        #print(instance.files)
-        #print(instance._dataset)
-
         export_metadata(
             instance,
             filename=instance.__ntype__,
@@ -370,6 +400,7 @@ class Prototype(block.Block, Register):
             directory=instance.directory
         )
         return instance
+    
 
     def uninstall(self,):
 

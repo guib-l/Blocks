@@ -9,7 +9,7 @@ from configs import *
 from blocks.base import *
 from blocks.nodes.node import Node
 
-from blocks.interface._interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.interface import (MessageType,MESSAGE,Interface)
 
 
 from blocks.engine.execute import Execute

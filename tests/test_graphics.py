@@ -1,6 +1,6 @@
 from configs import *
 
-from blocks.nodes.graphics import TopologicGraphics
+from blocks.nodes.graphics import AcyclicGraph
 
 
 
@@ -16,7 +16,8 @@ if __name__ == "__main__":
 
 
     # Perform topological sort on the links
-    graph = TopologicGraphics(link, first=1, last=8)
+    graph = AcyclicGraph(links=link, first=1, last=8)
+    print("> Graph : \n",graph)
 
     graph.del_link(0,1)
 

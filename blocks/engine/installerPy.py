@@ -15,25 +15,10 @@ from tools.organizer import FileManager, FileError
 
 
 
-def remove_wrapper(src, wrap_name='@task_node'):
-    lines = src.split('\n')
-    new_lines = []
-    skipping = True
-    
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith(wrap_name):
-            continue
-        if stripped.startswith('def '):
-            skipping = False
-        if skipping:continue
-        
-        new_lines.append(line)
-    return "\n".join(new_lines)
 
 
 
-class _python_installer:
+class InstallerPython:
 
     def __post_init__(self,
                       name: str = None,
@@ -45,8 +30,6 @@ class _python_installer:
             self.filemanager = FileManager(base_directory=self.direct_path,
                                            auto_create=auto_create)
         except:
-            #self.error =  BlockError(f'Path unknow : {path}', 'ORIGIN')
-            #raise self.error.ERROR
             print('Error occurs')
         
 
@@ -55,17 +38,24 @@ class _python_installer:
                     name=None,
                     install_directory=None, 
                     **kwargs):
-        print(f"Installing prototype '{self.name}' at '{self.directory}'")
-        
+        if install_directory is not None:
+            self.directory = os.path.abspath(install_directory)
+            
+        file_dir = os.path.join(self.directory,self.name)
+        print(f"Installing prototype '{self.name}' at '{file_dir}'")
+
         self._create_dir()
 
-        self.files = [f'{self.name}.py']
+        self._dataset['files'] = [
+            f'{os.path.join(file_dir,self.name)}.py']
 
         self.export_method(
             f'{self.name}.py',
             self.direct_path,
             **self._register_methods
         )
+        
+        return self
 
 
     def __uninstall__(self):
@@ -93,10 +83,6 @@ class _python_installer:
         self.direct_path = direct_path
 
     
-
-        
-
-
 
     def _export_metadata(self,):
         pass
@@ -201,3 +187,99 @@ class _python_installer:
         self.filemanager.move_files(_origin, 
                              destination, 
                              overwrite=overwrite)
+
+
+
+class InstallerPythonWorkflow:
+
+    def __post_init__(self,
+                      name: str = None,
+                      directory = None,
+                      auto_create=False)-> None:
+
+        try:
+            self.direct_path = os.path.join(directory, name)
+            self.filemanager = FileManager(base_directory=self.direct_path,
+                                           auto_create=auto_create)
+        except:
+            print('Error occurs')
+        
+
+
+    def __install__(self,
+                    name=None,
+                    install_directory=None, 
+                    **kwargs):
+        if install_directory is not None:
+            self.directory = os.path.abspath(install_directory)
+            
+        file_dir = os.path.join(self.directory,self.name)
+        print(f"Installing workflow '{self.name}' at '{file_dir}'")
+
+        self._create_dir()
+
+        self._dataset['files'] = [
+            f'{os.path.join(file_dir,self.name)}.py']
+
+        self.export_method(
+            f'{self.name}.py',
+            self.direct_path,
+            **self._register_methods
+        )
+        
+        return self
+
+
+    def __uninstall__(self):
+
+        self.delete_directory()
+        
+
+
+
+    def _create_dir(self):
+
+        direct_path = os.path.join(self.directory, self.name)
+        print(f"Creating workflow directory at: {direct_path}")
+
+        try:
+            if not os.path.exists(direct_path):
+                os.makedirs(direct_path, mode=0o755, exist_ok=True)
+            else:
+                os.chmod(direct_path, 0o755)
+        except PermissionError as e:
+            raise FileError(f"Permission denied creating directory {direct_path}: {e}")
+        except Exception as e:
+            raise FileError(f"Failed to create directory {direct_path}: {e}")
+
+        self.direct_path = direct_path
+
+    
+
+    def _export_metadata(self,):
+        pass
+
+    def _export_exec(self,):
+        pass
+    
+
+    # ===========================================
+    # Directory management
+    # ===========================================
+
+
+
+    def delete_directory(self, directory=None) -> None:
+        """
+        Supprime le répertoire du block.
+        """
+        if directory is None:
+            directory = os.path.join(self.directory, self.name)
+            directory = os.path.abspath(directory)
+        else:
+            directory = os.path.abspath(directory)
+
+        self.filemanager.delete_directory(directory)
+
+
+

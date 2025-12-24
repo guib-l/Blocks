@@ -1,88 +1,116 @@
 import os,sys
 import time
-from datetime import *
-from copy import copy, deepcopy
-from dataclasses import dataclass
-from typing import Any, Dict, TypeVar
 from configs import *
 
 from blocks.base import *
 from blocks.nodes.node import Node
 from blocks.nodes.workflow import Workflow
 
-from blocks.interface._interface import (MessageType,MESSAGE,Interface)
+from blocks.nodes.graphics import AcyclicGraphMixin
+
+from blocks.base.prototype import INSTALLER
+
+from blocks.engine.environment import EnvironMixin
 
 
-
-@dataclass
-class Environment:
-    # Placeholder for environment methods 
-    # could include setup, teardown, config management, etc.
-    __ntype__ = "environment"
-
-@dataclass
-class Executor:
-    # Placeholder for executor methods 
-    # could include task execution, job management, etc.
-    __ntype__ = "executor"
 
 
 
 if __name__ == "__main__":
       
+    # ===============================================
+    # Récupération et exécution dans son environnement
+    print("\n"+"*"*40)
 
-  
-   # Initialisation d'un Block
-    node = Node.load(name='function-test',
+    start = time.time()
+    node = Node.load(name='HC',
+                     ntype='prototype',
                      directory=BLOCK_PATH)
+    end = time.time()
+    print(node)
     print("Node instance created successfully.")
+    print(f'Instance created in {end-start} s.')
 
-    # =====================================================
-    # Base des tests sur le Workflow
+    node.execute(n=5)
+
+    # ===============================================
+    # Lancement du workflow
+    print("\n"+"*"*40)
 
    # Create a sample dataset
     data = {
-        'name': 'workflow-1',
+        'name': 'HC_workflow',
         'id': None,
         'version': '0.0.1',
-        'path': "myblock/",
-        '_mandatory_attr': False,
-        'metadata': {'source': 'generated', 'version': 1.0},
-        'graphics': {
-            'links': None,
-            'first': None,
-            'last' : None,},
-        'type': "workflow",
-        '_environment': None,
-        '_executor': None,
+        'directory':BLOCK_PATH,
+        'installer': INSTALLER.WORKFLOW,
+        'mandatory_attr': False,
+        'metadata': {'source': 'generated', 
+                     'version': 1.0,
+                     'description': 'A sample dataset for testing'},
+        'environment': EnvironMixin,
+        'executor': None,
+        'graphics': AcyclicGraphMixin,
+        'links': [('HC_node_1','HC_node_2'), 
+                  ('HC_node_2','HC_node_3')],
+        'first_node': 'HC_node_1',
+        'last_node': 'HC_node_3',
+        'nodes':{
+            'HC_node_1': node,
+            'HC_node_2': node,
+            'HC_node_3': node,
+        }
     }
 
-   # Create a sample workflow
-    workflow = Workflow(**data)
+    wkw = Workflow(**data)
+    print(wkw)
+    print("Workflow instance created successfully.")
+
+    print(wkw.graphics)
+    print("Workflow Graphics created successfully.")
+
+    print(wkw._registred_nodes)
+    print("Workflow Nodes registered successfully.")
+
+    print("Workflow executor : \n",wkw.executor)
+
+
+    wkw.execute()
+
+
+
+    sys.exit()
+
+    # ===============================================
+    # Lancement du workflow
+    print("\n"+"*"*40)
+
+    workflow = Workflow.load(name='HC_workflow',
+                              directory=BLOCK_PATH)
     print(workflow)
     print("Workflow instance created successfully.")
 
-    print(workflow.graphics)
-    print("Graphics of workflow initialized")
+    ctx.import_node(node, label='HC_node_1')
+    ctx.import_node(node, label='HC_node_2')
+    ctx.import_node(node, label='HC_node_3')
 
-    workflow.add_node(node,1)
-    workflow.add_node(node,3)
-    workflow.add_node(node,)
-    workflow.add_node(node,)
+    ctx.connect_nodes('HC_node_1', 'HC_node_2')
+    ctx.connect_nodes('HC_node_2', 'HC_node_3')
 
-    print("Current Node : \n",workflow.currents_nodes)
-
-    workflow.connect_nodes(1,3)
-    workflow.connect_nodes(3,4)
-
-    print(workflow.graphics)
-
-
-
-    # =====================================================
-    # Execution du workflow
-
+    print("Workflow Context : \n",ctx)
     
+
+
+    workflow.input = {'n':4}
+
+    workflow.execute()
+
+
+
+
+
+
+    sys.exit()
 
 
 

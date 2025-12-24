@@ -1,7 +1,7 @@
 import blocks
 
 from blocks.base.prototype import Prototype
-from blocks.engine.execute import Execute
+
 
 from blocks.engine.environment import EnvironMixin,PYTHON
 
@@ -10,28 +10,27 @@ from blocks.engine.environment import EnvironMixin,PYTHON
 
 def task_node(backend    = 'default',
               execute    = None,
-              directory  = '.',
               objectType = Prototype,
-              **env_args):
+              **properties):
     
-    if execute is None:
-        execute = Execute(backend=backend,
-                          build_backend=True)
+    
 
     def wrap(function):
         def wrapper_func(**kwargs):
             data_set = {
-                'name': 'task_' + str(function.__name__),
+                'name': str(function.__name__),
                 'id': None,
                 'version': '0.0.1',
                 'mandatory_attr': False,
                 'methods':[function,],
+                'allowed_name': [function.__name__,],
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
                 'environment': EnvironMixin,
                 'executor': execute
             }
+            data_set.update(properties)
             
             tmp_node = objectType(**data_set)
             
@@ -39,6 +38,9 @@ def task_node(backend    = 'default',
             
         return wrapper_func
     return wrap
+
+
+
 
 
 def export_function(name='function',

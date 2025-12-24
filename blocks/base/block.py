@@ -278,11 +278,13 @@ class Block(DataSet):
         """
         return self.__repr__()
 
-    def __repr__(self):
+    def __repr__(self, base=''):
         """
         Représentation technique pour les développeurs
         """
-        attrs = ", ".join(f"{k}={repr(v.__str__())}" for k, v in self._dataset.items() 
+        n_symb = len(self.__class__.__name__)
+        space = ' ' * (n_symb+1)
+        attrs = f",\n{space}".join(f"{k}={repr(v.__str__())}" for k, v in self._dataset.items() 
                       if k in ['id', 'name','version'])
         return f"{self.__class__.__name__}({attrs})" 
 

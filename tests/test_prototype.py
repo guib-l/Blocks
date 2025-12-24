@@ -1,20 +1,15 @@
-import os,sys
+import os
 import time
-from copy import copy, deepcopy
-from typing import Any, Dict, TypeVar
 from configs import *
-from blocks.base.dataset import DataSet
-from blocks.base.block import Block
 
 from blocks.base import *
 from blocks.base.prototype import Prototype
 from blocks.base.prototype import export_metadata
 
-from blocks.engine.python_install import _python_installer
-
 from blocks.base.prototype import INSTALLER
 
 from blocks.export import task_node
+from blocks.engine.environment import EnvironMixin
 
 
 def basic_function(n=5):
@@ -28,11 +23,10 @@ def basic_function(n=5):
 
 
 @task_node(backend    = 'default',
-           directory  = BLOCK_PATH,
            execute    = None,
            objectType = Prototype,)
 def heavy_calculation(n=5):
-    """Fonction qui sera interruptible."""
+    """Fonction qui sera interruptible (environ)."""
     result = 0
     for i in range(n):
         # Simulation de calcul lourd
@@ -42,7 +36,6 @@ def heavy_calculation(n=5):
     return result
 
 
-from blocks.engine.environment import EnvironMixin
 
 if __name__ == "__main__":
       
@@ -72,11 +65,6 @@ if __name__ == "__main__":
     print(proto)
     print("Prototype instance created successfully.") 
 
-    # TODO: 'directory' -> path absolu du repertoire
-    # TODO: 'files' -> path absolu/relatif ?
-    # TODO: 'codes' -> nom des fonction qui sont transformés en objet 
-    # lorsqu'il sont récupérés 
-
     export_metadata(proto, 'prototype', 'json')
 
     # Load de l'objet à partir du répertoire
@@ -102,25 +90,24 @@ if __name__ == "__main__":
 
     proto = Prototype(**data)
     print(proto)
+    
 
-    print(proto._register_methods)
+    # Tests des methods -----------------------------
+    print('Register : \n',proto._register_methods)
 
     method_01 = proto.get_register_methods('say')
     method_01.call('Hello')
 
-    print(proto._register_methods)
+    print('Register : \n',proto._register_methods)
 
     proto.export_method("export.py", 
                         BLOCK_PATH, 
                         **proto._register_methods)
 
     proto.import_method( os.path.join(BLOCK_PATH,"export.py") )
+    print('Register : \n',proto._register_methods)
 
-    print(proto._register_methods)
-
-
-
-
+    # Tests de l'installation -----------------------
     proto = Prototype.install( **data )
     print(proto)
     print("Prototype instance installed successfully.")
@@ -136,29 +123,51 @@ if __name__ == "__main__":
     # Installation d'un Prototype via l'appel de @task
     print("\n"+"*"*40)
 
-    results = heavy_calculation()
-    print(results)
+    hc = heavy_calculation()
+    print(hc)
 
+    results = hc.execute(n=3)
+    print('Results : ',results)
+    
+    from blocks.base.prototype import Install
+    Install(hc,name='HC',directory=BLOCK_PATH)
 
-    sys.exit()
-
-
+    del hc
+    
     # ===============================================
     # Récupération et exécution dans son environnement
     print("\n"+"*"*40)
 
-    proto = Prototype.load(name='task_heavy_calculation',
+    proto = Prototype.load(name='HC',
                            ntype='prototype',
                            directory=BLOCK_PATH)
     print(proto)
     print("Prototype instance created successfully.")
 
-    proto.execute(n=3)
+    print(proto._register_methods)
+
+    # Ajout d'une méthode d'éxecution par défaut
+    proto.execute(n=6)
 
 
     # ===============================================
     # Manipulation du prototye (déplacement, nom, suppr ...)
     print("\n"+"*"*40)
+
+    # TODO: Déplacer les fichiers (avec l'environnement ?)
+
+    # TODO: Changer le nom
+
+    # TODO: Supprimer les fichiers (facultatif)
+
+
+    # ===============================================
+    # Ajouter un environment et un executor indépendant (qui devra être
+    # sauvegardé dans un fichier pickle / json suivant ce qui sera le plus 
+    # simple à le re-load)
+    print("\n"+"*"*40)
+
+
 
 
 

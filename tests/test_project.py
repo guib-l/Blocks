@@ -8,7 +8,7 @@ from configs import *
 from blocks.nodes.node import Node
 from blocks.nodes.workflow import Workflow
 
-from blocks.interface._interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.interface import (MessageType,MESSAGE,Interface)
 
 from blocks.project import Project
 

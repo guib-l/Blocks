@@ -10,26 +10,16 @@ from typing import *
 from abc import *
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, Callable, Iterator, BinaryIO, TextIO
+from typing import Protocol,Optional, Union, Callable, Iterator, BinaryIO, TextIO
 
-from ..base.dataset import DataSet
-from copy import copy, deepcopy
-
-from blocks.base._baseBlock import BaseBlock
-from blocks.base import _block
+from blocks.base import prototype 
 
 from typing import Any, Dict, TypeVar, Optional
-from blocks.base.version import VersionManager
 from tools.organizer import FileManager, FileError
 
 from blocks.base import BLOCK_PATH
 
 from tools.encoder import NodeJSONEncoder
-
-
-from blocks.interface.signal import Signal
-from blocks.interface._interface import MESSAGE,MessageType,Interface
-
 from enum import Enum
 
 
@@ -41,176 +31,7 @@ import inspect
 # TODO: inclure toutes les dependances (objets et autre)
 # TODO: faire un fichier qui fait cela à l'extérieur du module Node
 
-
-def extract_dependencies(func):
-    module = inspect.getmodule(func)
-    if module is None:
-        raise ValueError('No function detected')
     
-    source = inspect.getsource(module)
-    tree   = ast.parse(source)
-
-    func_name = func.__name__
-
-    module_function = {
-        node.name: node 
-        for node in tree.body 
-        if isinstance(node,ast.FunctionDef)
-    }
-
-    called_name = set()
-
-    class CallVisitor(ast.NodeVisitor):
-        def visit_call(self,node):
-            if isinstance(node.func, ast.Name):
-                called_name.add(node.func.id)
-            self.generic_visit(node)
-
-    CallVisitor().visit(module_function[func_name])
-
-    dependencies = {
-        name: module_function[name] 
-        for name in called_name 
-        if name in module_function
-    }
-
-    module_imports = [
-        node for node in tree.body 
-        if isinstance(node,ast.Import) 
-        or isinstance(node,ast.ImportFrom)
-    ]
-
-    return dependencies,module_imports
-    
-
-# TODO: Faire un installer propre (dans un module dédié aux installation
-# de module python)
-# TODO: faire en sorte que cela fonctionne avec de multiple fichiers et
-# fonctions dans les fichiers.
-
-def _default_install(name="default-node",
-                     base_directory: str = "./",
-                     code_directory: str = "",
-                     **kwargs):
-    codes_from_files = []
-    print(f"Installing node '{name}' in directory '{base_directory}'")
-
-    fm = FileManager(base_directory=base_directory, auto_create=True)
-
-    target_path = os.path.join(base_directory, name)
-    print(f"Creating node directory at: {target_path}")
-
-    try:
-        if not os.path.exists(target_path):
-            os.makedirs(target_path, mode=0o755, exist_ok=True)
-        else:
-            os.chmod(target_path, 0o755)
-
-    except PermissionError as e:
-        raise FileError(f"Permission denied creating directory {target_path}: {e}")
-    except Exception as e:
-        raise FileError(f"Failed to create directory {target_path}: {e}")
-
-    # Traitement des fichiers
-    files = kwargs.get('files', [])
-
-    for file in files:
-        try:
-            if os.path.isfile(file):
-                if not fm.file_exists(file):
-                    raise FileError(f"File {file} does not exist")
-                
-                dest_file = os.path.join(target_path, os.path.basename(file))
-                fm.copy_files(file, dest_file, overwrite=True)
-                
-            elif os.path.isdir(file):
-                if not fm.directory_exists(file):
-                    raise FileError(f"Directory {file} does not exist")
-                
-                dest_dir = os.path.join(target_path, os.path.basename(file))
-                fm.copy_files(file, dest_dir, overwrite=True)
-                
-            else:
-                print(f"Warning: {file} is neither a file nor a directory")
-                
-        except Exception as e:
-            print(f"Error processing file {file}: {e}")
-            raise FileError(f"Failed to process file {file}: {e}")
-        
-        print('file : ',file)
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location('mod_temp',file)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            codes_from_files = [obj for nom,obj in inspect.getmembers(mod) if callable(obj)]
-        except:
-            pass
-
-
-    # Traitement des fonctions
-    codes = kwargs.get('codes', [])
-
-    for code in codes:
-
-        filename = os.path.join(target_path,f'{name}.py')
-        full_filename = os.path.join(base_directory,filename)
-
-        if full_filename not in files:
-            files.append(full_filename)
-            kwargs['files'] = files
-
-
-        import textwrap
-        deps,mods = extract_dependencies(code)
-
-        with open(filename, 'w') as fout:
-            for imp in mods:
-                fout.write(textwrap.dedent(ast.unparse(imp))+'\n')
-            
-            src = inspect.getsource(code)
-
-            def remove_wrapper(src, wrap_name='@task_node'):
-                lines = src.split('\n')
-                new_lines = []
-                skipping = True
-                
-                for line in lines:
-                    stripped = line.strip()
-                    if stripped.startswith(wrap_name):
-                        continue
-                    if stripped.startswith('def '):
-                        skipping = False
-                    if skipping:continue
-                    
-                    new_lines.append(line)
-
-                return "\n".join(new_lines)
-
-            fout.write(remove_wrapper(src))
-            module = inspect.getmodule(code)
-
-            for name,node in deps.items():
-                fout.write(textwrap.dedent( 
-                    inspect.getsource(getattr(module,name)) )+'\n')
-    
-    for code in codes_from_files:
-        kwargs['codes'].append(code)
-    
-    return kwargs
-
-
-
-
-def _default_uninstall(directory:str = ".",
-                          **kwargs):
-    ...
-
-
-
-
-
-
 
 Node = TypeVar('Node', bound='Node')
 
@@ -256,253 +77,37 @@ class NodeError(Exception):
             self.err_type = NodeErrorType[value]
 
 
-class Node(_block.Block):
+
+
+
+
+class NodeProtocol(Protocol):
+
+    def forward(self, name:str|None, **data:Any)->Any:
+        ...
+
+
+
+class Node(prototype.Prototype):
 
     __ntype__ = "node"
 
-    def __init__(self,
-                 auto           = True,
-                 mandatory_attr = True,
-                 environment    = None,
-                 executor       = None,
-                 **kwargs):
-
-        # Initialisation des attributs spécifiques au Node
-        self.mandatory_attr = mandatory_attr
-            
-        #self.root = _block_path
-
-        # Methode destinée à la communication entre les node
-        self.environment = environment
-        self.executor    = executor
-
-        super().__init__(mandatory_attr=mandatory_attr,
-                         #environment=self.environment,
-                         #executor=self.executor,
-                         **kwargs)
-        
-        if auto and self.executor:
-            self.build()
-
     # -----------------------------------------------------
-    # Build methods
-    
-    def build(self, *args, **kwargs): 
-
-        try:
-            self.executor.build_backend(*args, **kwargs)
-        except Exception as e:
-            raise NodeError(f"BUILD method failed: {e}", 'BUILD')
-
-
-    # -----------------------------------------------------
-    # Execute methods
+    # Logique du noeud à exécuter
         
-    def execute(self, **data):
-        
-        forward = getattr(self, 'forward', None)
-
-        try:
-            exec = self.executor.execute(forward=forward)
-            return exec(**data)
-
-        except Exception as e:
-            raise NodeError(f"EXECUTION method failed: {e}", 'EXECUTION')
-
-
     def forward(self, name=None, **data):
 
         print("Executing function in Node forward method")
+        print(f"Function name: {name}")
 
-        with self.environment as env:
+        with self as env:
 
-            func   = env.get_functions(name=name)
+            func   = self.get_register_methods(name=name).call
             output = func(**data)
         
         return output
 
 
-    # -----------------------------------------------------
-    # Load methods
-
-    @classmethod
-    def load(cls,
-             name:str,
-             directory=BLOCK_PATH,
-             **kwargs) -> Node:
-        
-        data = json.load(
-            open(os.path.join(directory, name, 'blocks.json')))
-        data.update(kwargs)
-
-        return cls(auto=False, **data)
-
-
-    # -----------------------------------------------------
-
-    @property
-    def root(self):
-        return self.__ROOT__
-    
-    @root.setter
-    def root(self, path: Optional[str] = None):
-        if path is not None:
-            self.__ROOT__ = path
-        elif path is None:
-            self.__ROOT__ = os.path.split(path)
-        else:
-            raise NodeError("Path of Node unknown", 'DIRECTORY')
-        
-
-    # -----------------------------------------------------
-    # Executor methods
-
-    @property
-    def executor(self):
-        return self.__EXEC__
-
-    @executor.setter
-    def executor(self, exec = None):
-
-        if exec is None and self.mandatory_attr:
-            raise NodeError("EXECUTOR method not provided", 'EXECUTOR')
-
-        self.__EXEC__ = exec    
-                
-
-    # -----------------------------------------------------
-    # Environment methods
-
-    @property
-    def environment(self):
-        return self.__ENV__
-
-    @environment.setter
-    def environment(self, env = None):
-        
-        if env is None and self.mandatory_attr:
-            raise NodeError("ENVIRONMENT method not provided", 'ENVIRONMENT')
-
-        self.__ENV__ = env
-        
-
-    # -----------------------------------------------------
-    # Message methods
-
-    def error(self, e, err): 
-        return MESSAGE.generate_error(
-            self,
-            subject=f"Error on node {self.id}",
-            error_info={"error_type":e,"message":err},
-        )
-
-    def info(self, info='Information'): 
-        return MESSAGE.generate_info(
-            self,
-            subject=f"Information on node {self.id}",
-            info=info
-        )
-
-    # -----------------------------------------------------
-    # Serialization methods
-
-    def to_json(self):
-        return json.dumps(self._dataset, 
-                          indent=4, 
-                          cls=NodeJSONEncoder)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert node to dictionary representation"""
-        result = super().to_dict()
-        result.update({
-            "root": self.root,
-            "id": self.id,
-            #"interface": self.__ITFC__.to_dict() if self.__ITFC__ is not None else None,
-            "environment": self.__ENV__.to_dict() is not None,
-            "executor": self.__EXEC__.to_dict() is not None,
-            #"input_count": len(self.input) if isinstance(self.input, list) else 1 if self.input else 0,
-            #"output_count": len(self.output) if isinstance(self.output, list) else 1 if self.output else 0,
-        })
-        return result
-
-    # -----------------------------------------------------
-    # Install methods
-
-    @classmethod
-    def install(cls, 
-                name="default-node",
-                installer = None,
-                directory:str = ".",
-                codes=[],
-                **kwargs):
-        """
-        Install the block in the given path.
-        Args:
-            path (str): Path to install the block.
-        """
-
-
-        kwargs = cls.__install__(cls, 
-                                 name=name,
-                                 directory=directory,
-                                 installer=installer,
-                                 codes=codes,
-                                 **kwargs)
-        
-        return cls(name=name,
-                   path=directory,
-                   **kwargs )
-
-    def __install__(self,
-                    name="default-node",
-                    installer=None, 
-                    directory=".",
-                    **kwargs):
-        
-        if installer is not None:
-            try:
-                installer(name=name,
-                          directory=directory,
-                          **kwargs)
-            except Exception as e:
-                
-                raise NodeError("INSTALLER method failed", 'INSTALLER')
-        else:
-            args = _default_install(name=name,
-                                    base_directory=directory,
-                                    **kwargs)
-                        
-            return args
-        return kwargs
-
-    @classmethod
-    def uninstall(cls,
-                  uninstaller = None,
-                  directory:str = ".",
-                  **kwargs):
-        """
-        Uninstall the block from the given path.
-        """
-
-        if uninstaller is not None:
-            try:
-                uninstaller(directory=directory,
-                            **kwargs)
-            except Exception as e:
-                raise NodeError("UNINSTALLER method failed", 'UNINSTALLER')
-        else:
-
-            _default_uninstall(base_directory=directory,
-                               **kwargs)
-
-        return cls.destroy()
-    
-    def destroy(self):
-        """
-        Destroy the block instance.
-        """
-        # Add any cleanup logic here if needed
-        del self
 
 
 
@@ -515,64 +120,6 @@ class Node(_block.Block):
 
 
 
-    # -----------------------------------------------------
-    # Interface methods
-    """
-    @property
-    def interface(self):
-        return self.__ITFC__
-    
-    @interface.setter
-    def interface(self, _interface = None):
-        if _interface is None and self.mandatory_attr:
-            raise NodeError("interface method not provided", 'interface')
-        
-        from blocks.socket.interface import Interface
 
-        if isinstance(_interface, Interface):
-            self.__ITFC__ = _interface
-            return
-        elif isinstance(_interface, dict):
-            self.__ITFC__ = Interface.from_dict(**_interface)
-            return
-        else:
-            intern = self.default_node['interface']
-            if _interface is not Interface:
-                _interface = Interface
 
-            self.__ITFC__ = _interface(self,
-                                       environment = self.environment,
-                                       executor    = self.executor, 
-                                       **intern)
-    """
 
-    # -----------------------------------------------------
-    # In / Out methods
-    # Implementer une limite de nombre de message en entree et sortie
-    # ainsi qu'un systeme de merge des messages
-    # et de filtrage des attributs des messages
-
-    """
-    @property
-    def input(self): 
-        return self.__ITFC__.register
-    
-    @input.setter
-    def input(self, msg, value=None, index=-1):
-        if isinstance(msg, MESSAGE):
-            if msg.TYPE in self.auth_inout:
-                self.__ITFC__.receive(msg)
-            else:
-                txt = f"Incorrect input type : {msg.TYPE}. \nAuthorized types are {self.auth_inout}"
-                raise NodeError(txt, "input")
-            
-        elif isinstance(msg,str):
-            self.__ITFC__.provide(msg, value, index)
-        else:
-            raise NodeError("Incorrect input type","input")
-
-    @property
-    def output(self): 
-        return self.__ITFC__.outputs
-
-    """

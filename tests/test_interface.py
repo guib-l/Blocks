@@ -1,8 +1,6 @@
 import os
 import sys
 import time
-import asyncio
-from copy import copy, deepcopy
 from typing import *
 from configs import *
 
@@ -11,92 +9,8 @@ from blocks.base import *
 from blocks.nodes.node import Node
 
 from blocks.interface.datapacket import DataPacket,DataPacketPriority,DataPacketType
-from blocks.base.prototype import Prototype
 
 from blocks.interface.interface import INTERFACE
-
-
-
-
-
-class COMMUNICATE:
-
-    def send(self,):
-        pass
-
-    def receive(self,):
-        pass
-
-
-
-from blocks.nodes.graphics import GRAPHICS  
-
-class ORCHEST:
-
-    def __new__(cls, **kwargs):
-        com = kwargs.get('communicate', COMMUNICATE)
-        
-        cls = type(
-            cls.__name__,
-            (com, cls),
-            {}
-        )
-        return super().__new__(cls)
-    
-    def __init__(self,
-                 interface=INTERFACE,
-                 communicate=COMMUNICATE,
-                 runner=GRAPHICS):
-        
-        self.runner = runner()
-
-        self._interface = interface
-        self._communicate = communicate
-    
-    def add_node(self, node:Prototype, label:Optional[str]=None):
-        inode = self._interface(node)
-        self.runner.add_node(inode, label=label)
-
-    def add_nodes(self, *nodes:Prototype):
-        for node in nodes:
-            inode = self._interface(node)
-            self.runner.add_node(inode)
-    
-    def add_link(self, from_idx:int, to_idx:int):
-        self.runner.add_link(from_idx, to_idx)
-
-    def add_links(self, links:List[Tuple[int,int]]):
-        for link in links:
-            self.runner.add_link(link[0], link[1])
-
-    def swap(self, idx_1:int, idx_2:int):
-        self.runner.swap(idx_1, idx_2)
-
-
-
-    def pre_build(self,):
-        self.runner.build()
-
-        for node in self.runner.graphics:
-            interface = INTERFACE(node)
-            self._register_interface[node.name] = interface
-
-        for from_node, to_node in self.runner.link:
-            from_interface = self._register_interface[from_node.name]
-            to_interface   = self._register_interface[to_node.name]
-
-            message = from_interface.execute()
-            to_interface.receive(message)
-
-
-    def run(self,):
-        
-
-        for node_name, interface in self._register_interface.items():
-            output_message = interface.send()
-            print(f"Output from node {node_name}: {output_message}")
-
-
 
 
 
@@ -208,34 +122,6 @@ if __name__ == "__main__":
     sys.exit()
 
 
-    # ===============================================
-    # Orchestrator
-
-    orchestrator = ORCHEST()
-
-    orchestrator.add_node(node)
-    orchestrator.add_node([node,])
-    orchestrator.add_nodes(node,node)
-    orchestrator.add_node(node, label="node_X")
-
-    print('List of all nodes : ',orchestrator.nodes)
-    
-    idx_1,idx_2 = 2,4
-    orchestrator.swap(idx_1, idx_2)
-
-    print('List of all nodes : ',orchestrator.nodes)
-
-    orchestrator.add_link(0,1)
-
-    links = [(1,2),(2,3),(3,4),(4,'node_X')]
-    orchestrator.add_links(links)
-
-    # Méthode qui sert à améliorer l'exécution : elle 
-    # pré-construit l'ensemble des message entre les différentes
-    # fonctions à executer 
-    orchestrator.pre_build()
-
-    orchestrator.run()
 
 
 

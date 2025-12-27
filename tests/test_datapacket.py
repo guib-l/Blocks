@@ -83,7 +83,7 @@ if __name__ == "__main__":
     print(f"Queue after enqueuing messages: {queue}")
 
     msg_to_get = queue.peek_by_property(
-        all_results=True, TO=2,SUBJECT="Computation Result")
+        all_results=True, TO=2, SUBJECT="Computation Result")
     
     print(f"Messages peeked by property: {msg_to_get}")
 

@@ -52,6 +52,80 @@ class DataPacketStatus(str, Enum):
 
 
 
+from queue import Queue
+
+
+def get_new_label(exist_label:Any, new_label:Any=None) -> str:
+    """Génère un label unique si aucun n'est fourni."""
+    
+    if exist_label is None:
+        return 0
+    
+    if new_label is None:
+        incr = 0
+        while label in exist_label:
+            label = len(exist_label)-1 + incr
+            incr += 1
+        return label
+        
+    
+
+class DataQueue:
+    """File de messages simple."""
+    def __init__(self):
+        self._queue:List[Any] = []
+        self._index:List[Any] = []
+        self._lock = threading.Lock()
+
+    def put(self, message:Any, label=None) -> None:
+        """Ajoute un message à la file."""
+        print(f"Putting message with label {label}: {message}") 
+        with self._lock:
+            self._queue.append(message)
+            if label is None or label in self._index:
+                label = get_new_label(self._index, label)
+            self._index.append(label)
+
+    def get(self, label=None) -> Optional[Any]:
+        """Récupère le premier message de la file."""
+        with self._lock:
+            if label is None:
+                if self._queue:
+                    self._index.pop(0)
+                    return self._queue.pop(0)
+                return None
+            
+            for i, msg_label in enumerate(self._index):
+                if msg_label == label:
+                    self._index.pop(i)
+                    return self._queue.pop(i)
+        return None
+    
+    def dequeue_by_label(self, label:Any) -> Optional[Any]:
+        """Récupère un message de la file par son label."""
+        with self._lock:
+            for i, msg_label in enumerate(self._index):
+                if msg_label == label:
+                    self._index.pop(i)
+                    return self._queue.pop(i)
+        return None
+    
+    def empty(self) -> None:
+        """Vide la file de messages."""
+        with self._lock:
+            self._queue.clear()
+            self._index.clear()
+
+    def not_empty(self) -> bool:
+        """Vérifie si la file est vide."""
+        with self._lock:
+            return len(self._queue) != 0
+        
+    def __repr__(self):
+        return f"DataQueue(num_messages={len(self._queue)})"
+
+
+
 
 class DataPacketQueue:
     """File de messages avec support de priorité.

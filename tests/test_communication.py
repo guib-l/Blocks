@@ -30,7 +30,7 @@ if __name__ == "__main__":
     print(f'Instance created in {end-start} s.')
 
     # ================================================
-    # Interface simple
+    # Interface simple -> Ce que le module de communication remplace
     print("\n"+"="*40)
 
     interf_0 = INTERFACE.SIMPLE(node)
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     start = time.time()
     
-    """
+    
     interf_0.input = input_message
     interf_0.execute()
     interf_1.input = interf_0.output
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     interf_2.input = interf_1.output
     interf_2.apply_transformer(transformer=transform)
     interf_2.execute()
-    """
+    
     
     end = time.time()
     
@@ -66,8 +66,26 @@ if __name__ == "__main__":
     # Communication interfaces direct par la mémoire python
     print("\n"+"="*40)
 
+    # PART I
+    # DONE TODO: Faire que DataQueue et DataPacketQueue fonctionne dans COMMUNICATE
+    # DONE TODO: Composer le module de communication asynchrone
+    # TODO: Intégrer la communication dans le workflow + test de fonctionnement
+    # TODO: Installation complète d'un worflow simple
+    # TODO: Poser une interface à un workflow puis le chainer à des nodes
+
+    # PART II
+    # TODO: Faire un système de création simplifié de workflow (mots clé: 'with')
+    # TODO: Sauvegarde du systeme d'exécution/environnement/communication
+    # TODO: Packetage simple de l'ensemble dans un zip / ré-utilisation simple
+    # TODO: Donner la possibilité de donner un super-environnement au projet/workflow
+
+    # PART III
+    # TODO: Concevoir la classe maitre 'Project' qui pré-définit un ensemble de détails
+    # TODO: Conception d'un graph cyclic simple -> noeuds conditionnels/boucle
+
+
     from queue import Queue
-    from blocks.interface.datapacket import DataQueue
+    from blocks.interface.queue import DataQueue
     from blocks.nodes.graphics import AcyclicGraph
 
     links = [(1,'two'),('two',3)]
@@ -84,9 +102,10 @@ if __name__ == "__main__":
     )
     print(comm_0)
 
+
     with comm_0 as comm:
 
-        msg = {'n': 3}        
+        msg = {'n': 4}        
         comm.send(msg)
 
         for _node in comm.generator():
@@ -102,8 +121,48 @@ if __name__ == "__main__":
         print(f"Received Message: {received_msg}")
 
 
+    # ================================================
+    # Communication interfaces direct par la mémoire python via une Queue Nominative
+    print("\n"+"="*40)
 
 
+    links = [(1,'two'),('two',3)]
+    graph = AcyclicGraph(links=links, first=1, last=3)
+
+    print('Graph : ',graph)
+
+    comm_0 = COMMUNICATE.LABEL(
+        graphics=graph.graphics,
+        interface=[(1,interf_0),
+                   ('two',interf_1),
+                   (3,interf_2)],
+        queue=DataQueue()
+    )
+    print(comm_0)
+    print('DataQueue : ',comm_0.queue._queue)
+
+    with comm_0 as comm:
+
+        msg = {'n': 4}        
+        comm.send(msg)
+
+        for _node in comm.generator():
+            
+            try:
+                _node.apply_transformer(transformer=transform)
+            except Exception as e:
+                print(f"Error applying transformer: {e}")
+
+            _node.execute()
+
+        received_msg = comm.receive()
+        print(f"Received Message: {received_msg}")
+
+    # ================================================
+    # Communication asynchrone en mémoire python
+    print("\n"+"="*40)
+
+    
 
 
 

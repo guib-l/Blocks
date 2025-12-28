@@ -5,24 +5,55 @@ import asyncio
 from copy import copy, deepcopy
 from typing import *
 
-from blocks.interface.datapacket import DataQueue,DataPacketQueue
+from queue import Queue
+from blocks.interface.queue import DataQueue,DataPacketQueue
+
+
+class Communication:
+    def __init__(self,
+                 graphics=None,
+                 interface=None,
+                 queue=None):
+        
+        self.graphics  = graphics
+        self.queue     = queue
+        self.interface = interface 
+        
+    @property
+    def interfaces(self):
+        return self._interface
+
+    @interfaces.setter
+    def interfaces(self, interface):
+        if interface is None:
+            self._interface = []
+        elif isinstance(interface,list):
+            self._interface = interface
+        elif isinstance(interface,dict):
+            self.interface = [(k,v) for k,v in interface.items()]
+        else:
+            raise TypeError(
+                "Interface must be a list or a dict with (index,interface) pairs.")
+        
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.queue.empty()
 
 
 
-
-
-
-class DirectCommunication:
+class DirectCommunication(Communication):
 
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=DataQueue()):
+                 queue=Queue()):
         
-        self.graphics  = graphics
-        self.queue     = queue
-        self.interface = interface if isinstance(interface,list) else [interface]
-
+        super().__init__(graphics=graphics,
+                         interface=interface,
+                         queue=queue)
+        
     def send(self, data:Any, label=None):
         self.queue.put(data)
 
@@ -34,7 +65,8 @@ class DirectCommunication:
     def generator(self):
 
         if not self.graphics or not self.interface:
-            raise ValueError("Graphics and interface must be defined for communication.")
+            raise ValueError(
+                "Graphics and interface must be defined for communication.")
 
         for node_label in self.graphics:
 
@@ -52,23 +84,89 @@ class DirectCommunication:
 
 
 
-    def __enter__(self):
-        return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.queue.empty()
+class LabelCommunication(Communication):
+
+    def __init__(self,
+                 graphics=None,
+                 interface=None,
+                 queue=DataQueue()):
+        
+        super().__init__(graphics=graphics,
+                         interface=interface,
+                         queue=queue)
+        
+    def send(self, data:Any, label=None):
+        if label is None:
+            label = self.graphics[0]
+        self.queue.put(data, label=label)
+
+    def receive(self,label=None) -> Any:
+        if label is None:
+            label = self.graphics[-1]
+        if self.queue.not_empty:
+            return self.queue.get(label=label)
+        return None
+
+    def generator(self):
+        if not self.graphics or not self.interface:
+            raise ValueError(
+                "Graphics and interface must be defined for communication.")
+
+        for i,node_label in enumerate(self.graphics):
+
+            for label,intf in self.interface:
+                if label == node_label:
+                    interf = intf
+                    break
+            
+            interf.input = self.queue.get(label=node_label)
+            
+            yield interf
+
+            if interf.output is not None:
+                try:
+                    self.queue.put(interf.output, label=self.graphics[i+1])
+                except IndexError:
+                    self.queue.put(interf.output, label=self.graphics[i])
 
 
-    
 
-class AsyncCommunication:
+class AsyncCommunication(Communication):
 
+    def __init__(self,
+                 graphics=None,
+                 interface=None,
+                 queue=None):
+        super().__init__(graphics=graphics,
+                         interface=interface,
+                         queue=queue)
+        
     async def send(self, data:Any):
         pass
 
     async def receive(self,) -> Any:
         pass
 
+    async def generator(self):
+
+        if not self.graphics or not self.interface:
+            raise ValueError(
+                "Graphics and interface must be defined for communication.")
+
+        for node_label in self.graphics:
+
+            for label,intf in self.interface:
+                if label == node_label:
+                    interf = intf
+                    break
+            
+            interf.input = await self.queue.get()
+            
+            yield interf
+
+            if interf.output is not None:
+                await self.queue.put(interf.output)
 
 
 
@@ -80,6 +178,7 @@ class SocketCommunication:
 
 class COMMUNICATE:
     DIRECT=DirectCommunication
+    LABEL=LabelCommunication
     ASYNC=AsyncCommunication
     SOCKET=SocketCommunication
 

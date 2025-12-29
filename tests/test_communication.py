@@ -8,10 +8,7 @@ from configs import *
 from blocks.base import *
 from blocks.nodes.node import Node
 
-from blocks.interface.datapacket import DataPacket,DataPacketPriority,DataPacketType
-
 from blocks.interface.interface import INTERFACE
-
 from blocks.interface.communication import COMMUNICATE
 
 if __name__ == "__main__":
@@ -65,23 +62,6 @@ if __name__ == "__main__":
     # ================================================
     # Communication interfaces direct par la mémoire python
     print("\n"+"="*40)
-
-    # PART I
-    # DONE TODO: Faire que DataQueue et DataPacketQueue fonctionne dans COMMUNICATE
-    # DONE TODO: Composer le module de communication asynchrone
-    # TODO: Intégrer la communication dans le workflow + test de fonctionnement
-    # TODO: Installation complète d'un worflow simple
-    # TODO: Poser une interface à un workflow puis le chainer à des nodes
-
-    # PART II
-    # TODO: Faire un système de création simplifié de workflow (mots clé: 'with')
-    # TODO: Sauvegarde du systeme d'exécution/environnement/communication
-    # TODO: Packetage simple de l'ensemble dans un zip / ré-utilisation simple
-    # TODO: Donner la possibilité de donner un super-environnement au projet/workflow
-
-    # PART III
-    # TODO: Concevoir la classe maitre 'Project' qui pré-définit un ensemble de détails
-    # TODO: Conception d'un graph cyclic simple -> noeuds conditionnels/boucle
 
 
     from queue import Queue

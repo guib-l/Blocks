@@ -1,12 +1,17 @@
 import os,sys
 from typing import *
 
+from queue import Queue
+
 import blocks.nodes.node as Node
 
 from blocks.base import prototype 
 from blocks.base.prototype import INSTALLER
+
 from blocks.nodes.graphics import AcyclicGraphMixin 
 
+from blocks.interface.interface import INTERFACE
+from blocks.interface.communication import COMMUNICATE
 
 Workflow = TypeVar('Workflow', bound='Workflow')
 
@@ -90,6 +95,9 @@ class Workflow(prototype.Prototype):
                  links:List[Tuple[Any,Any]] = [],
                  first_node:Any = None,
                  last_node:Any = None,
+                 communicate:Any = COMMUNICATE.DIRECT,
+                 interface:Any = INTERFACE.SIMPLE,
+                 queue:Any = Queue(),
                  nodes:Dict[str,Node.Node] = {},
                  **kwargs):
 
@@ -99,7 +107,11 @@ class Workflow(prototype.Prototype):
                             first=first_node, 
                             last=last_node)
         
-        self._registred_nodes = {}
+        self.interface = interface
+        self._queue = queue
+
+        self._registred_interface = []
+        self._registred_nodes     = {}
 
         for label, node in nodes.items():
             if isinstance(node, Node.Node):
@@ -108,7 +120,30 @@ class Workflow(prototype.Prototype):
                 self.import_node(label=label,**node)
             else:
                 raise TypeError("Node must be an instance of Node or a dict.")
-        
+
+        self.communicate = communicate
+
+    @property
+    def communicate(self):
+        return self._communicate
+    
+    @communicate.setter
+    def communicate(self, communicate):
+        if communicate is None:
+            self._communicate = COMMUNICATE.DIRECT(
+                graphics=self.graphics,
+                interface=self._registred_interface,
+                queue=self._queue
+            )
+        else:
+            self._communicate = communicate(
+                graphics=self.graphics,
+                interface=self._registred_interface,
+                queue=self._queue
+            )
+        print("Setting Workflow communicate...")
+        print(type(self._queue))
+        print(f"Workflow communicate set to: {self._communicate}")
 
     # -----------------------------------------------------
     # Logique du noeud à exécuter
@@ -124,34 +159,47 @@ class Workflow(prototype.Prototype):
         except Exception as e:
             raise TypeError(f"Workflow execution failed: {e}")
 
-    def forward(self, name=None, **data):
+    def forward(self, 
+                name=None, 
+                **data):
 
         print("Executing function in Workflow forward method")
         print(f"Function name: {name}")
 
-        for item in self.graphics:
+        with self.communicate as comm:
 
-            print(f"Processing node: {item}")
-            node_info = self._registred_nodes.get(item)
+            comm.send(data)
 
-            if node_info:
-                node = node_info['node']
-                output = node.execute(**data)
-                print(f"Node '{item}' output: {output}")
-            else:
-                print(f"Node '{item}' not found in registered nodes.")
+            for _label,_node in comm.generator():
+                
+                transform = self._registred_nodes.get(
+                    _label, {}).get('transformer', None)
+                
+                if transform:
+                    try:
+                        _node.apply_transformer(transformer=transform)
+                    except Exception as e:
+                        print(f"Error applying transformer: {e}")
 
-        return None
+                _node.execute()
+
+            received_msg = comm.receive()
+            print(f"Received Message: {received_msg}")
+
+        return received_msg
 
 
     def import_node(self, node,
                     label=None,
                     **kwargs):
         
+        self._registred_interface.append(
+            (label or node.name, self.interface(node) ))
+        
         self._registred_nodes[label or node.name] = {
             'node': node,
             'name':node.name,
-            'function_name':None,
-            **kwargs
+            'function_name':kwargs.get('function_name', None),
+            'transformer':kwargs.get('transformer', None)
         }
 

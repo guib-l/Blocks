@@ -122,7 +122,7 @@ class LabelCommunication(Communication):
             
             interf.input = self.queue.get(label=node_label)
             
-            yield interf
+            yield node_label,interf
 
             if interf.output is not None:
                 try:

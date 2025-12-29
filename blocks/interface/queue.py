@@ -48,7 +48,7 @@ class DataQueue:
 
     def put(self, message:Any, label=None) -> None:
         """Ajoute un message à la file."""
-        print(f"Putting message with label {label}: {message}") 
+        
         with self._lock:
             self._queue.append(message)
             if label is None or label in self._index:

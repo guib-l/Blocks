@@ -26,6 +26,8 @@ from enum import Enum
 
 
 class BaseExecute:
+
+    __ntype__ = 'BaseExecute'
     
     def __init__(self, 
                  workdir=None,
@@ -89,20 +91,28 @@ from .backend import (ThreadedBackend,
                       DistributedBackend, 
                       GPUBackend)
 
-_backend_available = {
-    'default':Backend,
-    'multiprocessing':MultiprocessBackend,
-    'threads':ThreadedBackend,
-    'distributed':DistributedBackend,
-    'gpu':GPUBackend,
-}
+class EXECUTE_BACKEND:
+    DEFAULT         = Backend,
+    MULTIPROCESSING = MultiprocessBackend,
+    THREADS         = ThreadedBackend,
+    DISTRIBUTED     = DistributedBackend,
+    GPU             = GPUBackend,
 
-class AvailableBackend(Enum):
-    default         = Backend,
-    multiprocessing = MultiprocessBackend,
-    threads         = ThreadedBackend,
-    distributed     = DistributedBackend,
-    gpu             = GPUBackend,
+    mapping = {
+        'DEFAULT':Backend,
+        'MULTIPROCESSING':MultiprocessBackend,
+        'THREADS':ThreadedBackend,
+        'DISTRIBUTED':DistributedBackend,
+        'GPU':GPUBackend,
+    }
+    
+    @classmethod
+    def get(cls, key):
+        """Get communication by string key or return Communication if not found."""
+        if not isinstance(key, str):
+            return key
+        
+        return cls.mapping.get(key.upper(), Backend)
 
 
 
@@ -119,13 +129,15 @@ class AvailableBackend(Enum):
 
 class Execute(BaseExecute):
 
+    __ntype__ = 'Execute'
+
     def __init__(self,
                  queue = None,
-                 backend='default',
+                 backend='DEFAULT',
                  build_backend=True,
-                 *args, **kwargs):
+                 **kwargs):
 
-        self._proto_backend  = self.select_backend(backend)
+        self._proto_backend  = EXECUTE_BACKEND.get(backend)
 
         if build_backend:
             self._backend = self.build_backend()
@@ -135,21 +147,36 @@ class Execute(BaseExecute):
         else: 
             self._queue = Queue()
 
-        super().__init__(*args,**kwargs)
+        super().__init__(**kwargs)
 
         self._is_running = False
 
-    def select_backend(self, name):
+    def to_dict(self):
+        return dict(
+            workdir=self.workdir,
+            commands=copy.copy(self.commands),
+            use_io=self.use_io,
+            use_external=self.use_external,
+            use_cache=self.use_cache,
+            backend=self._backend.to_dict() or None,
+            queue=(lambda: self._queue.to_dict())() if not Exception else None,
+            build_backend=True,
+        )
+    
+    @classmethod
+    def from_dict(cls, **data):
+        backend_data = data.get('backend', {})
+        backend = EXECUTE_BACKEND.get(backend_data.get('type', 'DEFAULT'))
+        return cls(
+            workdir=data.get('workdir', None),
+            commands=data.get('commands', None),
+            use_io=data.get('use_io', True),
+            use_external=data.get('use_external', False),
+            use_cache=data.get('use_cache', False),
+            backend=backend,
+            build_backend=True,
+        )
 
-        if isinstance(name,str):
-            try:
-                return _backend_available[name]
-            except:
-                raise NotImplemented(f'Backend {name} is unknown')
-        elif hasattr(name,'__object__'):
-            return name
-        else:
-            raise NotImplemented
 
     def _base_call(self, _mandat=''):
         try:
@@ -166,7 +193,8 @@ class Execute(BaseExecute):
         if forward:
             self._backend._worker = forward
         else:
-            raise NotImplementedError("No forward method provided for execution.")
+            raise NotImplementedError(
+                "No forward method provided for execution.")
         
         _exec = self._base_call(_mandat='execute')
         return _exec
@@ -183,15 +211,6 @@ class Execute(BaseExecute):
         txt = f"Execute(backend={self._proto_backend};"
         return txt
     
-    def to_dict(self):
-        return dict(
-            workdir=self.workdir,
-            commands=copy.copy(self.commands),
-            use_io=self.use_io,
-            use_external=self.use_external,
-            use_cache=self.use_cache,
-        )
-
 
 class FileIOExecute(Execute):
 
@@ -207,7 +226,8 @@ class FileIOExecute(Execute):
         if forward:
             self._backend._worker = forward
         else:
-            raise NotImplementedError("No forward method provided for execution.")
+            raise NotImplementedError(
+                "No forward method provided for execution.")
         
         _exec = self._base_call(_mandat='execute')
         return _exec

@@ -3,7 +3,8 @@ import blocks
 from blocks.base.prototype import Prototype
 
 
-from blocks.engine.environment import EnvironMixin,PYTHON
+from blocks.engine.environment import EnvironMixin
+from blocks.engine import ENVIRONMENT_TYPE
 
 
 

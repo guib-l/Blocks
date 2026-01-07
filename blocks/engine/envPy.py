@@ -41,6 +41,8 @@ class abstract_env(ABC,SerializableMixin):
 @dataclass
 class EnvEmpty(abstract_env):
 
+    __ntype__ = "empty_env"
+
     @classmethod
     def sub_build(cls, **kwargs):
         return cls(**kwargs)
@@ -61,6 +63,8 @@ class EnvEmpty(abstract_env):
 
 
 class EnvPython(Packages,abstract_env):
+
+    __ntype__ = "python_env"
 
     def __init__(self, 
                  directory = '.',
@@ -101,7 +105,8 @@ class EnvPython(Packages,abstract_env):
     def update(self, **kwargs):
         print(f'> Update Python environment ')
 
-
+    def to_dict(self,):
+        return self.package_to_dict()
 
 
     # ============================================

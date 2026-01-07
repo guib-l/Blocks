@@ -62,6 +62,7 @@ class InterfaceError(Exception):
 
 class Interface:
 
+    __ntype__ = "SIMPLE"
     __slots__ = [
         '_node',
         '_inputs',
@@ -158,6 +159,7 @@ class Interface:
 
 class AdvancedInterface(Interface):
 
+    __ntype__ = "ADVANCED"
     __slots__ = [
         '_node',
         '_inputs',
@@ -416,10 +418,21 @@ class AdvancedInterface(Interface):
 
 
 
-
 class INTERFACE:
-    SIMPLE = Interface
+    SIMPLE = Interface 
     ADVANCED = AdvancedInterface
+    mapping = {
+            'SIMPLE': SIMPLE,
+            'ADVANCED': ADVANCED,
+        }
+    
+    @classmethod
+    def get(cls, key):
+        """Get interface by string key or return Interface if not found."""
+        if not isinstance(key, str):
+            return Interface
+        
+        return cls.mapping.get(key.upper(), Interface)
 
 
 

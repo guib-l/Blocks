@@ -26,17 +26,30 @@ from blocks.base.register import Register, MethodObjects
 
 from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironMixin
-from blocks.engine import PYTHON
+from blocks.engine import ENVIRONMENT_TYPE
 
 
 Prototype = TypeVar('Prototype', bound='Prototype')
 
-class INSTALLER(Enum):
+class INSTALLER:
     NONE     = None
     DEFAULT  = InstallerPython
     PYTHON   = InstallerPython
     WORKFLOW = InstallerPythonWorkflow
 
+    @classmethod
+    def get(cls, key):
+        """Get the installer based on the key."""
+        if not isinstance(key, str):
+            return key
+        
+        mapping = {
+            'NONE': cls.NONE,
+            'DEFAULT': cls.DEFAULT,
+            'PYTHON': cls.PYTHON,
+            'WORKFLOW': cls.WORKFLOW
+        }
+        return mapping.get(key.upper(), cls.DEFAULT)
 
 
 
@@ -144,8 +157,14 @@ class Prototype(block.Block, Register):
 
 
     def __new__(cls, **kwargs):
+        cls._register_methods = {}
+        cls.allowed_name = None
+        
         _installer   = kwargs.get('installer', INSTALLER.DEFAULT)
         _environment = kwargs.get('environment', EnvironMixin)
+
+        _installer = INSTALLER.get(_installer)
+        
 
         if isinstance(_installer,Enum):
             _installer = _installer.value
@@ -165,7 +184,7 @@ class Prototype(block.Block, Register):
                  auto_create     = False,
                  mandatory_attr  = True,
                  environment     = EnvironMixin,
-                 environ_backend = PYTHON,
+                 environ_backend = ENVIRONMENT_TYPE.PYTHON,
                  environ_arguments = {},
                  executor        = None,
                  installer       = INSTALLER.DEFAULT,
@@ -178,7 +197,7 @@ class Prototype(block.Block, Register):
         self.mandatory_attr = mandatory_attr
             
         # Initialisation de l'environnement
-        self.__init_env__(environ_backend,
+        self.__init_env__(ENVIRONMENT_TYPE.get(environ_backend),
                           **environ_arguments)
 
 
@@ -194,8 +213,10 @@ class Prototype(block.Block, Register):
         if methods + files != []:
             self.set_register_methods(methods + files, 
                                       ignore_duplicata=False)
+        self.registred_files = files
             
-        self.allowed_name = allowed_name or list(self._register_methods.keys())
+        self.allowed_name = allowed_name or list(self._register_methods.keys())  
+
         self.filter_register_methods(allowed_name=self.allowed_name)
 
 
@@ -210,7 +231,39 @@ class Prototype(block.Block, Register):
                                auto_create=auto_create)
     
 
+    def to_dict(self):
+        dict_env = self.env_to_dict() 
+        dict_exec = self.executor.to_dict() 
+        return {
+            **super().to_dict(),
+            'installer': self.__install_type__,
+            'mandatory_attr': self.mandatory_attr,
+            'metadata': self.metadata,
+            'environment': dict_env,
+            'executor': dict_exec,
+            'files':self.registred_files,
+        }
+    
+    @classmethod
+    def from_dict(cls, **data: Dict[str, Any]) -> 'Prototype':
+        env_type = data.get('environment', {}).get('type', 'PYTHON')
+        env_data = data.get('environment', {}).get('parameters', {})
+        data.pop('environment', None)
 
+        exec_data = data.pop('executor', {})
+        
+        exec_instance = Execute.from_dict(**exec_data)
+        data.pop('installer', None)
+
+        instance = cls(
+            installer=data.get('installer', INSTALLER.DEFAULT),
+            environment=EnvironMixin,
+            environ_backend=env_type,
+            environ_arguments=env_data,
+            executor=exec_instance,
+            **data )
+        
+        return instance
 
 
     # ===========================================
@@ -232,13 +285,12 @@ class Prototype(block.Block, Register):
             os.path.abspath(directory), name, ntype + f'.{format}')
         
         data = json.load( open(origin))
+        print(data)
         data.update(kwargs)
 
-        if kwargs.get('auto_create') is not None:
-            return cls(auto_create=kwargs.get('auto_create'),
+        return cls(auto_create=kwargs.pop('auto_create', False),
                        **data)
         
-        return cls(auto_create=False, **data)
 
 
     @classmethod

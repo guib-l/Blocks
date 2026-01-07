@@ -49,6 +49,7 @@ class AcyclicGraphMixin:
             self.add_links(links)
 
 
+
     def copy(self):
         """
         Create a shallow copy of the TopologicalSorter instance
@@ -62,7 +63,7 @@ class AcyclicGraphMixin:
         new_sorter.backward = copy.deepcopy(self.backward)
         return new_sorter
 
-    def to_dict(self):
+    def graph_to_dict(self):
         """
         Convert the graph to a dictionary representation
         Returns:
@@ -74,19 +75,6 @@ class AcyclicGraphMixin:
             'last' : self.last,
         }
 
-    @classmethod
-    def from_dict(cls, **data):
-        """
-        Create a TopologicGraphics instance from a dictionary representation
-        Args:
-            data (dict): Dictionary representation of the graph
-        Returns:
-            TopologicGraphics: A new instance with the properties from the dictionary
-        """
-        links = data.get('links', [])
-        first = data.get('first', None)
-        last = data.get('last', None)
-        return cls(links=links, first=first, last=last)
 
     def write_graphics(self, format='txt'):
         """

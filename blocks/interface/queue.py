@@ -41,6 +41,9 @@ def get_new_label(exist_label:Any, new_label:Any=None) -> str:
 
 class DataQueue:
     """File de messages simple."""
+
+    __ntype__ = "DATAQUEUE"
+
     def __init__(self):
         self._queue:List[Any] = []
         self._index:List[Any] = []
@@ -92,6 +95,8 @@ class DataPacketQueue:
 
     TODO: gérer les priorités dans la file ?? (est-ce utile ?)
     """
+    __ntype__ = "DATAPACKETQUEUE"
+
     def __init__(self):
         self._queues: List[DataPacket] = []
         self._lock = threading.Lock()
@@ -162,5 +167,28 @@ class DataPacketQueue:
 
     def __repr__(self):
         return f"DataPacketQueue(num_messages={len(self._queues)})"
+
+
+from queue import Queue
+
+class QUEUE:
+    QUEUE = Queue()
+    DATAQUEUE = DataQueue()
+    DATAPACKETQUEUE = DataPacketQueue()
+
+    mapping = {
+        'QUEUE': Queue(),
+        'DATAQUEUE': DataQueue(),
+        'DATAPACKETQUEUE': DataPacketQueue(),
+    }
+    
+    @classmethod
+    def get(cls, key):
+        """Get queue by string key or return Queue if not found."""
+        if not isinstance(key, str):
+            return key
+        
+        return cls.mapping.get(key.upper(), Queue())
+    
 
 

@@ -175,6 +175,22 @@ class Packages(Select, SerializableMixin):
         if auto_build:
             self.build(**args)
 
+    def package_to_dict(self):
+        return {
+            'env_name':self.env_name,
+            'env_type': self.env_type.__name__ if hasattr(self.env_type,'__name__') else str(self.env_type),
+            'mng_type': self.mng_type.__name__ if hasattr(self.mng_type,'__name__') else str(self.mng_type),
+            'dependencies':self.dependencies,
+            'directory': str(self.directory),
+            'auto_build': self.auto_build,
+            'profile': {
+                'commands': self.profile.commands,
+                'directory': str(self.profile.directory),
+                'shell': self.profile.shell,
+                'timeout': self.profile.timeout,
+            } if self.profile else None,
+        }
+
 
     # ============================================
     # Build of Packages object

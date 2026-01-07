@@ -9,7 +9,6 @@ from configs import *
 from blocks.base import *
 from blocks.nodes.node import Node
 
-from blocks.interface.interface import (MessageType,MESSAGE,Interface)
 
 
 from blocks.engine.execute import Execute
@@ -33,13 +32,11 @@ def heavy_calculation(n=5):
 if __name__ == "__main__":
       
     exe = Execute(workdir='./run',
-                    commands=None,
-                    backend='threads',
-                    use_shell=None,
-                    use_io=False,
-                    language=None,
-                    signal=None,
-                    files=None,)
+                  commands=None,
+                  backend='default',
+                  use_shell=False,
+                  use_io=False,
+                  signal=None,)
     print(exe)
     print("Execute instance created successfully.")
 
@@ -47,25 +44,31 @@ if __name__ == "__main__":
     print("Execute instance copied successfully.")
 
 
+    exec_dict = exe.to_dict()
+    Execute.from_dict(**exec_dict)
 
 
 
 
 
-    node = Node.load(name='function-test',
+    node = Node.load(name='HC',
+                     ntype='prototype',
                      directory=BLOCK_PATH,
-                     _executor=exe,)
+                     executor=exe,)
+    import json
+    from tools.encoder import EnvJSONEncoder
+    print(json.dumps(node.to_dict(), indent=4, cls=EnvJSONEncoder))
     print("Node instance created successfully.")
 
     print("Testing node execution...")
-    #print(node.copy())
 
     print("===================================")
     print("Starting node execution...")
-    node.build()
 
-    result = node.execute(func=heavy_calculation, n=10)
+    result = node.execute(n=10)
     print(f"Node execution result: {result}")
+
+
 
 
 

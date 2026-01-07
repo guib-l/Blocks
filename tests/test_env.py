@@ -9,13 +9,13 @@ from configs import *
 from blocks.base import *
 from blocks.base.prototype import Prototype
 
-from blocks.interface.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.interface import (Interface)
 
 
 from blocks.engine.execute import Execute
 
-from blocks.engine.envPy import _empty_env,_python_env
-from blocks.engine import PYTHON,PYTHON_PIP
+from blocks.engine.envPy import EnvEmpty,EnvPython
+from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
 from blocks.engine.environment import EnvironMixin, Environment
 
 import time
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         results = func(2)
         print("Results :",results)
 
-    status = proto.__diff__(PYTHON_PIP)
+    status = proto.__diff__(ENVIRONMENT_TYPE.PYTHON_PIP)
 
     print('Equivalence : ',status)
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
 
     temp = copy(PYTHON_PIP)
-    temp.environment = _python_env
+    temp.environment = EnvPython
     temp.parameters['packages'] = ['numpy','pandas']
 
     print('Create new env with packages numpy and pandas')
@@ -96,7 +96,6 @@ if __name__ == "__main__":
                       directory='./envs/pip_env/',
                       language='python3',
                       backend_env=temp,
-                      functions=heavy_calculation,
                       env_name='generic-env.02'
                 )
 
@@ -115,7 +114,8 @@ if __name__ == "__main__":
     
     dict_env = env.to_dict()
     print('Environment as dict : \n',dict_env)
-    env_from_dict = Environment.from_dict(dict_env)
+
+    env_from_dict = Environment.from_dict(**dict_env)
 
     print(env_from_dict)
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     dict_results = env.to_dict()
 
-    env = Environment.from_dict(dict_results)
+    env = Environment.from_dict(**dict_results)
     env.backend.uninstall()
 
     sys.exit()

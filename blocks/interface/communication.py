@@ -6,17 +6,20 @@ from copy import copy, deepcopy
 from typing import *
 
 from queue import Queue
-from blocks.interface.queue import DataQueue,DataPacketQueue
+from blocks.interface.queue import QUEUE,DataQueue,DataPacketQueue
 
 
 class Communication:
+
+    __ntype__ = 'COMMUNICATION'
+
     def __init__(self,
                  graphics=None,
                  interface=None,
                  queue=None):
         
         self.graphics  = graphics
-        self.queue     = queue
+        self.queue     = QUEUE.get(queue)
         self.interface = interface 
         
     @property
@@ -45,6 +48,8 @@ class Communication:
 
 class DirectCommunication(Communication):
 
+    __ntype__ = "DIRECT"
+
     def __init__(self,
                  graphics=None,
                  interface=None,
@@ -63,7 +68,6 @@ class DirectCommunication(Communication):
         return None
 
     def generator(self):
-
         if not self.graphics or not self.interface:
             raise ValueError(
                 "Graphics and interface must be defined for communication.")
@@ -87,6 +91,8 @@ class DirectCommunication(Communication):
 
 class LabelCommunication(Communication):
 
+    __ntype__ = "LABEL"
+
     def __init__(self,
                  graphics=None,
                  interface=None,
@@ -109,6 +115,9 @@ class LabelCommunication(Communication):
         return None
 
     def generator(self):
+        print('<<<<  graph : ',self.graphics)
+        print('<<<< interf : ',self.interface)
+        print()
         if not self.graphics or not self.interface:
             raise ValueError(
                 "Graphics and interface must be defined for communication.")
@@ -133,6 +142,8 @@ class LabelCommunication(Communication):
 
 
 class AsyncCommunication(Communication):
+
+    __ntype__ = "ASYNC"
 
     def __init__(self,
                  graphics=None,
@@ -181,6 +192,22 @@ class COMMUNICATE:
     LABEL=LabelCommunication
     ASYNC=AsyncCommunication
     SOCKET=SocketCommunication
+
+
+    @classmethod
+    def get(cls, key):
+        """Get communication by string key or return Communication if not found."""
+        if not isinstance(key, str):
+            return key
+        
+        mapping = {
+            'DIRECT': DirectCommunication,
+            'LABEL': LabelCommunication,
+            'ASYNC': AsyncCommunication,
+            'SOCKET': SocketCommunication,
+        }
+        return mapping.get(key.upper(), DirectCommunication)
+
 
 
 

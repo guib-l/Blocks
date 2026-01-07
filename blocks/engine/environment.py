@@ -11,7 +11,7 @@ from pathlib import Path
 
 from enum import Enum,Flag
 
-from blocks.engine import PYTHON
+from blocks.engine import ENVIRONMENT_TYPE
 
 from tools.serializable import SerializableMixin
 
@@ -22,19 +22,25 @@ from tools.encoder import EnvJSONEncoder
 
 class EnvironMixin:
 
-    __environ__ = PYTHON
 
     def __init_env__(self,
-                     backend_env=PYTHON,
+                     backend_env=ENVIRONMENT_TYPE.PYTHON,
                      **kwargs):
         
-        self.env = backend_env
+        #self.__environ__ = None#ENVIRONMENT_TYPE.get(backend_env)
+        
+        self.env = ENVIRONMENT_TYPE.get(backend_env)
         _backend = backend_env.environment
 
         self.env.parameters.update(**kwargs)
 
         self.backend = _backend( **self.env.parameters ) 
 
+    def env_to_dict(self):
+        return {
+            'backend_env': self.env.__name__,
+            'parameters': self.env.parameters,
+        }
 
     # ============================================
     # Variables definition
@@ -114,7 +120,7 @@ class EnvironMixin:
         return value(**kwargs)
 
 
-class Environment(EnvironMixin,SerializableMixin):
+class Environment(EnvironMixin):
 
     __slots__ = (
         'name',
@@ -125,17 +131,36 @@ class Environment(EnvironMixin,SerializableMixin):
     def __init__(self,
                  name='env',
                  language='python3', 
-                 backend_env=PYTHON,
+                 backend_env=ENVIRONMENT_TYPE.PYTHON,
                  **kwargs):
          
-         super().__init_env__(
-             backend_env=backend_env,
-             **kwargs
-         )
-         self.name = name
-         self.language = language
+        super().__init_env__(
+            backend_env=ENVIRONMENT_TYPE.get(backend_env),
+            **kwargs
+        )
+        self.name = name
+        self.language = language
 
+    def __repr__(self):
+        return f" (Environment: {self.name} ; Language: {self.language} ; Backend: {self.env.__name__} ) "
+    
 
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'language': self.language,
+            'backend_env': self.env.__name__,
+            'parameters': self.env.parameters,
+        }
+    
+    @classmethod
+    def from_dict(cls, **data: dict):
+        return cls(
+            name=data.get('name', 'env'),
+            language=data.get('language', 'python3'),
+            backend_env=data.get('backend_env', ENVIRONMENT_TYPE.PYTHON),
+            **data.get('parameters', {})
+        )
 
 
 

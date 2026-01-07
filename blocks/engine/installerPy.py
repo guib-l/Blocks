@@ -20,6 +20,8 @@ from tools.organizer import FileManager, FileError
 
 class InstallerPython:
 
+    __install_type__ = 'python'
+
     def __post_init__(self,
                       name: str = None,
                       directory = None,
@@ -61,8 +63,6 @@ class InstallerPython:
     def __uninstall__(self):
 
         self.delete_directory()
-        
-
 
 
     def _create_dir(self):
@@ -192,6 +192,8 @@ class InstallerPython:
 
 class InstallerPythonWorkflow:
 
+    __install_type__ = 'pythonWorkflow'
+
     def __post_init__(self,
                       name: str = None,
                       directory = None,
@@ -201,8 +203,8 @@ class InstallerPythonWorkflow:
             self.direct_path = os.path.join(directory, name)
             self.filemanager = FileManager(base_directory=self.direct_path,
                                            auto_create=auto_create)
-        except:
-            print('Error occurs')
+        except Exception as e:
+            print(f'Error occurs: {e}')
         
 
 
@@ -217,21 +219,13 @@ class InstallerPythonWorkflow:
         print(f"Installing workflow '{self.name}' at '{file_dir}'")
 
         self._create_dir()
-
-        self._dataset['files'] = [
-            f'{os.path.join(file_dir,self.name)}.py']
-
-        self.export_method(
-            f'{self.name}.py',
-            self.direct_path,
-            **self._register_methods
-        )
-        
         return self
 
 
     def __uninstall__(self):
-
+        '''
+        Supprime le répertoire du block.
+        '''
         self.delete_directory()
         
 

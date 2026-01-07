@@ -20,6 +20,19 @@ class Backend(ABC):
         self.config = kwargs
 
         self.running = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize the backend configuration to a dictionary."""
+        return {
+            'type': self.__class__.__name__,
+            'config': deepcopy(self.config),
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Backend':
+        """Deserialize the backend configuration from a dictionary."""
+        config = data.get('config', {})
+        return cls(**config)
         
     def setup(self, resources: Optional[Dict[str, Any]] = None) -> bool:
         """Set up the backend with necessary resources.
@@ -81,6 +94,23 @@ class JoblibBackend(Backend):
         self.n_jobs = n_jobs
         self.backend_type = backend_type
 
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'type': self.__class__.__name__,
+            'n_jobs': self.n_jobs,
+            'backend_type': self.backend_type,
+            'config': deepcopy(self.config),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Backend':
+        return cls(
+            n_jobs=data.get('n_jobs', -1),
+            backend_type=data.get('backend_type', 'loky'),
+            **data.get('config', {})
+        )
+    
     def execute(self, *args, **kwargs):
         
         # Implementation for joblib execution
@@ -103,6 +133,26 @@ class ThreadedBackend(Backend):
         self.queue = queue if queue else Queue()
         self.pool = pool 
         self.daemon = daemon
+
+    def to_dict(self):
+        _dict =  super().to_dict()
+        _dict.update({
+            'max_workers': self.max_workers,
+            'daemon': self.daemon,
+            'queue': self.queue.to_dict() if self.queue else None,
+            'pool': type(self.pool).__name__ if self.pool else None,
+        })
+        return _dict
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Backend':
+        return cls(
+            max_workers=data.get('max_workers', 4),
+            daemon=data.get('daemon', True),
+            queue=data.get('queue', None),
+            pool=data.get('pool', None),
+            **data.get('config', {})
+        )
 
     def setup(self, ):
         if self.pool is None:
@@ -144,6 +194,10 @@ class MultiprocessBackend(Backend):
     def __init__(self,):
         super().__init__()
 
+    def to_dict(self) -> Dict[str, Any]:
+        _dict = super().to_dict()
+        return _dict
+
     def execute(self, func, *args, **kwargs):
         # Implementation for multiprocess execution
         pass
@@ -161,6 +215,10 @@ class DistributedBackend(Backend):
     def __init__(self,):
         super().__init__()
 
+    def to_dict(self) -> Dict[str, Any]:
+        _dict = super().to_dict()
+        return _dict
+
     def execute(self, *args, **kwargs):
         # Implementation for distributed execution
         pass
@@ -177,6 +235,10 @@ class GPUBackend(Backend):
     # Placeholder for GPU backend methods
     def __init__(self,):
         super().__init__()
+
+    def to_dict(self) -> Dict[str, Any]:
+        _dict = super().to_dict()
+        return _dict
 
     def execute(self, *args, **kwargs):
         # Implementation for GPU execution

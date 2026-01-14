@@ -24,7 +24,7 @@ if __name__ == "__main__":
     print("\n"+"*"*40)
 
     start = time.time()
-    node = Node.load(name='HC',
+    node = Node.load(name='heavy_calculation',
                      ntype='prototype',
                      directory=BLOCK_PATH)
     end = time.time()
@@ -52,10 +52,12 @@ if __name__ == "__main__":
     node_copy = Node.from_dict(**_dict)
     print("Node deserialized from dictionary successfully.")
     print(node_copy)
-    print(node_copy._register_methods)
 
-    print(json.dumps(node_copy.to_dict(), indent=4, cls=EnvJSONEncoder))
-    node_copy.execute(n=4)
+    print('Registred methods : ',node_copy._register_methods)
+
+    # TODO: Execute the copied Node
+    #print(json.dumps(node_copy.to_dict(), indent=4, cls=EnvJSONEncoder))
+    #node_copy.execute(name='heavy_calculation',n=4)
 
 
 

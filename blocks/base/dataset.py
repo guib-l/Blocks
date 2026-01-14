@@ -19,6 +19,9 @@ class DataSet:
     """
     Class representing a dataset with various attributes.
     """
+
+    __slots__ = ['_dataset']
+    
     def __init__(self, **options: dict):
         """
         Initialize the DataSet with given options.

@@ -52,6 +52,9 @@ class BaseExecute:
     # -------------------------------------------------------------------------
     # Serializable / Copy functions
 
+    def to_config(self):
+        return {}
+    
     def to_dict(self,):
         results = {}
         return results
@@ -150,6 +153,9 @@ class Execute(BaseExecute):
         super().__init__(**kwargs)
 
         self._is_running = False
+
+    def to_config(self):
+        return {}
 
     def to_dict(self):
         return dict(

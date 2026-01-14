@@ -378,7 +378,9 @@ class FileManager:
         Raises:
             FileError: Si une erreur survient lors de l'écriture
         """
-        full_path = self._resolve_path(path)
+        #full_path = self._resolve_path(path)
+        #print(full_path)
+        full_path = path
 
         auto_create = auto_create if auto_create is not None else self.auto_create
         

@@ -4,12 +4,11 @@ from configs import *
 
 from blocks.base import *
 from blocks.base.prototype import Prototype
-from blocks.base.prototype import export_metadata
 
 from blocks.base.prototype import INSTALLER
 
 from blocks.export import task_node
-from blocks.engine.environment import EnvironMixin
+from blocks.engine.environment import Environment
 
 
 def basic_function(n=5):
@@ -45,36 +44,31 @@ if __name__ == "__main__":
         'id': None,
         'version': '0.0.1',
         'directory':BLOCK_PATH,
-        'installer': INSTALLER.DEFAULT,
         'mandatory_attr': False,
         'metadata': {'source': 'generated', 
                      'version': 1.0,
                      'description': 'A sample dataset for testing'},
-        'environment': EnvironMixin,
+        'installer': INSTALLER.PYTHON,
+        'installer_config':{
+            'auto':True,
+        },
+        'environment': Environment,
+        'environment_config':{},
         'executor': None,
+        'executor_config':{},
     }
-  
+
+
     # ===============================================
     # Initialisation d'un Prototype
     print("\n"+"*"*40)
 
     print("BUILD PROTOTYPE in-place")
     
-    proto = Prototype(auto_create=True,
-                      **data)
+    proto = Prototype(**data)
+
     print(proto)
     print("Prototype instance created successfully.") 
-
-    export_metadata(proto, 'prototype', 'json')
-
-    # Load de l'objet à partir du répertoire
-    proto = Prototype.load(name='prototype-test',
-                           ntype='prototype',
-                           directory=BLOCK_PATH)
-    print(proto)
-    print("Prototype instance created successfully.")
-
-    proto.delete_directory()
 
 
     # ===============================================
@@ -82,97 +76,108 @@ if __name__ == "__main__":
     print("\n"+"*"*40)
 
     data.update(
-        {'auto_create':False,
-         'installer':INSTALLER.PYTHON,
-         'methods':[basic_function,],
-         'files':['myscript/my_script.py',],}
-        )
+        {
+            'files':['myscript/my_script.py',],
+            'methods':[basic_function],
+            'allowed_name':[]
+        }
+    )
 
     proto = Prototype(**data)
     print(proto)
-    
+    print("Prototype instance created successfully.") 
 
-    # Tests des methods -----------------------------
-    print('Register : \n',proto._register_methods)
-
-    method_01 = proto.get_register_methods('say')
-    method_01.call('Hello')
-
-    print('Register : \n',proto._register_methods)
-
-    proto.export_method("export.py", 
-                        BLOCK_PATH, 
-                        **proto._register_methods)
-
-    proto.import_method( os.path.join(BLOCK_PATH,"export.py") )
-    print('Register : \n',proto._register_methods)
-
-    # Tests de l'installation -----------------------
-    proto = Prototype.install( **data )
-    print(proto)
+    proto.install()
     print("Prototype instance installed successfully.")
-    
+
+
+
+    new_proto = Prototype.load(
+        name='prototype-test',
+        directory=BLOCK_PATH,
+        format='json',
+        ntype='prototype'
+    )
+
+    print(new_proto)
+    print("Prototype instance loaded successfully.")
+
 
     proto.uninstall()
     print("Prototype instance uninstalled successfully.")
 
 
+    # Re-installation pour test @task_manager
+    proto = Prototype(**data)
+    print(proto)
+    print("Prototype instance created successfully.") 
 
+    proto.install()
 
     # ===============================================
-    # Installation d'un Prototype via l'appel de @task
+    # Prototype vie @task_manager
     print("\n"+"*"*40)
+
 
     hc = heavy_calculation()
     print(hc)
 
-    results = hc.execute(n=3)
+    # TODO : Uncomment to test installation via task manager
+    hc.install(directory=BLOCK_PATH)
+
+
+    results = hc.execute(n=4)
     print('Results : ',results)
     
-    from blocks.base.prototype import Install
-    Install(hc,name='HC',directory=BLOCK_PATH)
 
-    del hc
+    proto.execute(name='say', words='from Prototype execute method')
+
     
-    # ===============================================
-    # Récupération et exécution dans son environnement
-    print("\n"+"*"*40)
-
-    proto = Prototype.load(name='HC',
-                           ntype='prototype',
-                           directory=BLOCK_PATH)
-    print(proto)
-    print("Prototype instance created successfully.")
-
-    print(proto._register_methods)
-
-    # Ajout d'une méthode d'éxecution par défaut
-    proto.execute(n=6)
-
-
     # ===============================================
     # Manipulation du prototye (déplacement, nom, suppr ...)
     print("\n"+"*"*40)
 
-    # TODO: Déplacer les fichiers (avec l'environnement ?)
+    # Déplacer les fichiers (avec l'environnement ?)
+    proto.installer.move( os.path.join(BLOCK_PATH, '..'), erase_source=True )
+    proto.installer.move( BLOCK_PATH, erase_source=True )
 
-    # TODO: Changer le nom
+    # Changer le nom
+    proto.installer.rename('HC')
 
-    # TODO: Supprimer les fichiers (facultatif)
+    new_proto = Prototype.load(
+        name='HC',
+        directory=BLOCK_PATH,
+        format='json',
+        ntype='prototype'
+    )
+
+    print(new_proto)
+    print("Prototype instance loaded successfully.")
+
+    # Compression d'un prototype
+    new_proto.installer.compress( )
+    print("Prototype instance compressed successfully.")
+
+    print(new_proto.installer.path_to_install)
 
 
-    # ===============================================
-    # Ajouter un environment et un executor indépendant (qui devra être
-    # sauvegardé dans un fichier pickle / json suivant ce qui sera le plus 
-    # simple à le re-load)
-    print("\n"+"*"*40)
+    new_proto.uninstall()
+    print("Prototype instance uninstalled successfully.")
 
+    # Décompression d'un prototype
+    new_proto.installer.decompress()
+    print("Prototype instance decompressed successfully.")
 
+    new_proto = Prototype.load(
+        name='HC',
+        directory=BLOCK_PATH,
+        format='json',
+        ntype='prototype'
+    )
 
+    print(new_proto)
+    print("Prototype instance loaded successfully.")
 
-
-
-
-
+    new_proto.execute(name='basic_function', n=3)
 
 

@@ -38,6 +38,9 @@ class Communication:
             raise TypeError(
                 "Interface must be a list or a dict with (index,interface) pairs.")
         
+    def update_graphics(self, graphics):
+        self.graphics = graphics
+
     def __enter__(self):
         return self
 
@@ -115,9 +118,7 @@ class LabelCommunication(Communication):
         return None
 
     def generator(self):
-        print('<<<<  graph : ',self.graphics)
-        print('<<<< interf : ',self.interface)
-        print()
+
         if not self.graphics or not self.interface:
             raise ValueError(
                 "Graphics and interface must be defined for communication.")

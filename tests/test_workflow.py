@@ -2,32 +2,20 @@ import os,sys
 import time
 from configs import *
 
-from queue import Queue
-
 from blocks.base import *
-from blocks.base.prototype import export_metadata
+from blocks.base.prototype import Prototype
+
 from blocks.nodes.node import Node
+from blocks.nodes.graphics import AcyclicGraph
 from blocks.nodes.workflow import Workflow
-from blocks.nodes.graphics import AcyclicGraphMixin
+
+from blocks.base.prototype import INSTALLER
+
+from blocks.engine.environment import Environment
 
 from blocks.interface.queue import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
-
-from blocks.base.prototype import INSTALLER
-
-from blocks.engine.environment import EnvironMixin
-
-
-
-# DONE TODO: Fonctionnement de workflow.forward
-# DONE TODO: Méthode d'import/ajout de noeuds
-# DONE TODO: Export des metadata minimum
-# TODO: Enregistement des propriétés intrinsèques des node/workflow dans
-# un objet pickle dédié
-# TODO: Installation complète -> Vérification de l'existance des noeuds présents
-# TODO: Correction bugs mineurs 
-
 
 
 if __name__ == "__main__":
@@ -45,120 +33,111 @@ if __name__ == "__main__":
     print("Node instance created successfully.")
     print(f'Instance created in {end-start} s.')
 
-    #node.execute(n=5)
+    node.execute(name='basic_function',n=5)
+
 
     # ===============================================
+    def transf(data):
+        return {'n': data['result']}
+
     # Lancement du workflow
     print("\n"+"*"*40)
-
-   # Create a sample dataset
-    data = {
-        'name': 'HC_workflow',
+    configuration = {
+        'name': 'workflow-test',
         'id': None,
         'version': '0.0.1',
         'directory':BLOCK_PATH,
-        'installer': INSTALLER.WORKFLOW,
         'mandatory_attr': False,
-        'auto_create':True,
         'metadata': {'source': 'generated', 
                      'version': 1.0,
                      'description': 'A sample dataset for testing'},
-        #'environment': EnvironMixin,
+        'installer': INSTALLER.WORKFLOW,
+        'installer_config':{
+            'auto':False,
+        },
+        'environment': Environment,
+        'environment_config':{},
         'executor': None,
-        'graphics': AcyclicGraphMixin,
-        'communicate': 'LABEL',
-        'interface': 'SIMPLE',
-        'queue': 'DATAQUEUE',
-        'allowed_name':[],
-        'links': [('HC_node_1','HC_node_2'), 
-                  ('HC_node_2','HC_node_3')],
-        'first': 'HC_node_1',
-        'last': 'HC_node_3',
-        'registered_nodes':{
-            'HC_node_1': {'node':'HC', 
+        'executor_config':{},
+        'graphics': AcyclicGraph,
+        'graphics_config':{
+            'links':[('HC_node_1','HC_node_2'), 
+                    ('HC_node_2','HC_node_3')],
+            'first':'HC_node_1',
+            'last':'HC_node_3',
+        },
+        'communicate': COMMUNICATE.LABEL,
+        'communicate_config':{},
+        'interface': INTERFACE.SIMPLE,
+        'queue': QUEUE.DATAQUEUE,
+        'register_nodes':{
+            'HC_node_1': {'node':'heavy_calculation', 
                           'directory':BLOCK_PATH,
-                          'ntype':'node',
+                          'method_name':'heavy_calculation',
+                          'ntype':Prototype,
                           'transformer': None},
             'HC_node_2': {'node':node,
-                          'name':node.name,
-                          'function_name':'heavy_calculation',
-                          'ntype':'prototype',
-                          'transformer': lambda data: {'n': data['result']}},
+                          'method_name':'basic_function',
+                          'ntype':Prototype,
+                          'transformer': transf},
             'HC_node_3': {'node':node,
-                          'name':node.name,
-                          'function_name':'heavy_calculation',
-                          'ntype':'prototype',
-                          'transformer': lambda data: {'n': data['result']}},
+                          'method_name':'basic_function',
+                          'ntype':Prototype,
+                          'transformer': transf},
         }
     }
 
-    wkw = Workflow(**data)
-    print(wkw)
+    wk = Workflow(**configuration)
+    print(wk)
     print("Workflow instance created successfully.")
-    print("\n"+"="*40)
 
-    print(wkw.graphics)
+
+    print(wk.graphics)
     print("Workflow Graphics created successfully.")
+    
+    
+    # ===============================================
     print("\n"+"="*40)
 
-    print(wkw._registred_interface)
-    print("Workflow Nodes registered successfully.")
-    print("\n"+"="*40)
+    print("Registered nodes:")
 
+    print(wk.get_register_nodes())
+    print(wk.get_register_nodes(name='HC_node_1'))
 
+    print(wk.communicate)
 
-    wkw.execute(n=3)
+    wk.execute(n=3)
 
-    print("\n"+"="*40)
-    export_metadata(wkw, 'workflow', 'json')
-
-    results = wkw.to_dict()
-
-    print('Registred : \n',results['registered_nodes'])
-
-    new_wkw = Workflow.from_dict(**results)
-
-    print(new_wkw)
-    print(new_wkw.graphics)
-    print(new_wkw.communicate)
-    print(new_wkw.interface)
-
-
-    new_wkw.execute(n=3)
-
-    sys.exit()
-
-
-
+    wk.install()
 
     # ===============================================
-    # Lancement du workflow
-    print("\n"+"*"*40)
-
-    workflow = Workflow.load(name='HC_workflow',
-                              directory=BLOCK_PATH)
-    print(workflow)
-    print("Workflow instance created successfully.")
-
-    ctx.import_node(node, 
-                    label='HC_node_1', 
-                    transformer=lambda data: {'n': data['results']})
-    ctx.import_node(node, 
-                    label='HC_node_2', 
-                    transformer=lambda data: {'n': data['results']})
-    ctx.import_node(node, 
-                    label='HC_node_3', 
-                    transformer=lambda data: {'n': data['results']})
-
-    ctx.connect_nodes('HC_node_1', 'HC_node_2')
-    ctx.connect_nodes('HC_node_2', 'HC_node_3')
-
-    print("Workflow Context : \n",ctx)
+    print("\n"+"="*40)
     
+    new_wk = Workflow.load(
+        name='workflow-test',
+        directory=BLOCK_PATH,
+        ntype="workflow",
+    )
+    print(new_wk)
+    print("Workflow instance loaded successfully.")
 
+    new_wk.execute(n=3)
 
+    # ===============================================
+    print("\n"+"="*40)
 
-    workflow.execute()
+    wk.import_node(
+        new_wk,
+        'HC_workflow_1',
+        transformer=transf )
+
+    wk.add_link('HC_node_3','HC_workflow_1')
+
+    print( 'Graphics: ',wk.graphics.graphics )
+
+    wk.execute(n=3)
+
+    wk.del_link('HC_node_3','HC_workflow_1')
 
 
 
@@ -166,8 +145,6 @@ if __name__ == "__main__":
 
 
     sys.exit()
-
-
 
 
 

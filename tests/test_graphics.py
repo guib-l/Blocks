@@ -33,18 +33,26 @@ if __name__ == "__main__":
     for _g in graph:
         print(" > Execute node : ",_g)
 
-    print(graph.forward)
+    print(graph.frontward)
     print(graph.backward)
 
     graph.del_node(5)
 
-    print(graph.forward)
+    print(graph.frontward)
     print(graph.backward)
 
     print(graph.link)
+
+    graph.del_link(2,12)
+    print(graph.graphics)
+    print('Nodes : ',graph.nodes)
+    
     order = graph.graphics 
+
     print("Traversal order with new link:", order)
 
+    for _g in graph:
+        print(" > Execute node : ",_g)
 
 
 

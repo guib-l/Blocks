@@ -36,30 +36,18 @@ def heavy_calculation(n=5):
 
 if __name__ == "__main__":
 
-
-   # Create a sample dataset
-    data = {
-        'name': 'prototype-test',
-        'id': None,
-        'version': '0.0.1',
-        'directory':BLOCK_PATH,
-        'mandatory_attr': False,
-        'methods': [heavy_calculation,],
-        'metadata': {'source': 'generated', 
-                     'version': 1.0,
-                     'description': 'A sample dataset for testing'},
-        'environment': EnvironMixin,
-        'executor': None,
-    }
-  
     # ===============================================
     # Initialisation d'un Prototype
     print("\n"+"*"*40)
 
     print("BUILD PROTOTYPE in-place")
     
-    proto = Prototype(auto_create=False,
-                      **data)
+    proto = Prototype.load(
+        name='prototype-test',
+        directory=BLOCK_PATH,
+        format='json',
+        ntype='prototype'
+    )
     print(proto)
     print("Prototype instance created successfully.") 
 

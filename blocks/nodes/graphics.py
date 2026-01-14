@@ -235,10 +235,19 @@ class AcyclicGraphMixin:
 
         if self.frontward[src]==[]:
             del self.frontward[src]
-            self.nodes.remove(src)
+            #self.nodes.remove(src)
             
         if self.backward[dst]==[]:
             del self.backward[dst]
+            
+        # Remove src from nodes if it has no connections
+        if src not in self.frontward and src not in self.backward:
+            self.nodes.discard(src)
+        
+        # Remove dst from nodes if it has no connections
+        if dst not in self.frontward and dst not in self.backward:
+            self.nodes.discard(dst)
+
 
     def del_links(self, links):
         """
@@ -246,7 +255,6 @@ class AcyclicGraphMixin:
         Args:
             links (list): List of tuple of links
         """
-
         for values in links:
             self.del_link(*values)
 
@@ -323,6 +331,7 @@ class AcyclicGraphMixin:
             self.progress[local_first]  = 1
             self.progress[self.first]   = 0
 
+
     def __iter__(self,):
         """
         Initialize the iterator state
@@ -333,7 +342,7 @@ class AcyclicGraphMixin:
         self.visited = set()
         
         for node in self.nodes:
-            if node not in self.nodes:
+            if node not in self.nodes: # ??
                 raise StopIteration
             if self.progress[node] == 0:
                 self.queue.append(node)
@@ -372,10 +381,15 @@ class AcyclicGraph(AcyclicGraphMixin):
     def __init__(self, 
                  links=None, 
                  first=None, 
-                 last=None,
-                 **kwargs):
+                 last=None,):
         
         super().__init_graph__(links=links, 
                          first=first, 
                          last=last) 
 
+    def to_config(self,):
+        return {
+            'links': self.link,
+            'first': self.first,
+            'last' : self.last,
+        }

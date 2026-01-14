@@ -4,6 +4,7 @@ import sys
 import ast
 import inspect
 import textwrap
+import pickle
 
 from typing import *
 from abc import *
@@ -14,86 +15,132 @@ from tools.load import *
 from tools.organizer import FileManager, FileError
 
 
+class Installer:
 
-
-
-
-class InstallerPython:
-
-    __install_type__ = 'python'
-
-    def __post_init__(self,
-                      name: str = None,
-                      directory = None,
-                      auto_create=False)-> None:
-
-        try:
-            self.direct_path = os.path.join(directory, name)
-            self.filemanager = FileManager(base_directory=self.direct_path,
-                                           auto_create=auto_create)
-        except:
-            print('Error occurs')
+    def __init__(
+            self,
+            object=None, 
+            *,
+            directory=None,
+            auto=False):
         
+        self.object = object     
+        self.auto_create = auto
+        self.path_to_install = directory or os.path.abspath(object.directory)
+
+        self.filemanager = FileManager(
+            base_directory=os.path.join(
+                self.path_to_install, 
+                self.object.name ),
+            auto_create=auto )
 
 
-    def __install__(self,
-                    name=None,
-                    install_directory=None, 
-                    **kwargs):
-        if install_directory is not None:
-            self.directory = os.path.abspath(install_directory)
-            
-        file_dir = os.path.join(self.directory,self.name)
-        print(f"Installing prototype '{self.name}' at '{file_dir}'")
 
-        self._create_dir()
+    def to_config(self):
+        return {
+            'auto': self.auto_create,
+        }
 
-        self._dataset['files'] = [
-            f'{os.path.join(file_dir,self.name)}.py']
 
-        self.export_method(
-            f'{self.name}.py',
-            self.direct_path,
-            **self._register_methods
+    def update_metadata(
+            self,
+            name: str = None,
+            directory = None,
+            format: str = 'json',):
+        
+        self.export_metadata(
+            name=name,
+            directory=directory,
+            format=format)
+        
+        
+    def export_metadata(
+            self, 
+            name: str = None,
+            directory = None,
+            format: str = 'json',):
+
+        filename = f'{self.object.__ntype__}.{format}'        
+
+        if format == 'json':
+            content = self.object.to_json()
+        elif format == 'csv':
+            content = self.object.to_csv()
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+        
+        #print('\nContent of Metadata file :\n',content)
+
+        _dir = os.path.join(
+            directory or self.path_to_install, 
+            name or self.object.name,
+            filename
         )
+
+        self.filemanager.write_file(
+            _dir,
+            content
+        )
+
+
+    @staticmethod
+    def import_metadata(
+            name: str = None,
+            directory = None,
+            ntype: str = 'prototype',
+            format: str = 'json',):
         
+        filename = f'{ntype}.{format}'
+        abs_directory = os.path.abspath(directory)
+        _dir = os.path.join(abs_directory, name, filename )
+
+        filemanager = FileManager(
+            base_directory=os.path.join( abs_directory, name ),
+            auto_create=False )
+        
+        content = filemanager.read_json(_dir)
+        return content
+
+
+
+
+
+    def __install__(self, 
+                    **kwargs):
+        print("Default install: No action taken.")
         return self
 
-
-    def __uninstall__(self):
-
-        self.delete_directory()
+    def __uninstall__(self,):
+        print("Default uninstall: No action taken.")
 
 
-    def _create_dir(self):
 
-        direct_path = os.path.join(self.directory, self.name)
-        print(f"Creating node directory at: {direct_path}")
-
-        try:
-            if not os.path.exists(direct_path):
-                os.makedirs(direct_path, mode=0o755, exist_ok=True)
-            else:
-                os.chmod(direct_path, 0o755)
-        except PermissionError as e:
-            raise FileError(f"Permission denied creating directory {direct_path}: {e}")
-        except Exception as e:
-            raise FileError(f"Failed to create directory {direct_path}: {e}")
-
-        self.direct_path = direct_path
-
-    
-
-    def _export_metadata(self,):
-        pass
-
-    def _export_exec(self,):
-        pass
-    
 
     # ===========================================
     # Directory management
     # ===========================================
+
+
+
+    def _create_dir(self, 
+                    directory=None):
+
+        if directory is not None:
+            path_to_install = os.path.abspath(directory)
+
+        print(f"Creating node directory at: {path_to_install}")
+
+        try:
+            if not os.path.exists(path_to_install):
+                os.makedirs(path_to_install, mode=0o755, exist_ok=True)
+            else:
+                os.chmod(path_to_install, 0o755)
+        except PermissionError as e:
+            raise FileError(f"Permission denied creating directory {path_to_install}: {e}")
+        except Exception as e:
+            raise FileError(f"Failed to create directory {path_to_install}: {e}")
+
+        #self.path_to_install = path_to_install
 
 
 
@@ -102,16 +149,18 @@ class InstallerPython:
         Supprime le répertoire du block.
         """
         if directory is None:
-            directory = os.path.join(self.directory, self.name)
-            directory = os.path.abspath(directory)
+            directory = os.path.join(self.path_to_install,self.object.name)
+            #directory = os.path.abspath(directory)
         else:
             directory = os.path.abspath(directory)
 
+        print(f"Deleting directory at: {directory},{self.path_to_install}")
         self.filemanager.delete_directory(directory)
 
     def compress(self, 
+                 zipname: str = None,
                  source: Union[str, Path] = None, 
-                 destination: Union[str, Path] = None) -> None:
+                 destination: Union[str, Path] = None,) -> None:
         """
         Compresse le contenu du répertoire source dans une archive ZIP.
 
@@ -120,16 +169,25 @@ class InstallerPython:
             destination (Union[str, Path]): Chemin de l'archive ZIP de destination.
         """
         if source is None:
-            source = os.path.join(self.directory, self.name)
+            source = self.path_to_install
+
+        if zipname is None:
+            zipname = f"{self.object.name}.zip"
+
+        source = os.path.join(source, self.object.name)
 
         if destination is None:
-            destination = os.path.join(self.directory, f"{self.name}.zip")
+            destination = os.path.join(
+                os.path.abspath(self.object.directory), f"{zipname}")
+
+        print(f"Compressing from {source} to {destination}")
 
         self.filemanager.create_zip(source, destination)
 
     def decompress(self, 
-                   source: Union[str, Path], 
-                   destination: Union[str, Path] = '') -> None:
+                   zipname: str = None,
+                   source: Union[str, Path] = None, 
+                   destination: Union[str, Path] = None) -> None:
         """
         Décompresse une archive ZIP dans le répertoire de destination.
 
@@ -137,6 +195,19 @@ class InstallerPython:
             source (Union[str, Path]): Chemin de l'archive ZIP à décompresser.
             destination (Union[str, Path]): Chemin du répertoire de destination.
         """
+        if zipname is None:
+            zipname = f"{self.object.name}.zip"
+
+        if source is None:
+            source = self.path_to_install
+
+        source = os.path.join(source, zipname)
+
+        if destination is None:
+            destination =  self.path_to_install
+        
+        print(f"Decompressing from {source} to {destination}")
+
         self.filemanager.extract_zip(source, 
                               destination)
 
@@ -145,16 +216,29 @@ class InstallerPython:
         """
         Rename the block.
         """
-        old_name = os.path.join(self.directory, self.name)
-        new_path = os.path.join(self.directory, new_name)
+        old_name = os.path.join(self.path_to_install, self.object.name)
+        new_path = os.path.join(self.path_to_install, new_name)
 
+        print(f"Renaming block from {old_name} to {new_path}")
+        
         if os.path.exists(new_path):
             print(f"Le répertoire {new_path} existe déjà.")
             return
         
-        
         self.filemanager.rename(old_name, new_path)
-        self.name = new_name
+        self.object.name = new_name
+
+        files = self.object._dataset.get('files', [])
+        updated_files = []
+
+        for file in files:
+            updated_file = file.replace(old_name, new_path)
+            updated_files.append(updated_file)
+
+        self.object._dataset['files'] = updated_files
+
+        self.update_metadata()
+
 
     def compose(self, 
                 filename,
@@ -173,107 +257,352 @@ class InstallerPython:
 
     def move(self,
              destination,
+             erase_source: bool = False,
              overwrite: bool = False) -> None:
 
         # Destination existe ?
-        if os.path.exists(destination): 
-            print(f"Le répertoire {destination} existe déjà.")
-            return  
-
-        _origin     = os.path.join(self.directory, self.name)
-        destination = os.path.abspath(os.path.join(destination,self.name))
+        #if os.path.exists(destination): 
+        #    print(f"Le répertoire {destination} existe déjà.")
+        #    return  
+        _source = os.path.join(self.path_to_install, self.object.name)
+        _destination = os.path.abspath(
+            os.path.join(destination,self.object.name))
         
         # Déplacement
-        self.filemanager.move_files(_origin, 
-                             destination, 
-                             overwrite=overwrite)
+        self.filemanager.move_files(
+            _source, 
+            _destination, 
+            overwrite=overwrite)
+
+        if erase_source:
+            self.delete_directory(_source)
+
+        self.path_to_install = os.path.abspath(destination)
+
+        print(f"Block moved to {self.path_to_install}")
 
 
 
-class InstallerPythonWorkflow:
 
-    __install_type__ = 'pythonWorkflow'
 
-    def __post_init__(self,
-                      name: str = None,
-                      directory = None,
-                      auto_create=False)-> None:
 
-        try:
-            self.direct_path = os.path.join(directory, name)
-            self.filemanager = FileManager(base_directory=self.direct_path,
-                                           auto_create=auto_create)
-        except Exception as e:
-            print(f'Error occurs: {e}')
+
+
+
+class InstallerPython(Installer):
+
+    def __init__(
+            self,
+            object=None, 
+            *,
+            directory=None,
+            auto=False):
+        super().__init__(
+            object=object,
+            directory=directory,
+            auto=auto)
         
+        
+    def export_environ(
+            self,
+            directory,
+            format='pickle'):
+        
+        structural_object = {
+            'installer':self.object.installer.__class__,
+            'installer_config':self.object.installer.to_config(),
+            'environment':self.object.environment.__class__,
+            'environment_config':self.object.environment.to_config() or {},
+            'executor':self.object.executor.__class__,
+            'executor_config':self.object.executor.to_config() or {},
+        }
+
+        struct = os.path.join(directory, '.environ')
+
+        with open(struct,'wb') as f:
+            pickle.dump(structural_object, f)
+
+    
+    
+    @staticmethod
+    def import_structure(
+            name: str = None,
+            directory = None,):
+        
+        abs_directory = os.path.abspath(directory)
+        struct = os.path.join(
+            abs_directory, 
+            name,
+            '.environ'
+        )
+
+        with open(struct,'rb') as f:
+            structural_object = pickle.load(f)
+        return structural_object
 
 
-    def __install__(self,
-                    name=None,
-                    install_directory=None, 
-                    **kwargs):
-        if install_directory is not None:
-            self.directory = os.path.abspath(install_directory)
+    def __install__(
+            self, 
+            format='json',
+            *,
+            files=[],
+            directory=None,
+            extension='py',
+            **kwargs):
+        
+        if directory is not None:
+            directory = os.path.abspath(directory)
+        
+        _path_to_install = os.path.join(
+            directory or self.path_to_install, 
+            self.object.name
+        )
+
+        self._create_dir(directory=_path_to_install)
+
+        self.object._dataset['files'] = [ 
+            f'{os.path.join(_path_to_install,self.object.name)}.{extension}'
+        ]
+
+        self.export_metadata(_path_to_install,
+                             format=format)
+
+        files = self.object._dataset['files'] or files
+
+        for file in files:
+            self.object.export_method(
+                file,
+                _path_to_install,
+                **self.object._register_methods
+            )
+
+        self.export_environ(_path_to_install,
+                              format='pickle')
             
-        file_dir = os.path.join(self.directory,self.name)
-        print(f"Installing workflow '{self.name}' at '{file_dir}'")
+        
+    @staticmethod
+    def __load__(
+            *,
+            name: str,
+            format='json',
+            ntype: str = 'prototype',
+            extension='py',
+            directory=None,):
+        
+        if directory is not None:
+            directory = os.path.abspath(directory)
 
-        self._create_dir()
-        return self
+        content = InstallerPython.import_metadata(
+            name=name,
+            directory=directory,
+            ntype=ntype,
+            format=format
+        )
+
+        structure = InstallerPython.import_structure(
+            name=name,
+            directory=directory,
+        )
+
+        return (content, structure)
 
 
-    def __uninstall__(self):
-        '''
-        Supprime le répertoire du block.
-        '''
-        self.delete_directory()
+
+        
+    def __uninstall__(self, directory=None):
+        print(f"Uninstalling block '{self.object.name}' from '{self.path_to_install}'")
+        self.delete_directory(
+            directory=directory
+        )
+
+
+
+
+
+
+
+
+        
+###############################################################################
+# Installer for Workflow 
+###############################################################################
+
+
+class InstallerPythonWorkflow(Installer):
+
+    def __init__(
+            self,
+            object=None, /,
+            *,
+            directory=None,
+            auto=False):
+        
+        self.object = object     
+        self.auto_create = auto
+        self.path_to_install = directory or os.path.abspath(object.directory)
+
+        self.filemanager = FileManager(
+            base_directory=os.path.join(
+                self.path_to_install, 
+                self.object.name ),
+            auto_create=auto )
         
 
+    def export_environ(
+            self,
+            directory,
+            format='pickle'):
+        
+        structural_object = {
+            'installer':self.object.installer.__class__,
+            'installer_config':self.object.installer.to_config(),
+            'environment':self.object.environment.__class__,
+            'environment_config':self.object.environment.to_config() or {},
+            'executor':self.object.executor.__class__,
+            'executor_config':self.object.executor.to_config() or {},
+            'graphics':self.object.graphics.__class__,
+            'graphics_config':self.object.graphics.to_config(),
+            'communicate':self.object.communicate.__class__,
+            'communicate_config':{},
+            'interface':self.object.interface,
+            'queue':self.object.queue.__class__,
+        }
+
+        struct = os.path.join(directory, '.environ')
+
+        with open(struct,'wb') as f:
+            pickle.dump(structural_object, f)
+
+    @staticmethod
+    def import_environ(
+            name: str = None,
+            directory = None,):
+        
+        abs_directory = os.path.abspath(directory)
+        struct = os.path.join(
+            abs_directory, name, '.environ' )
+
+        with open(struct,'rb') as f:
+            structural_object = pickle.load(f)
+
+        structural_object['queue'] = structural_object.get('queue', None)()
+        return structural_object
 
 
-    def _create_dir(self):
 
-        direct_path = os.path.join(self.directory, self.name)
-        print(f"Creating workflow directory at: {direct_path}")
+    def export_register_nodes(self,
+                              directory,
+                              format='pickle'):
+        
+        def build_register_nodes():
+            register_nodes = self.object._register_nodes
+            _regist = {}
 
-        try:
-            if not os.path.exists(direct_path):
-                os.makedirs(direct_path, mode=0o755, exist_ok=True)
-            else:
-                os.chmod(direct_path, 0o755)
-        except PermissionError as e:
-            raise FileError(f"Permission denied creating directory {direct_path}: {e}")
-        except Exception as e:
-            raise FileError(f"Failed to create directory {direct_path}: {e}")
+            for label,register_node in register_nodes.items():
+                node = register_node['node'].name
+                method_name = register_node['function_name']
+                ntype = register_node['ntype']
+                transformer = register_node['transformer']
+                directory = register_node['directory']
+                attributes = register_node.get('attributes',{})
 
-        self.direct_path = direct_path
+                _regist.update({label:{
+                    'node': node,
+                    'directory': directory,
+                    'ntype': ntype,
+                    'method_name': method_name,
+                    'transformer': transformer,
+                    'attributes': attributes,
+                }})
+            return _regist
 
-    
+        register_nodes = build_register_nodes()
 
-    def _export_metadata(self,):
-        pass
+        struct = os.path.join(directory, '.register')
+        with open(struct,'wb') as f:
+            pickle.dump(register_nodes, f)
 
-    def _export_exec(self,):
-        pass
-    
+    @staticmethod
+    def import_register_nodes(
+            name: str = None,
+            directory = None,):
+        
+        abs_directory = os.path.abspath(directory)
+        struct = os.path.join(
+            abs_directory, name, '.register' )
+        
+        with open(struct,'rb') as f:
+            register_nodes = pickle.load(f)
+        return register_nodes
 
-    # ===========================================
-    # Directory management
-    # ===========================================
 
 
 
-    def delete_directory(self, directory=None) -> None:
-        """
-        Supprime le répertoire du block.
-        """
-        if directory is None:
-            directory = os.path.join(self.directory, self.name)
+    def __install__(
+            self, 
+            format='json',
+            *,
+            files=[],
+            directory=None,
+            extension='py',
+            **kwargs):
+        
+        if directory is not None:
             directory = os.path.abspath(directory)
-        else:
+        
+        _path_to_install = os.path.join(
+            directory or self.path_to_install, 
+            self.object.name
+        )
+
+        self._create_dir(directory=_path_to_install)
+
+
+        self.export_metadata(_path_to_install,
+                             format=format)
+
+        self.export_environ(_path_to_install,
+                              format='pickle')
+            
+        self.export_register_nodes(_path_to_install,
+                                   format='pickle')
+        
+    @staticmethod
+    def __load__(
+            *,
+            name: str,
+            format='json',
+            ntype: str = 'workflow',
+            extension='py',
+            directory=None,):
+        
+        if directory is not None:
             directory = os.path.abspath(directory)
 
-        self.filemanager.delete_directory(directory)
+        content = InstallerPythonWorkflow.import_metadata(
+            name=name,
+            directory=directory,
+            ntype=ntype,
+            format=format
+        )
+
+        structure = InstallerPythonWorkflow.import_environ(
+            name=name,
+            directory=directory,
+        )
+
+        register = InstallerPythonWorkflow.import_register_nodes(
+            name=name,
+            directory=directory,
+        )
+
+        return (content, structure, register)
+    
+    def __uninstall__(self, directory=None):
+        print(f"Uninstalling workflow '{self.object.name}' from '{self.path_to_install}'")
+        self.delete_directory(
+            directory=directory
+        )
 
 
 

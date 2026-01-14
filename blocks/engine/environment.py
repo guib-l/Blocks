@@ -23,11 +23,9 @@ from tools.encoder import EnvJSONEncoder
 class EnvironMixin:
 
 
-    def __init_env__(self,
+    def __post_init__(self,
                      backend_env=ENVIRONMENT_TYPE.PYTHON,
                      **kwargs):
-        
-        #self.__environ__ = None#ENVIRONMENT_TYPE.get(backend_env)
         
         self.env = ENVIRONMENT_TYPE.get(backend_env)
         _backend = backend_env.environment
@@ -128,13 +126,16 @@ class Environment(EnvironMixin):
         'backend_env',
     )
 
-    def __init__(self,
-                 name='env',
-                 language='python3', 
-                 backend_env=ENVIRONMENT_TYPE.PYTHON,
-                 **kwargs):
+    def __init__(
+            self,
+            *,
+            name='env',
+            language='python3', 
+            backend_env=ENVIRONMENT_TYPE.PYTHON,
+            **kwargs
+        ):
          
-        super().__init_env__(
+        super().__post_init__(
             backend_env=ENVIRONMENT_TYPE.get(backend_env),
             **kwargs
         )
@@ -145,6 +146,9 @@ class Environment(EnvironMixin):
         return f" (Environment: {self.name} ; Language: {self.language} ; Backend: {self.env.__name__} ) "
     
 
+    def to_config(self):
+        return {}
+    
     def to_dict(self):
         return {
             'name': self.name,

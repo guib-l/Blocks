@@ -61,7 +61,15 @@ class BlockError(Exception):
 class Block(DataSet):
 
     __ntype__ = "block"
+
     _mandatory_attributes = []
+
+    __slots__ = [
+        '__name__',
+        '__id__',
+        '__version__',
+        'vsm',
+    ]
 
     def __new__(cls, **kwargs):
         """
@@ -85,7 +93,6 @@ class Block(DataSet):
                  codes = [],
                  data = {},
                  doc = None,
-                 #auto_create = False,
                  **kwargs):
         """
         Initialize the BaseBlock with given options.
@@ -324,6 +331,10 @@ class Block(DataSet):
 
     def to_dict(self,):
         return self._dataset
+    
+    @classmethod
+    def from_dict(cls, **data):
+        return cls(**data)
 
 
     # ===========================================

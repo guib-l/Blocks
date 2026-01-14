@@ -1,10 +1,10 @@
-import blocks
+
 
 from blocks.base.prototype import Prototype
 
 
-from blocks.engine.environment import EnvironMixin
-from blocks.engine import ENVIRONMENT_TYPE
+from blocks.base.prototype import INSTALLER
+from blocks.engine.environment import Environment
 
 
 
@@ -28,8 +28,14 @@ def task_node(backend    = 'default',
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
-                'environment': EnvironMixin,
-                'executor': execute
+                'installer': INSTALLER.PYTHON,
+                'installer_config':{
+                    'auto':False,
+                },
+                'environment': Environment,
+                'environment_config':{},
+                'executor': None,
+                'executor_config':{},
             }
             data_set.update(properties)
             

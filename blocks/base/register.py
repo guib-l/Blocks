@@ -30,8 +30,24 @@ class MethodObjects:
 
 class Register:
     
-    _register_methods = {}
-    allowed_name = None
+    def init_register(
+            self,
+            allowed_name,
+            *,
+            files=[],
+            methods=[]
+        ):
+
+        self._register_methods = {}
+
+        for _out in [methods, files]:
+            self.set_register_methods(_out, ignore_duplicata=False)
+                
+        self.registred_files = files
+            
+        self.allowed_name = allowed_name or list(self._register_methods.keys())  
+
+        self.filter_register_methods(allowed_name=self.allowed_name)
 
     # ===========================================
     # Register of methods
@@ -152,7 +168,7 @@ class Register:
                 os.remove(pathing)
 
             for _,method in register.items():
-
+                
                 self._export(pathing, method, None)
 
         else:
@@ -168,12 +184,14 @@ class Register:
         if not os.path.isabs(source):
             source = os.path.abspath(source)
 
-        functions = _load_function_from_file(source,None,
+        functions = _load_function_from_file(source,
+                                             None,
                                              ignore_restriction=True)
         
         self.set_register_methods(functions)
 
-        self.filter_register_methods(allowed_name=allowed_methods or self.allowed_name)
+        self.filter_register_methods(
+            allowed_name=allowed_methods or self.allowed_name)
 
 
 

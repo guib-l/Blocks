@@ -65,6 +65,7 @@ class Interface:
     __ntype__ = "SIMPLE"
     __slots__ = [
         '_node',
+        'args',
         '_inputs',
         '_output',
         'ignore_keys',
@@ -73,7 +74,8 @@ class Interface:
     def __init__(self, 
                  node:Prototype,
                  ignore_conflict:bool=False,
-                 ignore_keys:List[str]=[]):
+                 ignore_keys:List[str]=[],
+                 **arguments):
         
         self._node: Prototype = node
 
@@ -83,6 +85,7 @@ class Interface:
         self._inputs: Dict|None = {}
         self._output: Dict|None  = None
 
+        self.args = arguments or None
     
     @property
     def input(self)->Dict|None:
@@ -122,7 +125,8 @@ class Interface:
             raise ValueError("No input data provided.")
         
         try:
-            results = self._node.execute(**self._inputs)
+            results = self._node.execute(
+                    **self.args, **self._inputs)
             if not isinstance(results, dict):
                 results = {'result': results}
         except Exception as e:
@@ -136,7 +140,8 @@ class Interface:
             raise ValueError("No input data provided.")
         
         try:
-            results = await asyncio.to_thread(self._node.execute, **self._inputs)
+            results = await asyncio.to_thread(
+                self._node.execute, **self.args, **self._inputs)
             if not isinstance(results, dict):
                 results = {'result': results}
         except Exception as e:

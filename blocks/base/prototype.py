@@ -21,6 +21,8 @@ from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironMixin,Environment
 from blocks.engine import ENVIRONMENT_TYPE
 
+from blocks.base import safe_operation
+
 
 class INSTALLER:
     NONE     = None
@@ -42,34 +44,26 @@ class PrototypeErrorType(str, Enum):
     UNKNOWN     = "UNKNOWN"
 
 class PrototypeError(Exception):
-    """Custom exception for Prototype-related errors."""
-    ERROR_MESSAGES = {
-        PrototypeErrorType.PROCESSING: "Prototype is being processed",
-        PrototypeErrorType.INSTALLER: "Installer method failed",
-        PrototypeErrorType.UNINSTALLER: "Uninstaller method failed",
-        PrototypeErrorType.LOADING: "Loading method failed",
-        PrototypeErrorType.SAVING: "Saving method failed",
-        PrototypeErrorType.BUILD: "Build method failed",
-        PrototypeErrorType.EXECUTION: "Execution method failed",
-        PrototypeErrorType.DIRECTORY: "Path of Prototype unknown",
-        PrototypeErrorType.UNKNOWN: "Unknown error",
-    }
-    def __init__(self, message: str, err_type: Optional[str] = None):
-        self.err_type = self._validate_error_type(err_type)
+    """Base exception for Prototype-related errors."""
+
+    def __init__(self, 
+                 err_type: Optional[PrototypeErrorType] = None,
+                 message: Optional[Dict[str, Any]] = None):
         
-        error_context = self.ERROR_MESSAGES.get(self.err_type, "Unknown error")
-        full_message = f"{message} [Error Type: {self.err_type.value if self.err_type else 'UNKNOWN'}]"
-        
+        if err_type is not None:
+            full_message = f"{err_type}\n{err_type.value}"
+            if message:
+                full_message += f": {message}"
+            
+        else:
+            full_message = f"{message}: Unknown error type"
+
         super().__init__(full_message)
 
-    def _validate_error_type(self, value: Optional[str]) -> Optional[PrototypeErrorType]:
-        if value is None:
-            return None
-        
-        try:
-            return PrototypeErrorType[value]
-        except KeyError:
-            return PrototypeErrorType.UNKNOWN
+
+
+
+
 
 
 class Prototype(block.Block,Register):

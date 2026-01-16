@@ -62,7 +62,7 @@ if __name__ == "__main__":
         'graphics': AcyclicGraph,
         'graphics_config':{
             'links':[('HC_node_1','HC_node_2'), 
-                    ('HC_node_2','HC_node_3')],
+                     ('HC_node_2','HC_node_3')],
             'first':'HC_node_1',
             'last':'HC_node_3',
         },
@@ -141,6 +141,27 @@ if __name__ == "__main__":
 
 
 
+    # ===============================================
+    print("\n"+"="*40)
+
+    with Workflow.create() as wkc:
+
+        wkc.import_node(
+            new_wk,
+            'HC_workflow_1',
+            transformer=None )
+
+
+        wkc.import_node(
+            new_wk,
+            'HC_workflow_2',
+            transformer=transf )
+        
+        wkc.add_link([('HC_workflow_1','HC_workflow_2')])
+
+    wkc.execute(n=2)
+
+    wkc.draw()
 
 
 

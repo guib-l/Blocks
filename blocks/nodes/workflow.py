@@ -14,7 +14,8 @@ from blocks.base import prototype
 from blocks.base import BLOCK_PATH
 from blocks.base.prototype import INSTALLER
 
-
+from blocks.engine.environment import Environment
+from blocks.engine.execute import Execute
 
 from blocks.nodes.graphics import AcyclicGraph
 
@@ -81,7 +82,7 @@ class Workflow(prototype.Prototype):
 
     def __init__(
             self,
-            register_nodes: Optional[Dict[str, Any]] = None,
+            register_nodes: Optional[Dict[str, Any]] = {},
             *,
             installer = None,
             environment = None,
@@ -283,22 +284,93 @@ class Workflow(prototype.Prototype):
         return cls(**content)
 
 
+    @classmethod
+    def create(
+            self,
+            name:str='workflow-create',
+            directory:Optional[str]=BLOCK_PATH,
+            ntype:str='workflow',
+            version:Optional[str]='0.0.1',
+            mandatory_attr=False,
+            metadata:Optional[Dict[str,Any]]={'source': 'generated'},
+            installer=INSTALLER.WORKFLOW,
+            installer_config:Optional[Dict[str,Any]]={'auto':False},
+            environment=Environment,
+            environment_config:Optional[Dict[str,Any]]={},
+            executor=None,
+            executor_config:Optional[Dict[str,Any]]={},
+            graphics=AcyclicGraph,
+            graphics_config:Optional[Dict[str,Any]]={},
+            communicate=COMMUNICATE.LABEL,
+            communicate_config:Optional[Dict[str,Any]]={},
+            interface=INTERFACE.SIMPLE,
+            queue=QUEUE.DATAQUEUE,
+            **config
+        ):
+
+        return Workflow(
+            name=name,
+            directory=directory,
+            version=version,
+            mandatory_attr=mandatory_attr,
+            metadata=metadata,
+            installer=installer,
+            installer_config=installer_config,
+            environment=environment,
+            environment_config=environment_config,
+            executor=executor,
+            executor_config=executor_config,
+            graphics=graphics,
+            graphics_config=graphics_config,
+            communicate=communicate,
+            communicate_config=communicate_config,
+            interface=interface,
+            queue=queue,
+            **config
+        )
+
+
+    def __enter__(self,):
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def draw(self):
+        """Display the workflow graph in the terminal."""
+        print(f"\n{'='*60}")
+        print(f"Workflow: {self.name}")
+        print(f"{'='*60}\n")
+        
+        # Display registered nodes
+        print("Registered Nodes:")
+        print("-" * 60)
+        for label, reg_node in self._register_nodes.items():
+            node_name = reg_node['node'].name
+            node_type = reg_node['ntype'].__name__ if hasattr(reg_node['ntype'], '__name__') else str(reg_node['ntype'])
+            method = reg_node.get('function_name', 'N/A')
+            print(f"  [{label}] {node_name} (type: {node_type}, method: {method})")
+        print()
+        
+        # Display graph structure
+        print("Graph Structure:")
+        print("-" * 60)
+        
+        graph = self.graphics.graphics
+        
+        if not graph:
+            print("  (empty graph)")
+        else:
+            # Display edges
+            for origin, target in self.graphics.link:
+                if target:
+                    print(f"  {origin} --> {target}")
+                else:
+                    print(f"  {origin} (no connections)")
+        
+        print(f"\n{'='*60}\n")
 
 
     @property

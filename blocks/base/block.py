@@ -1,65 +1,24 @@
 
 import io
+import sys
 import uuid
 import json
 from datetime import *
 from copy import copy, deepcopy
 import csv
 from typing import *
-from abc import *
 from .dataset import DataSet
 from copy import copy, deepcopy
 
-from typing import Any, Dict, Optional
 from blocks.base.version import VersionManager
 
 from tools.encoder import BlockJSONEncoder
 
-from enum import Enum
 
-from . import safe_operation
+from blocks.utils.logger import *
 
-
-
-class BlockErrorType(str, Enum):
-    DEFAULT             = "Errors occurs"
-    DIRECTORY           = "Path of Block unknown"
-    ORIGIN              = "Origin path of Block unknown"
-    VERSION             = "Version does not match"
-    INVALID_ID          = "Invalid block ID"
-    MISSING_ATTRIBUTE   = "Missing mandatory attribute"
-    INVALID_UUID        = "Invalid UUID format"
-    ID_ALREADY_SET      = "ID has already been set and cannot be changed"
-    INVALID_NAME        = "Invalid block name"
-    INVALID_VERSION     = "Invalid version format"
-    SERIALIZATION_ERROR = "Serialization failed"
-    DESERIALIZATION_ERROR = "Deserialization failed"
-    FILE_NOT_FOUND      = "File not found"
-    INVALID_TYPE        = "Invalid type provided"
-
-
-class BlockError(Exception):
-    """Base exception for Block-related errors."""
-
-    def __init__(self, 
-                 err_type: Optional[BlockErrorType] = None,
-                 message: Optional[Dict[str, Any]] = None):
-        
-        if err_type is not None:
-            full_message = f"{err_type}\n{err_type.value}"
-            if message:
-                full_message += f": {message}"
-            
-        else:
-            full_message = f"{message}: Unknown error type"
-
-        super().__init__(full_message)
-
-
-
-
-
-
+from blocks.utils.exceptions import safe_operation
+from blocks.utils.exceptions import BlockError,ErrorCode
 
 class Block(DataSet):
 
@@ -83,47 +42,103 @@ class Block(DataSet):
         for attr in cls._mandatory_attributes:
             if not hasattr(cls, attr):
                 raise BlockError(
-                    BlockErrorType.MISSING_ATTRIBUTE,
-                    f"{cls.__name__} didn't have any {attr} method."
+                    message = f"{cls.__name__} didn't have any {attr} method.",
+                    code=ErrorCode.BLOCK_MISSING_ATTR,
+                    details={"search":attr},
                 )
 
         return super().__new__(cls)
     
-    def __init__(self, 
-                 id   = None, 
-                 name = "default",
-                 version = "0.0.1",
-                 directory = '.',
-                 authors = ["Anonymous"],
-                 files = [],
-                 codes = [],
-                 data = {},
-                 doc = None,
-                 **kwargs):
+    def __init__(
+            self, 
+            id   = None, 
+            name = "default",
+            version = "0.0.1",
+            directory = '.',
+            authors = ["Anonymous"],
+            files = [],
+            codes = [],
+            data = {},
+            doc = None,
+            stdout = None,
+            stderr = None,
+            **kwargs ):
         """
         Initialize the BaseBlock with given options.
         Args:
-            options (dict): Dictionary to be added to the block along with standard elements.
+            options (dict): Dictionary to be added to the block 
+            along with standard elements.
         """
+        # Gestion stdout/stderr
+        self.stdout = stdout or sys.stdout
+        self.stderr = stderr or sys.stderr
+
         self.__name__    = None
         self.__id__      = None
         self.__version__ = None
 
         self.vsm = VersionManager(version)
 
-        super().__init__(id=id,
-                         name=name,
-                         version=version,
-                         directory=directory,
-                         authors=authors,
-                         files=files,
-                         codes=codes,
-                         data=data,
-                         doc=doc,
-                         **kwargs)
+        super().__init__(
+            id=id,
+            name=name,
+            version=version,
+            directory=directory,
+            authors=authors,
+            files=files,
+            codes=codes,
+            data=data,
+            doc=doc,
+            **kwargs
+        )
 
-        
 
+    # ===========================================
+    # Propriétés stdout/stderr
+    # ===========================================
+
+    @property
+    def stdout(self) -> TextIO:
+        """Get the current stdout stream."""
+        return self._stdout
+        #return sys.stdout
+    
+    @stdout.setter
+    def stdout(self, stream: Optional[TextIO]=None):
+        """Set a custom stdout stream."""
+        if stream=='LOGGER':
+            stream = StreamLogger(logger=logger, 
+                                  level=logging.DEBUG)
+
+        if not hasattr(stream, 'write'):
+            raise BlockError(
+                code=ErrorCode.BLOCK_INVALID_TYPE,
+                message="stdout stream must have a write() method."
+            )
+        self._stdout = stream 
+        sys.stdout = stream
+    
+    @property
+    def stderr(self) -> TextIO:
+        """Get the current stderr stream."""
+        #return self._stderr
+        return sys.stderr
+    
+    @stderr.setter
+    def stderr(self, stream: Optional[TextIO]):
+        """Set a custom stderr stream."""
+        if stream=='LOGGER':
+            stream = StreamLogger(logger=logger, 
+                                  level=logging.ERROR)
+        if not hasattr(stream, 'write'):
+            raise BlockError(
+                code=ErrorCode.BLOCK_INVALID_TYPE,
+                message="stderr stream must have a write() method."
+            )
+        #self._stderr = stream 
+        sys.stderr = stream
+    
+    
 
     # ===========================================
     # Properties 
@@ -147,13 +162,13 @@ class Block(DataSet):
         """
         if not isinstance(name, str):
             raise BlockError(
-                BlockErrorType.INVALID_TYPE,
-                "'name' needs to be a <string>"
+                code=ErrorCode.BLOCK_INVALID_TYPE,
+                message="Name of Block needs to be a <string>"
             )
         if not name or name=="":
             raise BlockError(
-                BlockErrorType.INVALID_NAME,
-                "Invalid name : it could not be empty"
+                code=ErrorCode.BLOCK_INVALID_NAME,
+                message="Invalid Name : it could not be empty"
             )      
 
         self.__name__ = name
@@ -184,16 +199,16 @@ class Block(DataSet):
             if isinstance(id, str):
                 if not self.is_valid_uuid(id):
                     raise BlockError(
-                        BlockErrorType.INVALID_ID,
-                        f'Not a valid UUID'
+                        code=ErrorCode.BLOCK_INVALID_ID,
+                        message=f'Not a valid UUID'
                     )
                 
                 id = uuid.UUID(id)
 
             if not isinstance(id, uuid.UUID):
                 raise BlockError(
-                    BlockErrorType.INVALID_UUID,
-                    f'ID needs to be {uuid.__class__} object'
+                    code=ErrorCode.BLOCK_INVALID_UUID,
+                    message=f'ID needs to be {uuid.__class__} object'
                 )
             
             self.__id__ = id
@@ -201,8 +216,8 @@ class Block(DataSet):
 
         else:
             raise BlockError(
-                BlockErrorType.ID_ALREADY_SET,
-                "ID has already been set and cannot be changed."
+                code=ErrorCode.BLOCK_INVALID_ID,
+                mesage="ID has already been set and cannot be changed."
             )
 
     def is_valid_uuid(self, val):
@@ -245,8 +260,8 @@ class Block(DataSet):
 
         except Exception as e:
             raise BlockError(
-                BlockErrorType.VERSION,
-                f"Failed to set version : {version};\nerror {e}"
+                code=ErrorCode.BLOCK_INVALID_VERSION,
+                message=f"Failed to set version : {version};\nerror {e}"
             )
 
     @property
@@ -355,7 +370,7 @@ class Block(DataSet):
 
         with safe_operation(
                 'CSV serialisation',
-                BlockErrorType.SERIALIZATION_ERROR,
+                ErrorCode.BLOCK_INVALID_NAME,
                 BlockError ):
             output = io.StringIO()
             writer = csv.writer(output)
@@ -369,7 +384,7 @@ class Block(DataSet):
 
         with safe_operation(
                 'JSON serialisation',
-                BlockErrorType.SERIALIZATION_ERROR,
+                ErrorCode.BLOCK_INVALID_NAME,
                 BlockError ):
             
             return json.dumps(self._dataset, 

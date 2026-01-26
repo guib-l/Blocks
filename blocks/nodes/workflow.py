@@ -23,8 +23,9 @@ from blocks.interface.queue import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
-
-
+from blocks.utils.exceptions import WorkflowError,ErrorCode
+from blocks.utils.exceptions import safe_operation
+from blocks.utils.logger import *
 
 
 
@@ -48,8 +49,14 @@ class REGISTER_NODE:
                 directory=directory
             )
         elif not isinstance(node, prototype.Prototype):
-            raise TypeError(
-                "The 'node' parameter must be a string or a Prototype instance.")
+            logger.critical(f"Node {node} coudn't be loaded (wrong type)")
+            
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_ERROR_TYPE,
+                message="The 'node' parameter must be a string or a Prototype instance.",
+                details={"expected":prototype.Prototype,"current":type(node)}
+            )
+            
         
         return {
             'node': node,
@@ -96,6 +103,7 @@ class Workflow(prototype.Prototype):
 
         self._register_nodes = {}
         self.set_register_nodes(register_nodes)
+        logger.info("Loaded nodes into workflow")
 
         self._register_interface = []
 
@@ -109,11 +117,13 @@ class Workflow(prototype.Prototype):
             **config)
 
         self.graphics = graphics(**graph_config)
+        logger.info("Build graphical workflow")
 
         self.queue = queue
         self.interface = interface
 
         self.set_register_interface()
+        logger.info("Build interfaces of nodes")
 
         self.communicate = communicate
 
@@ -159,11 +169,15 @@ class Workflow(prototype.Prototype):
 
         
     def get_register_nodes(self, name=None):
+
         if name is None:
             return self._register_nodes
         
         if name not in self._register_nodes.keys():
-            raise KeyError(f"Node '{name}' not found in registered nodes.")
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_REGISTER,
+                message=f"Node '{name}' not found in registered nodes."
+            )
         
         return self._register_nodes[name]
 
@@ -192,7 +206,10 @@ class Workflow(prototype.Prototype):
 
         from blocks.base.prototype import Prototype
         assert isinstance(node, Prototype), \
-            TypeError('Input node needs to hinerit from prototype object')
+            WorkflowError(
+                code=ErrorCode.WORKFLOW_IMPORT_NODES,
+                message='Input node needs to hinerit from prototype object'
+            )
 
         _register = REGISTER_NODE.import_node(
             node=node,
@@ -220,23 +237,34 @@ class Workflow(prototype.Prototype):
 
 
     def to_dict(self):
-        _dict = super().to_dict()
-        _dict.update({
-            'installer':self.installer.__class__,
-            'installer_config':self.installer.to_config(),
-            'environment':self.environment.__class__,
-            'environment_config':self.environment.to_config() or {},
-            'executor':self.executor.__class__,
-            'executor_config':self.executor.to_config() or {},
-            'graphics':self.graphics.__class__,
-            'graphics_config':self.graphics.to_config() or {},
-            'registered_nodes':self._registred_nodes,
-        })
-        return _dict
+
+        with safe_operation(
+                'dict serialisation',
+                ErrorCode.WORKFLOW_SERIALIZE_ERR,
+                WorkflowError ):
+            
+            _dict = super().to_dict()
+            _dict.update({
+                'installer':self.installer.__class__,
+                'installer_config':self.installer.to_config(),
+                'environment':self.environment.__class__,
+                'environment_config':self.environment.to_config() or {},
+                'executor':self.executor.__class__,
+                'executor_config':self.executor.to_config() or {},
+                'graphics':self.graphics.__class__,
+                'graphics_config':self.graphics.to_config() or {},
+                'registered_nodes':self._registred_nodes,
+            })
+            return _dict
     
     @classmethod
     def from_dict(cls, **data):
-        return cls(**data)
+        with safe_operation(
+                'dict deserialisation',
+                ErrorCode.WORKFLOW_DESERIALIZE_ERR,
+                WorkflowError ):
+            
+            return cls(**data)
 
 
     # ===========================================
@@ -245,11 +273,23 @@ class Workflow(prototype.Prototype):
 
     def install(self, 
                 **properties):
+        
+        assert hasattr(self.installer,'__install__'),\
+            WorkflowError(
+                code=ErrorCode.WORKFLOW_INSTALLER_ERR,
+                message="Installer didn't have any __install__ method"
+            )
 
         self.installer.__install__(**properties)
 
     def uninstall(self,
                   **properties):
+        
+        assert hasattr(self.installer,'__uninstall__'),\
+            WorkflowError(
+                code=ErrorCode.WORKFLOW_UNINSTALLER_ERR,
+                message="Installer didn't have any __uninstall__ method"
+            )
         
         self.installer.__uninstall__(**properties)
 
@@ -270,18 +310,23 @@ class Workflow(prototype.Prototype):
             **kwargs
         ):
 
-        content, structure, register = installer.__load__(
-            name=name,
-            directory=directory,
-            format=format,
-            ntype=ntype,
-            **kwargs
-        )
-        content.update(**structure)
-        content.update({
-            'register_nodes': register
-        })
-        return cls(**content)
+        with safe_operation(
+                'Loading workflow',
+                ErrorCode.WORKFLOW_LOADING_ERR,
+                WorkflowError ):
+            
+            content, structure, register = installer.__load__(
+                name=name,
+                directory=directory,
+                format=format,
+                ntype=ntype,
+            )
+            content.update(**structure)
+            content.update({
+                'register_nodes': register
+            })
+            content.update(**kwargs)
+            return cls(**content)
 
 
     @classmethod
@@ -291,6 +336,8 @@ class Workflow(prototype.Prototype):
             directory:Optional[str]=BLOCK_PATH,
             ntype:str='workflow',
             version:Optional[str]='0.0.1',
+            stdout:Optional[TextIO]=sys.stdout,
+            stderr:Optional[TextIO]=sys.stderr,
             mandatory_attr=False,
             metadata:Optional[Dict[str,Any]]={'source': 'generated'},
             installer=INSTALLER.WORKFLOW,
@@ -308,26 +355,34 @@ class Workflow(prototype.Prototype):
             **config
         ):
 
-        return Workflow(
-            name=name,
-            directory=directory,
-            version=version,
-            mandatory_attr=mandatory_attr,
-            metadata=metadata,
-            installer=installer,
-            installer_config=installer_config,
-            environment=environment,
-            environment_config=environment_config,
-            executor=executor,
-            executor_config=executor_config,
-            graphics=graphics,
-            graphics_config=graphics_config,
-            communicate=communicate,
-            communicate_config=communicate_config,
-            interface=interface,
-            queue=queue,
-            **config
-        )
+
+        with safe_operation(
+                'Creating workflow',
+                ErrorCode.WORKFLOW_CREATING_ERR,
+                WorkflowError ):
+            
+            return Workflow(
+                name=name,
+                directory=directory,
+                version=version,
+                stdout=stdout,
+                stderr=stderr,
+                mandatory_attr=mandatory_attr,
+                metadata=metadata,
+                installer=installer,
+                installer_config=installer_config,
+                environment=environment,
+                environment_config=environment_config,
+                executor=executor,
+                executor_config=executor_config,
+                graphics=graphics,
+                graphics_config=graphics_config,
+                communicate=communicate,
+                communicate_config=communicate_config,
+                interface=interface,
+                queue=queue,
+                **config
+            )
 
 
     def __enter__(self,):
@@ -338,10 +393,14 @@ class Workflow(prototype.Prototype):
 
 
 
-    def draw(self):
+    def draw(self, stdout=None):
         """Display the workflow graph in the terminal."""
-        print(f"\n{'='*60}")
-        print(f"Workflow: {self.name}")
+
+        self.stdout = stdout or self.stdout
+        print(f"\n{'='*6}",self.stdout,sys.stdout)
+
+        print(f"{'='*60}")
+        print(f"\033[1;30mWorkflow: {self.name} \033[0m")
         print(f"{'='*60}\n")
         
         # Display registered nodes
@@ -352,7 +411,7 @@ class Workflow(prototype.Prototype):
             node_type = reg_node['ntype'].__name__ if hasattr(reg_node['ntype'], '__name__') else str(reg_node['ntype'])
             method = reg_node.get('function_name', 'N/A')
             print(f"  [{label}] {node_name} (type: {node_type}, method: {method})")
-        print()
+        print("")
         
         # Display graph structure
         print("Graph Structure:")
@@ -370,8 +429,7 @@ class Workflow(prototype.Prototype):
                 else:
                     print(f"  {origin} (no connections)")
         
-        print(f"\n{'='*60}\n")
-
+        print(f"{'='*60}\n")
 
     @property
     def communicate(self):
@@ -379,14 +437,22 @@ class Workflow(prototype.Prototype):
     
     @communicate.setter
     def communicate(self, communicate):
+
         if communicate is None:
             self._communicate = COMMUNICATE.DIRECT
 
-        self._communicate = communicate(
+        try:
+            self._communicate = communicate(
                 graphics=self.graphics.graphics,
                 interface=self._register_interface,
                 queue=self.queue or Queue()
-        )
+            )
+        except Exception as e:
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_COMMUNICATE,
+                message="Communicate didn't work with Workflow",
+                cause=e
+            )
 
 
     # -----------------------------------------------------
@@ -401,24 +467,33 @@ class Workflow(prototype.Prototype):
             return exec(**data)
 
         except Exception as e:
-            raise TypeError(f"Workflow execution failed: {e}")
-
+            logger.critical(f"Execution failed with message :\n{e}")
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_EXECUTION,
+                message=f"Execution failed with message :\n{e}",
+                cause=e
+            )
+        finally:
+            logger.info('Executing Workflow done')
 
 
     def forward(self, 
                 name=None, 
                 **data):
+        logger.warning(f"Enter in \033[1m{self.name}\033[0m Workflow methods")
 
-        print("Executing function in Workflow forward method")
-        print(f"Function name: {name}")
 
         with self.communicate as comm:
 
+            logger.debug("Successful open communications")
             comm.send(data)
 
             for _label,_node in comm.generator():
 
-                print(f"Executing Node: {_label}")
+                logger.debug(f"Try to execute {_label}")
+
+                _node._node.stdout = self.stdout
+                _node._node.stderr = self.stderr
                 
                 transform = self._register_nodes.get(
                     _label, {}).get('transformer', None)
@@ -427,12 +502,19 @@ class Workflow(prototype.Prototype):
                     try:
                         _node.apply_transformer(transformer=transform)
                     except Exception as e:
-                        print(f"Error applying transformer: {e}")
+                        logger.critical("Error applying transformer")
+                        raise WorkflowError(
+                            code=ErrorCode.WORKFLOW_APPLY_TRANSFORMER,
+                            message=f"Error applying transformer: {e}",
+                            cause=e
+                        )
                 
                 _node.execute()
 
             received_msg = comm.receive()
-            print(f"Received Message: {received_msg}")
+            logger.info(f"Received Message: {received_msg}")
+
+        logger.warning(f"Successful Workflow execution")
 
         return received_msg
 

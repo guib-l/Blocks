@@ -17,6 +17,8 @@ from tools.load import (
 )
 
 
+
+
 @dataclass
 class MethodObjects:
     name = ''
@@ -64,7 +66,7 @@ class Register:
         if (name is None) and len(self._register_methods)==1:
             name = list(self._register_methods.keys())[0]
             
-        #print(f"Getting registered method: {name}")
+            
         
         if name not in self._register_methods:
             raise ValueError(

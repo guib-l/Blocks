@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 class Backend(ABC):
     """Base class for all execution backends."""
     
+    __ntype__ = 'DEFAULTS'
+
     def __init__(self, **kwargs):
         """Initialize the backend with optional configuration."""
         self.config = kwargs
@@ -88,7 +90,8 @@ class Backend(ABC):
 
 class JoblibBackend(Backend):
 
-    # Placeholder for joblib backend methods
+    __ntype__ = 'JOBLIB'
+
     def __init__(self, n_jobs=-1, backend_type='loky', **kwargs):
         super().__init__(**kwargs)
         self.n_jobs = n_jobs
@@ -97,7 +100,7 @@ class JoblibBackend(Backend):
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'type': self.__class__.__name__,
+            'type': self.__ntype__,
             'n_jobs': self.n_jobs,
             'backend_type': self.backend_type,
             'config': deepcopy(self.config),
@@ -113,12 +116,13 @@ class JoblibBackend(Backend):
     
     def execute(self, *args, **kwargs):
         
-        # Implementation for joblib execution
         pass
 
     
 class ThreadedBackend(Backend):
-    # Placeholder for threaded backend methods
+
+    __ntype__ = 'THREADS'
+
     def __init__(self, 
                  max_workers=4, 
                  queue=None,
@@ -135,11 +139,12 @@ class ThreadedBackend(Backend):
         self.daemon = daemon
 
     def to_dict(self):
-        _dict =  super().to_dict()
+        _dict = {}
         _dict.update({
+            'type': self.__ntype__,
             'max_workers': self.max_workers,
             'daemon': self.daemon,
-            'queue': self.queue.to_dict() if self.queue else None,
+            'queue': (lambda: self._queue.to_dict())() if not Exception else None,
             'pool': type(self.pool).__name__ if self.pool else None,
         })
         return _dict
@@ -162,7 +167,7 @@ class ThreadedBackend(Backend):
         return True
 
     def execute(self, func: Callable, *args, **kwargs) -> Any:
-        # Implementation for threaded execution
+
         self.setup()
 
         _worker = self._worker
@@ -170,26 +175,30 @@ class ThreadedBackend(Backend):
         return future.result()
         
     def _worker(self, func, *args, **kwargs):
+        
         try:
             result = func(*args, **kwargs)
             self.results_queue.put(('success', result, threading.current_thread().name))
             return result
+        
         except Exception as e:
-            self.results_queue.put(('error', str(e), threading.current_thread().name))
-            raise
+            self.results_queue.put(
+                ('error', str(e), threading.current_thread().name))
+            raise Exception
 
     def require(self, *args, **kwargs):
-        # Implementation for threaded requirements
         return True
 
     def destroy(self,):
-        # Cleanup for threaded backend
+        
         if self.pool is not None:
             self.pool.shutdown()
             self.pool = None
         self.running = False
 
+
 class MultiprocessBackend(Backend):
+    __ntype__ = 'MULTIPROCESS'
     # Placeholder for multiprocess backend methods
     def __init__(self,):
         super().__init__()
@@ -211,6 +220,7 @@ class MultiprocessBackend(Backend):
         pass
 
 class DistributedBackend(Backend):
+    __ntype__ = 'DISTRIBUTED'
     # Placeholder for distributed backend methods
     def __init__(self,):
         super().__init__()
@@ -232,6 +242,7 @@ class DistributedBackend(Backend):
         pass
 
 class GPUBackend(Backend):
+    __ntype__ = 'CUDA'
     # Placeholder for GPU backend methods
     def __init__(self,):
         super().__init__()

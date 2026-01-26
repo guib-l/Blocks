@@ -15,6 +15,16 @@ from tools.load import *
 from tools.organizer import FileManager, FileError
 
 
+
+
+
+from blocks.utils.logger import *
+
+
+
+
+
+
 class Installer:
 
     def __init__(
@@ -69,7 +79,6 @@ class Installer:
         else:
             raise ValueError(f"Unsupported format: {format}")
         
-        #print('\nContent of Metadata file :\n',content)
 
         _dir = os.path.join(
             directory or self.path_to_install, 
@@ -107,11 +116,11 @@ class Installer:
 
     def __install__(self, 
                     **kwargs):
-        print("Default install: No action taken.")
+        logger.info("Default install: No action taken.")
         return self
 
     def __uninstall__(self,):
-        print("Default uninstall: No action taken.")
+        logger.info("Default uninstall: No action taken.")
 
 
 
@@ -128,7 +137,7 @@ class Installer:
         if directory is not None:
             path_to_install = os.path.abspath(directory)
 
-        print(f"Creating node directory at: {path_to_install}")
+        logger.info(f"Creating node directory at: {path_to_install}")
 
         try:
             if not os.path.exists(path_to_install):
@@ -154,7 +163,7 @@ class Installer:
         else:
             directory = os.path.abspath(directory)
 
-        print(f"Deleting directory at: {directory},{self.path_to_install}")
+        logger.info(f"Deleting directory at: {directory},{self.path_to_install}")
         self.filemanager.delete_directory(directory)
 
     def compress(self, 
@@ -180,9 +189,10 @@ class Installer:
             destination = os.path.join(
                 os.path.abspath(self.object.directory), f"{zipname}")
 
-        print(f"Compressing from {source} to {destination}")
-
         self.filemanager.create_zip(source, destination)
+
+        logger.info(f"Compressing from {source} to {destination}")
+
 
     def decompress(self, 
                    zipname: str = None,
@@ -205,11 +215,11 @@ class Installer:
 
         if destination is None:
             destination =  self.path_to_install
-        
-        print(f"Decompressing from {source} to {destination}")
 
         self.filemanager.extract_zip(source, 
                               destination)
+        
+        logger.info(f"Decompressing from {source} to {destination}")
 
 
     def rename(self, new_name: str) -> None:
@@ -218,11 +228,9 @@ class Installer:
         """
         old_name = os.path.join(self.path_to_install, self.object.name)
         new_path = os.path.join(self.path_to_install, new_name)
-
-        print(f"Renaming block from {old_name} to {new_path}")
         
         if os.path.exists(new_path):
-            print(f"Le répertoire {new_path} existe déjà.")
+            logger.warning(f"Le répertoire {new_path} existe déjà.")
             return
         
         self.filemanager.rename(old_name, new_path)
@@ -238,6 +246,7 @@ class Installer:
         self.object._dataset['files'] = updated_files
 
         self.update_metadata()
+        logger.info(f"Renaming block from {old_name} to {new_path}")
 
 
     def compose(self, 
@@ -279,7 +288,7 @@ class Installer:
 
         self.path_to_install = os.path.abspath(destination)
 
-        print(f"Block moved to {self.path_to_install}")
+        logger.info(f"Block moved to {self.path_to_install}")
 
 
 
@@ -387,7 +396,10 @@ class InstallerPython(Installer):
             format='json',
             ntype: str = 'prototype',
             extension='py',
-            directory=None,):
+            directory=None,
+            **kwargs):
+        
+        logger.info(f"Load of installed block {name}")
         
         if directory is not None:
             directory = os.path.abspath(directory)
@@ -410,7 +422,7 @@ class InstallerPython(Installer):
 
         
     def __uninstall__(self, directory=None):
-        print(f"Uninstalling block '{self.object.name}' from '{self.path_to_install}'")
+        logger.info(f"Uninstalling block '{self.object.name}' from '{self.path_to_install}'")
         self.delete_directory(
             directory=directory
         )
@@ -576,6 +588,8 @@ class InstallerPythonWorkflow(Installer):
             extension='py',
             directory=None,):
         
+        logger.info(f"Load of installed workflow {name}")
+
         if directory is not None:
             directory = os.path.abspath(directory)
 
@@ -599,10 +613,18 @@ class InstallerPythonWorkflow(Installer):
         return (content, structure, register)
     
     def __uninstall__(self, directory=None):
-        print(f"Uninstalling workflow '{self.object.name}' from '{self.path_to_install}'")
+        logger.info(f"Uninstalling workflow '{self.object.name}' from '{self.path_to_install}'")
         self.delete_directory(
             directory=directory
         )
 
+
+
+
+class INSTALLER:
+    NONE     = None
+    DEFAULT  = Installer
+    PYTHON   = InstallerPython
+    WORKFLOW = InstallerPythonWorkflow
 
 

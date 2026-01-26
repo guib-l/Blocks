@@ -9,6 +9,23 @@ from queue import Queue
 from blocks.interface.queue import QUEUE,DataQueue,DataPacketQueue
 
 
+class CommunicationException(Exception):
+    """Raise en error in Communication"""
+
+class CommunicateGraphics(CommunicationException):
+    """Raise en error in Communication"""
+
+class CommunicateInterface(CommunicationException):
+    """Raise en error in Communication"""
+
+class CommunicationEnter(CommunicationException):
+    """Raise en error in Communication"""
+
+class CommunicationExit(CommunicationException):
+    """Raise en error in Communication"""
+
+
+
 class Communication:
 
     __ntype__ = 'COMMUNICATION'

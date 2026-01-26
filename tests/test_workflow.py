@@ -9,6 +9,8 @@ from blocks.nodes.node import Node
 from blocks.nodes.graphics import AcyclicGraph
 from blocks.nodes.workflow import Workflow
 
+from blocks.engine.execute import Execute
+
 from blocks.base.prototype import INSTALLER
 
 from blocks.engine.environment import Environment
@@ -16,6 +18,10 @@ from blocks.engine.environment import Environment
 from blocks.interface.queue import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -27,7 +33,8 @@ if __name__ == "__main__":
     start = time.time()
     node = Node.load(name='HC',
                      ntype='prototype',
-                     directory=BLOCK_PATH)
+                     directory=BLOCK_PATH,
+                     stdout='LOGGER', )
     end = time.time()
     print(node)
     print("Node instance created successfully.")
@@ -46,6 +53,8 @@ if __name__ == "__main__":
         'name': 'workflow-test',
         'id': None,
         'version': '0.0.1',
+        'stdout': 'LOGGER',
+        'stderr': sys.stderr,
         'directory':BLOCK_PATH,
         'mandatory_attr': False,
         'metadata': {'source': 'generated', 
@@ -57,7 +66,7 @@ if __name__ == "__main__":
         },
         'environment': Environment,
         'environment_config':{},
-        'executor': None,
+        'executor': Execute,
         'executor_config':{},
         'graphics': AcyclicGraph,
         'graphics_config':{
@@ -117,6 +126,7 @@ if __name__ == "__main__":
         name='workflow-test',
         directory=BLOCK_PATH,
         ntype="workflow",
+#        stdout='LOGGER'
     )
     print(new_wk)
     print("Workflow instance loaded successfully.")
@@ -144,7 +154,7 @@ if __name__ == "__main__":
     # ===============================================
     print("\n"+"="*40)
 
-    with Workflow.create() as wkc:
+    with Workflow.create(stdout='LOGGER') as wkc:
 
         wkc.import_node(
             new_wk,
@@ -159,7 +169,7 @@ if __name__ == "__main__":
         
         wkc.add_link([('HC_workflow_1','HC_workflow_2')])
 
-    wkc.execute(n=2)
+    wkc.execute(n=3)
 
     wkc.draw()
 

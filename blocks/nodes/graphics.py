@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import os
-import sys
-import math
+
 import copy
+
+from blocks.utils.logger import *
+
 
 
 class TopologicError(Exception):
@@ -85,6 +86,7 @@ class AcyclicGraphMixin:
         if format=='txt':
             return content
         else:
+            logger.critical("Format of content not reconized")
             raise GraphicsError("Format of content not reconized")
 
     def read_graphics(self, data):
@@ -383,6 +385,7 @@ class AcyclicGraph(AcyclicGraphMixin):
                  first=None, 
                  last=None,):
         
+        logger.debug("Enter in Acyclic graphics generator")
         super().__init_graph__(links=links, 
                          first=first, 
                          last=last) 

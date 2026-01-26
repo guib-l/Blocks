@@ -9,16 +9,14 @@ import pickle
 from typing import *
 from abc import *
 from pathlib import Path
-from enum import Enum
 
 from tools.load import *
-from tools.organizer import FileManager, FileError
-
-
-
-
+from tools.organizer import FileManager
 
 from blocks.utils.logger import *
+
+from blocks.utils.exceptions import InstallError,ErrorCodeInstall
+from blocks.utils.exceptions import safe_operation
 
 
 
@@ -34,8 +32,9 @@ class Installer:
             directory=None,
             auto=False):
         
-        self.object = object     
+        self.object = object   
         self.auto_create = auto
+
         self.path_to_install = directory or os.path.abspath(object.directory)
 
         self.filemanager = FileManager(
@@ -47,9 +46,14 @@ class Installer:
 
 
     def to_config(self):
-        return {
-            'auto': self.auto_create,
-        }
+        with safe_operation(
+                'Setup config serialization',
+                ErrorCodeInstall.INSTALL_ERROR_CONFIG,
+                InstallError):
+            
+            return {
+                'auto': self.auto_create,
+            }
 
 
     def update_metadata(
@@ -77,8 +81,10 @@ class Installer:
         elif format == 'csv':
             content = self.object.to_csv()
         else:
-            raise ValueError(f"Unsupported format: {format}")
-        
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_METADATA,
+                message=f"Unsupported format: {format}"
+            )        
 
         _dir = os.path.join(
             directory or self.path_to_install, 
@@ -99,16 +105,21 @@ class Installer:
             ntype: str = 'prototype',
             format: str = 'json',):
         
-        filename = f'{ntype}.{format}'
-        abs_directory = os.path.abspath(directory)
-        _dir = os.path.join(abs_directory, name, filename )
+        with safe_operation(
+                'Import metadata',
+                ErrorCodeInstall.INSTALL_ERROR_METADATA,
+                ERROR=InstallError):
+            
+            filename = f'{ntype}.{format}'
+            abs_directory = os.path.abspath(directory)
+            _dir = os.path.join(abs_directory, name, filename )
 
-        filemanager = FileManager(
-            base_directory=os.path.join( abs_directory, name ),
-            auto_create=False )
-        
-        content = filemanager.read_json(_dir)
-        return content
+            filemanager = FileManager(
+                base_directory=os.path.join( abs_directory, name ),
+                auto_create=False )
+            
+            content = filemanager.read_json(_dir)
+            return content
 
 
 
@@ -121,7 +132,7 @@ class Installer:
 
     def __uninstall__(self,):
         logger.info("Default uninstall: No action taken.")
-
+        ...
 
 
 
@@ -145,11 +156,19 @@ class Installer:
             else:
                 os.chmod(path_to_install, 0o755)
         except PermissionError as e:
-            raise FileError(f"Permission denied creating directory {path_to_install}: {e}")
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_FILENAME,
+                message=f"Permission denied creating directory {path_to_install}: {e}",
+                cause=e,
+            )
         except Exception as e:
-            raise FileError(f"Failed to create directory {path_to_install}: {e}")
-
-        #self.path_to_install = path_to_install
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_FILENAME,
+                message=f"Failed to create directory {path_to_install}: {e}",
+                cause=e,
+            )
+        finally:
+            logger.info(f"Created directory at {path_to_install}")
 
 
 
@@ -159,7 +178,6 @@ class Installer:
         """
         if directory is None:
             directory = os.path.join(self.path_to_install,self.object.name)
-            #directory = os.path.abspath(directory)
         else:
             directory = os.path.abspath(directory)
 
@@ -246,6 +264,7 @@ class Installer:
         self.object._dataset['files'] = updated_files
 
         self.update_metadata()
+
         logger.info(f"Renaming block from {old_name} to {new_path}")
 
 
@@ -269,15 +288,10 @@ class Installer:
              erase_source: bool = False,
              overwrite: bool = False) -> None:
 
-        # Destination existe ?
-        #if os.path.exists(destination): 
-        #    print(f"Le répertoire {destination} existe déjà.")
-        #    return  
         _source = os.path.join(self.path_to_install, self.object.name)
         _destination = os.path.abspath(
             os.path.join(destination,self.object.name))
         
-        # Déplacement
         self.filemanager.move_files(
             _source, 
             _destination, 
@@ -285,14 +299,47 @@ class Installer:
 
         if erase_source:
             self.delete_directory(_source)
+            logger.info(f"Source has been erased.")
 
         self.path_to_install = os.path.abspath(destination)
 
         logger.info(f"Block moved to {self.path_to_install}")
 
 
+    def data_dumps(
+            self,
+            data,
+            filename=None,
+            format="pickle",
+            encode="wb",
+            **kwargs):
+        
 
+        if format=='pickle':
+            with open(filename,encode) as f:
+                pickle.dump(data, f)
+        else:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_ENVIRON,
+                message=f"Unknow format {format}: accepted: [pickle,]"
+            )
 
+    def data_loads(
+            self,
+            filename=None,
+            format="pickle",
+            encode="wb",
+            **kwargs):
+        
+        if format=='pickle':
+            with open(filename,encode) as f:
+                data = pickle.loads(data, f)
+        else:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_ENVIRON,
+                message=f"Unknow format {format}: accepted: [pickle,]"
+            )
+        return data
 
 
 
@@ -306,6 +353,9 @@ class InstallerPython(Installer):
             *,
             directory=None,
             auto=False):
+        
+        logger.debug('Enter in python Installer module')
+
         super().__init__(
             object=object,
             directory=directory,
@@ -328,10 +378,12 @@ class InstallerPython(Installer):
 
         struct = os.path.join(directory, '.environ')
 
-        with open(struct,'wb') as f:
-            pickle.dump(structural_object, f)
-
-    
+        self.data_dumps(
+            structural_object,
+            struct,
+            format,
+            encode="wb"
+        )
     
     @staticmethod
     def import_structure(
@@ -339,14 +391,21 @@ class InstallerPython(Installer):
             directory = None,):
         
         abs_directory = os.path.abspath(directory)
+
         struct = os.path.join(
             abs_directory, 
             name,
             '.environ'
         )
 
-        with open(struct,'rb') as f:
-            structural_object = pickle.load(f)
+        try:
+            with open(struct,'rb') as f:
+                structural_object = pickle.load(f)
+        except:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_ENVIRON,
+                message=f"Cannot import environment of Node"
+            )
         return structural_object
 
 
@@ -423,6 +482,7 @@ class InstallerPython(Installer):
         
     def __uninstall__(self, directory=None):
         logger.info(f"Uninstalling block '{self.object.name}' from '{self.path_to_install}'")
+        
         self.delete_directory(
             directory=directory
         )
@@ -465,26 +525,36 @@ class InstallerPythonWorkflow(Installer):
             directory,
             format='pickle'):
         
-        structural_object = {
-            'installer':self.object.installer.__class__,
-            'installer_config':self.object.installer.to_config(),
-            'environment':self.object.environment.__class__,
-            'environment_config':self.object.environment.to_config() or {},
-            'executor':self.object.executor.__class__,
-            'executor_config':self.object.executor.to_config() or {},
-            'graphics':self.object.graphics.__class__,
-            'graphics_config':self.object.graphics.to_config(),
-            'communicate':self.object.communicate.__class__,
-            'communicate_config':{},
-            'interface':self.object.interface,
-            'queue':self.object.queue.__class__,
-        }
 
-        struct = os.path.join(directory, '.environ')
+        with safe_operation(
+                'Export environment of Workflow',
+                ErrorCodeInstall.INSTALL_ERROR_ENVIRON,
+                ERROR=InstallError):
+            
+            structural_object = {
+                'installer':self.object.installer.__class__,
+                'installer_config':self.object.installer.to_config(),
+                'environment':self.object.environment.__class__,
+                'environment_config':self.object.environment.to_config() or {},
+                'executor':self.object.executor.__class__,
+                'executor_config':self.object.executor.to_config() or {},
+                'graphics':self.object.graphics.__class__,
+                'graphics_config':self.object.graphics.to_config(),
+                'communicate':self.object.communicate.__class__,
+                'communicate_config':{},
+                'interface':self.object.interface,
+                'queue':self.object.queue.__class__,
+            }
 
-        with open(struct,'wb') as f:
-            pickle.dump(structural_object, f)
+            struct = os.path.join(directory, '.environ')
 
+            self.data_dumps(
+                structural_object,
+                struct,
+                format,
+                encode="wb"
+            )
+            
     @staticmethod
     def import_environ(
             name: str = None,
@@ -494,8 +564,14 @@ class InstallerPythonWorkflow(Installer):
         struct = os.path.join(
             abs_directory, name, '.environ' )
 
-        with open(struct,'rb') as f:
-            structural_object = pickle.load(f)
+        try:
+            with open(struct,'rb') as f:
+                structural_object = pickle.load(f)
+        except:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_ENVIRON,
+                message=f"Cannot import environment of Workflow"
+            )
 
         structural_object['queue'] = structural_object.get('queue', None)()
         return structural_object
@@ -528,26 +604,47 @@ class InstallerPythonWorkflow(Installer):
                 }})
             return _regist
 
-        register_nodes = build_register_nodes()
-
+        try:
+            register_nodes = build_register_nodes()
+        except:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_BUILD,
+                message=f"Cannot import environment of Workflow"
+            )
+        
         struct = os.path.join(directory, '.register')
-        with open(struct,'wb') as f:
-            pickle.dump(register_nodes, f)
+        
+        self.data_dumps(
+            register_nodes,
+            struct,
+            format,
+            encode="wb"
+        )
+
 
     @staticmethod
     def import_register_nodes(
             name: str = None,
-            directory = None,):
+            directory = None,
+            format="pickle"):
         
         abs_directory = os.path.abspath(directory)
         struct = os.path.join(
             abs_directory, name, '.register' )
         
-        with open(struct,'rb') as f:
-            register_nodes = pickle.load(f)
+
+        if format=='pickle':
+            with open(struct,'rb') as f:
+                register_nodes = pickle.load(f)
+        else:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_DESERIALIZATION,
+                message=f"Unknow format {format}: accepted: [pickle,]"
+            )
         return register_nodes
 
 
+    
 
 
     def __install__(
@@ -614,6 +711,7 @@ class InstallerPythonWorkflow(Installer):
     
     def __uninstall__(self, directory=None):
         logger.info(f"Uninstalling workflow '{self.object.name}' from '{self.path_to_install}'")
+        
         self.delete_directory(
             directory=directory
         )

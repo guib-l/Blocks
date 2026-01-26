@@ -313,7 +313,7 @@ class Workflow(prototype.Prototype):
         with safe_operation(
                 'Loading workflow',
                 ErrorCode.WORKFLOW_LOADING_ERR,
-                WorkflowError ):
+                ERROR=WorkflowError ):
             
             content, structure, register = installer.__load__(
                 name=name,

@@ -13,16 +13,16 @@ class CommunicationException(Exception):
     """Raise en error in Communication"""
 
 class CommunicateGraphics(CommunicationException):
-    """Raise en error in Communication"""
+    """Raise en error in Graphics in Communication"""
 
 class CommunicateInterface(CommunicationException):
-    """Raise en error in Communication"""
+    """Raise en error in Interface in Communication"""
 
 class CommunicationEnter(CommunicationException):
-    """Raise en error in Communication"""
+    """Raise en error to start Communication"""
 
 class CommunicationExit(CommunicationException):
-    """Raise en error in Communication"""
+    """Raise en error to exit Communication"""
 
 
 
@@ -52,17 +52,21 @@ class Communication:
         elif isinstance(interface,dict):
             self.interface = [(k,v) for k,v in interface.items()]
         else:
-            raise TypeError(
+            raise CommunicateInterface(
                 "Interface must be a list or a dict with (index,interface) pairs.")
         
     def update_graphics(self, graphics):
-        self.graphics = graphics
+        try:
+            self.graphics = graphics
+        except Exception as e:
+            raise CommunicateGraphics("Failed to update graphics") from e
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.queue.empty()
+        
 
 
 
@@ -88,8 +92,9 @@ class DirectCommunication(Communication):
         return None
 
     def generator(self):
+
         if not self.graphics or not self.interface:
-            raise ValueError(
+            raise CommunicateGraphics(
                 "Graphics and interface must be defined for communication.")
 
         for node_label in self.graphics:
@@ -137,7 +142,7 @@ class LabelCommunication(Communication):
     def generator(self):
 
         if not self.graphics or not self.interface:
-            raise ValueError(
+            raise CommunicateGraphics(
                 "Graphics and interface must be defined for communication.")
 
         for i,node_label in enumerate(self.graphics):
@@ -216,7 +221,8 @@ class COMMUNICATE:
     def get(cls, key):
         """Get communication by string key or return Communication if not found."""
         if not isinstance(key, str):
-            return key
+            raise CommunicationException(
+                "Key must be a string representing the communication type.")
         
         mapping = {
             'DIRECT': DirectCommunication,

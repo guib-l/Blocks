@@ -4,15 +4,22 @@ import asyncio
 import time
 from typing import *
 from abc import *
-from typing import List, Dict, Any, Optional, Union, Callable, Iterator, BinaryIO, TextIO
-
-from blocks.base.dataset import DataSet
 
 from enum import Enum
 
 
-from blocks.interface.datapacket import DataPacket,DataPacketPriority,DataPacketType
+from blocks.interface.datapacket import (DataPacket,
+                                         DataPacketPriority,
+                                         DataPacketType)
 from blocks.base.prototype import Prototype
+
+
+from blocks.utils.logger import *
+
+from blocks.utils.exceptions import (InterfaceError,
+                                     AdvanceInterfaceError,
+                                     ErrorCodeInterface)
+
 
 
 class InterfaceErrorType(str, Enum):
@@ -69,18 +76,24 @@ class Interface:
         '_inputs',
         '_output',
         'ignore_keys',
-        'ignore_conflict'
+        'ignore_conflict',
+        'ignore_errors'
     ]
+
     def __init__(self, 
                  node:Prototype,
                  ignore_conflict:bool=False,
                  ignore_keys:List[str]=[],
+                 ignore_errors:bool=True,
                  **arguments):
         
+        logger.debug("Start to build Interface of node.")
+
         self._node: Prototype = node
 
         self.ignore_conflict = ignore_conflict
         self.ignore_keys = ignore_keys
+        self.ignore_errors = ignore_errors
 
         self._inputs: Dict|None = {}
         self._output: Dict|None  = None
@@ -94,7 +107,10 @@ class Interface:
     @input.setter
     def input(self, message:Dict|None)->None:
         assert isinstance(message, (Dict,type(None))), \
-            "Input must be a Dict instance."
+            InterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_INPUT,
+                message="Input must be a dict instance"
+            )
         self._inputs.update(message)
 
     @property
@@ -104,7 +120,10 @@ class Interface:
     @output.setter
     def output(self, message:Dict|None)->None:
         assert isinstance(message, (Dict,type(None))), \
-            "Output must be a Dict instance."
+            InterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_OUTPUT,
+                message="Output must be a dict instance."
+            )
         self._output = message
 
 
@@ -122,16 +141,27 @@ class Interface:
     
     def execute(self,):
         if not self._inputs:
-            raise ValueError("No input data provided.")
+            raise InterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_EXECUTE,
+                message="No input data provided."
+            )
         
         try:
             results = self._node.execute(
                     **self.args, **self._inputs)
             if not isinstance(results, dict):
+                logger.warning('Output concatenate into dict')
                 results = {'result': results}
+        
         except Exception as e:
-            print("Execution error:", e)
+            logger.critical("Execution error:", e)
             results = {'error': str(e)}
+
+            if not self.ignore_errors:
+                raise InterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_EXECUTE,
+                    message="Error occurs in execution of Interface"
+                )
 
         self.output = results
 
@@ -143,10 +173,18 @@ class Interface:
             results = await asyncio.to_thread(
                 self._node.execute, **self.args, **self._inputs)
             if not isinstance(results, dict):
+                logger.warning('Output concatenate into dict')
                 results = {'result': results}
+        
         except Exception as e:
-            print("Asynchronous execution error:", e)
+            logger.critical("Asynchronous execution error:", e)
             results = {'error': str(e)}
+
+            if not self.ignore_errors:
+                raise InterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_EXECUTE,
+                    message="Error occurs in execution of Interface"
+                )
 
         self.output = results
 
@@ -173,17 +211,20 @@ class AdvancedInterface(Interface):
         '_production',
         'actual_destination',
         'ignore_keys',
-        'ignore_conflict'
+        'ignore_conflict',
+        'ignore_errors',
     ]
     
     def __init__(self, 
                  node:Prototype,
                  ignore_conflict:bool=False,
+                 ignore_errors:bool=True,                 
                  ignore_keys:List[str]=[]):
         
         super().__init__(node=node,
                          ignore_conflict=ignore_conflict,
-                         ignore_keys=ignore_keys)
+                         ignore_keys=ignore_keys,
+                         ignore_errors=ignore_errors)
         
         self._inputs: List[DataPacket] = []
         self._output: DataPacket|None  = None
@@ -197,7 +238,11 @@ class AdvancedInterface(Interface):
     @input.setter
     def input(self, message:DataPacket|None)->None:
         assert isinstance(message, (DataPacket,type(None))), \
-            "Input must be a DataPacket instance."
+            AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_INPUT,
+                message="Input must be a DataPacket instance."
+            )
+            
         self._inputs.append(message)
 
     @property
@@ -207,7 +252,10 @@ class AdvancedInterface(Interface):
     @output.setter
     def output(self, message:DataPacket|None)->None:
         assert isinstance(message, (DataPacket,type(None))), \
-            "Output must be a DataPacket instance."
+            AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_OUTPUT,
+                message="Output must be a DataPacket instance."
+            )
         self._output = message
 
     @property
@@ -217,7 +265,11 @@ class AdvancedInterface(Interface):
     @error.setter
     def error(self, message:DataPacket|None)->None:
         assert isinstance(message, (DataPacket,type(None))), \
-            "Error must be a DataPacket instance."
+            AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR,
+                message="Error must be a DataPacket instance."
+            )
+            
         self._error = message
 
 
@@ -241,13 +293,36 @@ class AdvancedInterface(Interface):
     def handler_transform(self,
                           message:DataPacket|None= None,
                           transformer=None):
+        
         if transformer and message:
             if callable(transformer):
-                message.DATA = transformer(message.DATA)
-            if isinstance(transformer, list):
-                for func in transformer:
-                    message.DATA = func(message.DATA)
+                try:
+                    message.DATA = transformer(message.DATA)
+                except Exception as e:
+                    logger.critical("Cannot transform message properly.")
+                    raise AdvanceInterfaceError(
+                        code=ErrorCodeInterface.INTERFACE_ERROR_TRANSFORMER,
+                        message="Cannot transform message properly.",
+                        cause=e,
+                    ) 
 
+            elif isinstance(transformer, list):
+                for func in transformer:
+                    try:
+                        message.DATA = func(message.DATA)
+                    except Exception as e:
+                        logger.critical("Cannot transform message properly.")
+                        raise AdvanceInterfaceError(
+                            code=ErrorCodeInterface.INTERFACE_ERROR_TRANSFORMER,
+                            message="Cannot transform message properly.",
+                            cause=e,
+                        )
+            else:
+                logger.critical("Transformer is not a Callable or List[Callable]")
+                raise AdvanceInterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_TRANSFORMER,
+                    message="Transformer is not a Callable or List[Callable]",
+                )
         return message
     
     def handler_delay(self,
@@ -262,8 +337,13 @@ class AdvancedInterface(Interface):
         
         if expire_time and message:
             current_time = time.time()
+
             if current_time + message.DELAY > expire_time:
-                raise TimeoutError("Message has expired.")
+                logger.critical("Message has expired")
+                raise AdvanceInterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_TIMEOUT,
+                    message="Message has expired."
+                )
         return message
 
     # =========================================================================
@@ -276,8 +356,13 @@ class AdvancedInterface(Interface):
                 message = self.handler_expire(message=message, 
                                 expire_time=getattr(message,'EXPIRY', expire_time))
                 self._inputs[idx] = message
-            except TimeoutError:
-                print("Message expired and removed:", message)
+            except TimeoutError as e:
+                logger.critical(f"Message expired and removed: {message}")
+                raise AdvanceInterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_TIMEOUT,
+                    message="Message has expired and removed.",
+                    cause=e
+                )
 
     def apply_transform(self,
                         transformer=None):
@@ -288,8 +373,11 @@ class AdvancedInterface(Interface):
                                 transformer=getattr(message,'TRANSFORM') or transformer)
                 self._inputs[idx] = message
             except:
-                print("Transformation failed on message:", message)
-                
+                logger.critical("Transformation failed on message:", message)
+                raise AdvanceInterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_TRANSFORMER,
+                    message=f"Transformation failed on message: {message}",
+                )
 
     def apply_delay(self,
                     delay=0.0):
@@ -301,13 +389,17 @@ class AdvancedInterface(Interface):
                       for msg in self._inputs])
         
         if max_delay >= min_expire:
-            print("Warning: Applied delay may cause message expiration.")
+            logger.warning("Applied delay may cause message expiration.")
 
         try:
             self.handler_delay(message=None, 
                             delay=max_delay)
         except:
-            print("Delay application failed on message:", max_delay)
+            logger.critical(f"Delay application failed on message: {max_delay}")
+            raise AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_TIMEOUT,
+                message=f"Delay application failed on message: {max_delay}",
+            )
 
 
     def check_destination(self,):
@@ -316,7 +408,10 @@ class AdvancedInterface(Interface):
             _desitination.append(message.TO)
         
         if len(set(_desitination)) > 1 and not self.ignore_conflict:
-            raise ValueError("Conflicting destinations in input messages.")
+            raise AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR_TIMEOUT,
+                message=f"Conflicting destinations in input messages.",
+            )
 
         self.actual_destination = _desitination[0] if _desitination else None
 
@@ -328,6 +423,8 @@ class AdvancedInterface(Interface):
         start_time = time.time()
         
         self.check_destination()
+
+        logger.info("Apply handlers of Interfaced node")
 
         # Apply delay
         self.apply_delay(delay=delay)
@@ -341,15 +438,22 @@ class AdvancedInterface(Interface):
 
         end_time = time.time()
         actual_delay = end_time - start_time
-        print(f"Actual delay applied: {actual_delay} seconds.")
+        logger.debug(f"Actual delay applied: {actual_delay} seconds.")
 
         try:
             results = self._node.execute(**_data)
             if not isinstance(results, dict):
                 results = {'result': results}
         except Exception as e:
-            print("Execution error:", e)
+            logger.critical(f"Execution error: {e}")
             results = {'error': str(e)}
+
+            if not self.ignore_errors:
+                raise AdvanceInterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_EXECUTE,
+                    message="Error occurs in execution of AdvancedInterface"
+                )
+
 
         self._production = results
         return results
@@ -362,6 +466,8 @@ class AdvancedInterface(Interface):
         
         self.check_destination()
         
+        logger.info("Apply handlers of AdvancedInterfaced node")
+
         # Apply delay asynchronously
         if delay > 0:
             await asyncio.sleep(delay)
@@ -379,8 +485,14 @@ class AdvancedInterface(Interface):
             if not isinstance(results, dict):
                 results = {'result': results}
         except Exception as e:
-            print("Asynchronous execution error:", e)
+            logger.critical(f"Asynchronous execution error: {e}")
             results = {'error': str(e)}
+
+            if not self.ignore_errors:
+                raise AdvanceInterfaceError(
+                    code=ErrorCodeInterface.INTERFACE_ERROR_EXECUTE,
+                    message="Error occurs in execution of AdvancedInterface"
+                )
 
         self._production = results
         return results
@@ -396,9 +508,15 @@ class AdvancedInterface(Interface):
                        ASYNC:bool=False) -> DataPacket:
         
         if not self._production:
-            raise ValueError("No production data available. Execute the node first.")
+            raise AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR,
+                message="No production data available. Execute the node first."
+            )
         if TO is None:
-            raise ValueError("Output 'TO' field must be specified.")
+            raise AdvanceInterfaceError(
+                code=ErrorCodeInterface.INTERFACE_ERROR,
+                message="Output 'TO' field must be specified."
+            )
         
         if 'error' in self._production:
             self.error = DataPacket.generate_error(

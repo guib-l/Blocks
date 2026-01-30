@@ -9,7 +9,7 @@ import copy
 from pathlib import Path
 from typing import Dict, Any, TypeVar, Union, Type
 
-from ..encoder import BaseJSONEncoder
+from tools.encoder import BaseJSONEncoder
 
 
 
@@ -19,6 +19,9 @@ class DataSet:
     """
     Class representing a dataset with various attributes.
     """
+
+    __slots__ = ['_dataset']
+    
     def __init__(self, **options: dict):
         """
         Initialize the DataSet with given options.

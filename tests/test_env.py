@@ -7,16 +7,16 @@ from dataclasses import dataclass
 from configs import *
 
 from blocks.base import *
-from blocks.nodes.node import Node
+from blocks.base.prototype import Prototype
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.interface import (Interface)
 
 
 from blocks.engine.execute import Execute
 
-from blocks.engine.python_env import _empty_env,_python_env
-from blocks.engine import PYTHON,PYTHON_PIP
-from blocks.engine.environment import Environment
+from blocks.engine.envPy import EnvEmpty,EnvPython
+from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
+from blocks.engine.environment import EnvironMixin, Environment
 
 import time
 
@@ -35,34 +35,55 @@ def heavy_calculation(n=5):
 
 
 if __name__ == "__main__":
-      
+
+    # ===============================================
+    # Initialisation d'un Prototype
+    print("\n"+"*"*40)
+
+    print("BUILD PROTOTYPE in-place")
+    
+    proto = Prototype.load(
+        name='prototype-test',
+        directory=BLOCK_PATH,
+        format='json',
+        ntype='prototype'
+    )
+    print(proto)
+    print("Prototype instance created successfully.") 
+
     # ============================================
     # --- Create new environment with functions ---
+    print("\n"+"*"*40)
 
-    with Environment(functions=heavy_calculation) as ENV:
-        print("Do somethings ...")
+    with proto as proto.environ:
+        print("Test of Prototype environment")
+        func    = proto.environ.get_methods(name='heavy_calculation')
+        results = func(2)
+        print("Results :",results)
 
-        print('Backend   : ',ENV.backend)
-        print('Functions : ',ENV.functions)
+    status = proto.__diff__(ENVIRONMENT_TYPE.PYTHON_PIP)
 
-    print('Out from env')
+    print('Equivalence : ',status)
+
+
+
 
     # ============================================
-    # --- Create new environment with packages ---
-    print()
+    # --- Create new Environment with packages ---
+    print("\n"+"*"*40)
+
 
     temp = copy(PYTHON_PIP)
-    temp.environment = _python_env
+    temp.environment = EnvPython
     temp.parameters['packages'] = ['numpy','pandas']
 
     print('Create new env with packages numpy and pandas')
 
+
     env = Environment(name='pip',
                       directory='./envs/pip_env/',
                       language='python3',
-                      build=False,
                       backend_env=temp,
-                      functions=heavy_calculation,
                       env_name='generic-env.02'
                 )
 
@@ -70,36 +91,40 @@ if __name__ == "__main__":
 
     with env as e:
         print("Test of Environment")
-        func    = e.get_functions(name='heavy_calculation')
-        results = func()
 
-    #env.backend.uninstall()
+    #sys.exit()
 
 
+    
     # ====================================
     # --- Serialization of environment ---
-    print()
+    print("\n"+"*"*40)
     
     dict_env = env.to_dict()
     print('Environment as dict : \n',dict_env)
-    env = Environment.from_dict(dict_env)
 
+    env_from_dict = Environment.from_dict(**dict_env)
 
-    with env as e:
+    print(env_from_dict)
+
+    with env_from_dict as e:
         print("Test of Environment")
-        func    = e.get_functions(name='heavy_calculation')
-        results = func(2)
         
 
     # ====================================
     # --- JSON of the environment ---
-    print()
+    print("\n"+"*"*40)
 
-    json_results = env.to_json()
-    print(json_results)
+    dict_results = env.to_dict()
 
-    env = Environment.from_json(json_results)
-
-
+    env = Environment.from_dict(**dict_results)
+    env.backend.uninstall()
 
     sys.exit()
+
+
+
+
+
+
+

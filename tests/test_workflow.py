@@ -1,90 +1,181 @@
 import os,sys
 import time
-from datetime import *
-from copy import copy, deepcopy
-from dataclasses import dataclass
-from typing import Any, Dict, TypeVar
 from configs import *
 
 from blocks.base import *
+from blocks.base.prototype import Prototype
+
 from blocks.nodes.node import Node
+from blocks.nodes.graphics import AcyclicGraph
 from blocks.nodes.workflow import Workflow
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.engine.execute import Execute
+
+from blocks.base.prototype import INSTALLER
+
+from blocks.engine.environment import Environment
+
+from blocks.interface.queue import QUEUE
+from blocks.interface.communication import COMMUNICATE 
+from blocks.interface.interface import INTERFACE
 
 
 
-@dataclass
-class Environment:
-    # Placeholder for environment methods 
-    # could include setup, teardown, config management, etc.
-    __ntype__ = "environment"
-
-@dataclass
-class Executor:
-    # Placeholder for executor methods 
-    # could include task execution, job management, etc.
-    __ntype__ = "executor"
 
 
 
 if __name__ == "__main__":
       
+    # ===============================================
+    # Récupération et exécution dans son environnement
+    print("\n"+"*"*40)
 
-  
-   # Initialisation d'un Block
-    node = Node.load(name='function-test',
-                     directory=BLOCK_PATH)
+    start = time.time()
+    node = Node.load(name='HC',
+                     ntype='prototype',
+                     directory=BLOCK_PATH,
+                     stdout='LOGGER', )
+    end = time.time()
+    print(node)
     print("Node instance created successfully.")
+    print(f'Instance created in {end-start} s.')
 
-    # =====================================================
-    # Base des tests sur le Workflow
+    node.execute(name='basic_function',n=5)
 
-   # Create a sample dataset
-    data = {
-        'name': 'workflow-1',
+
+    # ===============================================
+    def transf(data):
+        return {'n': data['result']}
+
+    # Lancement du workflow
+    print("\n"+"*"*40)
+    configuration = {
+        'name': 'workflow-test',
         'id': None,
         'version': '0.0.1',
-        'path': "myblock/",
-        '_mandatory_attr': False,
-        'metadata': {'source': 'generated', 'version': 1.0},
-        'graphics': {
-            'links': None,
-            'first': None,
-            'last' : None,},
-        'type': "workflow",
-        '_environment': None,
-        '_executor': None,
+        'stdout': 'LOGGER',
+        'stderr': sys.stderr,
+        'directory':BLOCK_PATH,
+        'mandatory_attr': False,
+        'metadata': {'source': 'generated', 
+                     'version': 1.0,
+                     'description': 'A sample dataset for testing'},
+        'installer': INSTALLER.WORKFLOW,
+        'installer_config':{
+            'auto':False,
+        },
+        'environment': Environment,
+        'environment_config':{},
+        'executor': Execute,
+        'executor_config':{},
+        'graphics': AcyclicGraph,
+        'graphics_config':{
+            'links':[('HC_node_1','HC_node_2'), 
+                     ('HC_node_2','HC_node_3')],
+            'first':'HC_node_1',
+            'last':'HC_node_3',
+        },
+        'communicate': COMMUNICATE.LABEL,
+        'communicate_config':{},
+        'interface': INTERFACE.SIMPLE,
+        'queue': QUEUE.DATAQUEUE,
+        'register_nodes':{
+            'HC_node_1': {'node':'heavy_calculation', 
+                          'directory':BLOCK_PATH,
+                          'method_name':'heavy_calculation',
+                          'ntype':Prototype,
+                          'transformer': None},
+            'HC_node_2': {'node':node,
+                          'method_name':'basic_function',
+                          'ntype':Prototype,
+                          'transformer': transf},
+            'HC_node_3': {'node':node,
+                          'method_name':'basic_function',
+                          'ntype':Prototype,
+                          'transformer': transf},
+        }
     }
 
-   # Create a sample workflow
-    workflow = Workflow(**data)
-    print(workflow)
+    wk = Workflow(**configuration)
+    print(wk)
     print("Workflow instance created successfully.")
 
-    print(workflow.graphics)
-    print("Graphics of workflow initialized")
 
-    workflow.add_node(node,1)
-    workflow.add_node(node,3)
-    workflow.add_node(node,)
-    workflow.add_node(node,)
-
-    print("Current Node : \n",workflow.currents_nodes)
-
-    workflow.connect_nodes(1,3)
-    workflow.connect_nodes(3,4)
-
-    print(workflow.graphics)
-
-
-
-    # =====================================================
-    # Execution du workflow
-
+    print(wk.graphics)
+    print("Workflow Graphics created successfully.")
     
+    
+    # ===============================================
+    print("\n"+"="*40)
+
+    print("Registered nodes:")
+
+    print(wk.get_register_nodes())
+    print(wk.get_register_nodes(name='HC_node_1'))
+
+    print(wk.communicate)
+
+    wk.execute(n=3)
+
+    wk.install()
+
+    # ===============================================
+    print("\n"+"="*40)
+    
+    new_wk = Workflow.load(
+        name='workflow-test',
+        directory=BLOCK_PATH,
+        ntype="workflow",
+#        stdout='LOGGER'
+    )
+    print(new_wk)
+    print("Workflow instance loaded successfully.")
+
+    new_wk.execute(n=3)
+
+    # ===============================================
+    print("\n"+"="*40)
+
+    wk.import_node(
+        new_wk,
+        'HC_workflow_1',
+        transformer=transf )
+
+    wk.add_link('HC_node_3','HC_workflow_1')
+
+    print( 'Graphics: ',wk.graphics.graphics )
+
+    wk.execute(n=3)
+
+    wk.del_link('HC_node_3','HC_workflow_1')
 
 
+
+    # ===============================================
+    print("\n"+"="*40)
+
+    with Workflow.create(stdout='LOGGER') as wkc:
+
+        wkc.import_node(
+            new_wk,
+            'HC_workflow_1',
+            transformer=None )
+
+
+        wkc.import_node(
+            new_wk,
+            'HC_workflow_2',
+            transformer=transf )
+        
+        wkc.add_link([('HC_workflow_1','HC_workflow_2')])
+
+    wkc.execute(n=3)
+
+    wkc.draw()
+
+
+
+    sys.exit()
 
 
 

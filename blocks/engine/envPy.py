@@ -10,10 +10,13 @@ from packages.package import Packages
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
+from tools.serializable import SerializableMixin, _std_serialize, _std_deserialize
 
-from serializable import simple_serializable
+from blocks.utils.logger import *
 
-class abstract_env(ABC):
+
+
+class abstract_env(ABC,SerializableMixin):
 
     @classmethod  
     @abstractmethod  
@@ -39,27 +42,36 @@ class abstract_env(ABC):
 
 
 @dataclass
-@simple_serializable
-class _empty_env(abstract_env):
+class EnvEmpty(abstract_env):
+
+    __ntype__ = "empty_env"
 
     @classmethod
     def sub_build(cls, **kwargs):
         return cls(**kwargs)
     
     def open(self,):
-        print(f'> Open environment "Default"')
+        env_logger.info(f'Open empty environment')
+        ...
 
     def close(self, **kwargs):
-        print(f'> Close environment "Default"')
+        env_logger.info(f'Close empty environment')
+        ...
     
     def create(self, **kwargs):
-        print(f'> Create ')
+        env_logger.info(f'Create empty environment')
+        ...
 
     def update(self, **kwargs):
-        print(f'> Update ')
+        env_logger.info(f'Update empty environment')
+        ...
 
 
-class _python_env(Packages,abstract_env):
+
+
+class EnvPython(Packages,abstract_env):
+
+    __ntype__ = "python_env"
 
     def __init__(self, 
                  directory = '.',
@@ -86,23 +98,20 @@ class _python_env(Packages,abstract_env):
         return _cls
     
     def open(self,):
-        print(f'> Open environment  : "Python"')
         self.activate()
 
     def close(self,):
-        print(f'> Close environment : "Python"')
         self.deactivate()
     
     def create(self, **kwargs):
-        print(f'> Create Python environment ')
         self.build(**kwargs)
 
     def update(self, **kwargs):
-        print(f'> Update Python environment ')
+        env_logger.warning(f'This do nothing')
+        pass
 
-    # ============================================
-    # Serialization of _python_env object
-
+    def to_dict(self,):
+        return self.package_to_dict()
 
 
 

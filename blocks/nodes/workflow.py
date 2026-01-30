@@ -1,222 +1,540 @@
+import os
+import sys
+import json
+
 from typing import *
+from abc import *
+from pathlib import Path
+from enum import Enum
+import inspect
 
-from blocks.base.signal import Signal
-from blocks.socket.interface import MESSAGE,MessageType
-import blocks.nodes.node as node
+from queue import Queue
 
-from blocks.nodes.graphics import TopologicGraphics 
+from blocks.base import prototype
+from blocks.base import BLOCK_PATH
+from blocks.base.prototype import INSTALLER
+
+from blocks.engine.environment import Environment
+from blocks.engine.execute import Execute
+
+from blocks.nodes.graphics import AcyclicGraph
+
+from blocks.interface.queue import QUEUE
+from blocks.interface.communication import COMMUNICATE 
+from blocks.interface.interface import INTERFACE
+
+from blocks.utils.exceptions import WorkflowError,ErrorCode
+from blocks.utils.exceptions import safe_operation
+from blocks.utils.logger import *
 
 
-Workflow = TypeVar('Workflow', bound='Workflow')
+
+class REGISTER_NODE:
+
+    @staticmethod
+    def import_node(
+            node=None,
+            ntype=None,
+            directory=None,
+            method_name=None,
+            transformer=None,
+            attributes = {}):
+        
+        assert node is not None, "Node instance must be provided."
+
+        if isinstance(node, str):
+            node = ntype.load(
+                name=node,
+                ntype=ntype.__name__.lower(),
+                directory=directory
+            )
+        elif not isinstance(node, prototype.Prototype):
+            logger.critical(f"Node {node} coudn't be loaded (wrong type)")
+            
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_ERROR_TYPE,
+                message="The 'node' parameter must be a string or a Prototype instance.",
+                details={"expected":prototype.Prototype,"current":type(node)}
+            )
+            
+        
+        return {
+            'node': node,
+            'name': node.name,
+            'directory': directory or node.directory,
+            'function_name': method_name,
+            'ntype': ntype,
+            'transformer': transformer,
+            'attributes': attributes,
+        }
+
+    @staticmethod
+    def export_node(register_node):
+        return {
+            'node': register_node['node'].name,
+            'directory': register_node['directory'],
+            'ntype': register_node['ntype'].__name__.lower(),
+            'method_name': register_node['function_name'],
+            'transformer': register_node['transformer'],
+            'attributes': register_node['attributes'],
+        }
 
 
 
 
 
-
-class Workflow(node.Node):
+class Workflow(prototype.Prototype):
 
     __ntype__ = "workflow"
 
-    def __init__(self, 
-                 graphics = None,
-                 communicator = None,
-                 global_environment=True,
-                 global_executor=True,
-                 **kwargs):
-        
-        super().__init__(**kwargs)
+    def __init__(
+            self,
+            register_nodes: Optional[Dict[str, Any]] = {},
+            *,
+            installer = None,
+            environment = None,
+            executor = None,
+            graphics = None,
+            communicate = None,
+            interface = None,
+            queue = None,
+            **config
+        ):
 
-        if isinstance(graphics, TopologicGraphics):
-            self._graphics = graphics
-        elif isinstance(graphics, dict):
-            self._graphics = TopologicGraphics.from_dict(**graphics)
-        else:
-            if self._mandatory_attr: raise NotImplementedError('Graphics not informed')
-            else: self._graphics = TopologicGraphics()
-    
-        self._graphics.build()
+        self._register_nodes = {}
+        self.set_register_nodes(register_nodes)
+        logger.info("Loaded nodes into workflow")
 
-        self.currents_nodes = {}
+        self._register_interface = []
 
-        self.communicator       = communicator
+        com_config   = config.pop('communicate_config',{})
+        graph_config = config.pop('graphics_config', {})
 
-        self.global_environment = global_environment
-        self.global_executor    = global_executor
+        super().__init__(
+            installer=installer,
+            environment=environment,
+            executor=executor,
+            **config)
+
+        self.graphics = graphics(**graph_config)
+        logger.info("Build graphical workflow")
+
+        self.queue = queue
+        self.interface = interface
+
+        self.set_register_interface()
+        logger.info("Build interfaces of nodes")
+
+        self.communicate = communicate
 
 
 
-    # -----------------------------------------------------
-    # Execute methods
-    
-    def forward(self, **data):
-
-        if self.communicator is None:
-
-            for node_index in self._graphics.graphics:
-                node = self.currents_nodes[node_index]
-                data = node.execute(**data)
-            
-            output = data
-            return output
-    
-
-    # -----------------------------------------------------
+    # ===========================================
     # Graphics methods
+    # ===========================================
 
-    def graph_to_dict(self,):
-        graph = self._graphics.to_dict()
-        graph.update({'nodes':None})
-        return graph
-
-    @property
-    def graphics(self,):
-        return self._graphics.graphics
-    
-    @graphics.setter
-    def graphics(self, value):
-        if isinstance(value, TopologicGraphics):
-            self._graphics = value
-        elif isinstance(value, dict):
-            self._graphics = TopologicGraphics.from_dict(**value)
+    def add_link(self, origin, to_node=None):
+        if isinstance(origin, list):
+            self.graphics.add_links(origin)
         else:
-            raise TypeError("Value not 'TopologicGraphics' or 'dict'")
+            self.graphics.add_link(origin, to_node)
+        
+        self.communicate.update_graphics(self.graphics.graphics)
 
-    @property
-    def node(self,idx):
-        return self._graphics.nodes[idx]
+    def del_link(self, origin, to_node=None):
+        if isinstance(origin, list):
+            self.graphics.del_links(origin)
+        else:
+            self.graphics.del_link(origin, to_node)
+        
+        self.communicate.update_graphics(self.graphics.graphics)
+
+
+
+
+    # ===========================================
+    # Register Nodes and Interface
+    # ===========================================
+   
+    def set_register_interface(self,):
+
+        for label,register_node in self._register_nodes.items():
+            
+            self._register_interface.append(
+                (label,
+                 self.interface(
+                     node=register_node['node'], 
+                     name=register_node['function_name'],))
+            )
+
+        
+    def get_register_nodes(self, name=None):
+
+        if name is None:
+            return self._register_nodes
+        
+        if name not in self._register_nodes.keys():
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_REGISTER,
+                message=f"Node '{name}' not found in registered nodes."
+            )
+        
+        return self._register_nodes[name]
+
+    def set_register_nodes(self, register_nodes: Dict[str, Any],):
+
+        for label,register_node in register_nodes.items():
+            _regist = REGISTER_NODE.import_node(**register_node)
+
+            self._register_nodes[label] = _regist
+
+
+    # ===========================================
+    # Installater / Uninstaller
+    # ===========================================
+
+
+    def import_node(
+            self,
+            node,
+            label,
+            method_name=None,
+            directory=None,
+            transformer=None,
+            interface=None,
+            **kwargs):
+
+        from blocks.base.prototype import Prototype
+        assert isinstance(node, Prototype), \
+            WorkflowError(
+                code=ErrorCode.WORKFLOW_IMPORT_NODES,
+                message='Input node needs to hinerit from prototype object'
+            )
+
+        _register = REGISTER_NODE.import_node(
+            node=node,
+            ntype=node.__ntype__,
+            directory=directory or node.directory,
+            method_name=method_name,
+            transformer=transformer,
+            attributes = kwargs
+        )
+
+        self._register_nodes[label] = _register
+
+        if interface is None:
+            interf = self.interface
+
+        self._register_interface.append(
+            (label, interf(node=node, name=method_name))
+        )
+
+
+
+    # ===========================================
+    # Serialization methods
+    # ===========================================
+
+
+    def to_dict(self):
+
+        with safe_operation(
+                'dict serialisation',
+                ErrorCode.WORKFLOW_SERIALIZE_ERR,
+                WorkflowError ):
+            
+            _dict = super().to_dict()
+            _dict.update({
+                'installer':self.installer.__class__,
+                'installer_config':self.installer.to_config(),
+                'environment':self.environment.__class__,
+                'environment_config':self.environment.to_config() or {},
+                'executor':self.executor.__class__,
+                'executor_config':self.executor.to_config() or {},
+                'graphics':self.graphics.__class__,
+                'graphics_config':self.graphics.to_config() or {},
+                'registered_nodes':self._registred_nodes,
+            })
+            return _dict
     
-    @property
-    def nodes(self,):
-        return self._graphics.nodes
+    @classmethod
+    def from_dict(cls, **data):
+        with safe_operation(
+                'dict deserialisation',
+                ErrorCode.WORKFLOW_DESERIALIZE_ERR,
+                WorkflowError ):
+            
+            return cls(**data)
+
+
+    # ===========================================
+    # Installater / Uninstaller
+    # ===========================================
+
+    def install(self, 
+                **properties):
+        
+        assert hasattr(self.installer,'__install__'),\
+            WorkflowError(
+                code=ErrorCode.WORKFLOW_INSTALLER_ERR,
+                message="Installer didn't have any __install__ method"
+            )
+
+        self.installer.__install__(**properties)
+
+    def uninstall(self,
+                  **properties):
+        
+        assert hasattr(self.installer,'__uninstall__'),\
+            WorkflowError(
+                code=ErrorCode.WORKFLOW_UNINSTALLER_ERR,
+                message="Installer didn't have any __uninstall__ method"
+            )
+        
+        self.installer.__uninstall__(**properties)
+
+
+    # ===========================================
+    # Load methods
+    # ===========================================
+
+    @classmethod
+    def load(
+            cls, 
+            *,
+            name:str,
+            directory=None,
+            format='json',
+            ntype='prototype',
+            installer=INSTALLER.WORKFLOW,
+            **kwargs
+        ):
+
+        with safe_operation(
+                'Loading workflow',
+                ErrorCode.WORKFLOW_LOADING_ERR,
+                ERROR=WorkflowError ):
+            
+            content, structure, register = installer.__load__(
+                name=name,
+                directory=directory,
+                format=format,
+                ntype=ntype,
+            )
+            content.update(**structure)
+            content.update({
+                'register_nodes': register
+            })
+            content.update(**kwargs)
+            return cls(**content)
+
+
+    @classmethod
+    def create(
+            self,
+            name:str='workflow-create',
+            directory:Optional[str]=BLOCK_PATH,
+            ntype:str='workflow',
+            version:Optional[str]='0.0.1',
+            stdout:Optional[TextIO]=sys.stdout,
+            stderr:Optional[TextIO]=sys.stderr,
+            mandatory_attr=False,
+            metadata:Optional[Dict[str,Any]]={'source': 'generated'},
+            installer=INSTALLER.WORKFLOW,
+            installer_config:Optional[Dict[str,Any]]={'auto':False},
+            environment=Environment,
+            environment_config:Optional[Dict[str,Any]]={},
+            executor=None,
+            executor_config:Optional[Dict[str,Any]]={},
+            graphics=AcyclicGraph,
+            graphics_config:Optional[Dict[str,Any]]={},
+            communicate=COMMUNICATE.LABEL,
+            communicate_config:Optional[Dict[str,Any]]={},
+            interface=INTERFACE.SIMPLE,
+            queue=QUEUE.DATAQUEUE,
+            **config
+        ):
+
+
+        with safe_operation(
+                'Creating workflow',
+                ErrorCode.WORKFLOW_CREATING_ERR,
+                WorkflowError ):
+            
+            return Workflow(
+                name=name,
+                directory=directory,
+                version=version,
+                stdout=stdout,
+                stderr=stderr,
+                mandatory_attr=mandatory_attr,
+                metadata=metadata,
+                installer=installer,
+                installer_config=installer_config,
+                environment=environment,
+                environment_config=environment_config,
+                executor=executor,
+                executor_config=executor_config,
+                graphics=graphics,
+                graphics_config=graphics_config,
+                communicate=communicate,
+                communicate_config=communicate_config,
+                interface=interface,
+                queue=queue,
+                **config
+            )
+
+
+    def __enter__(self,):
+        return self
     
-    @property
-    def links(self,):
-        return self._graphics.link
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+
+
+    def draw(self, stdout=None):
+        """Display the workflow graph in the terminal."""
+
+        self.stdout = stdout or self.stdout
+        print(f"\n{'='*6}",self.stdout,sys.stdout)
+
+        print(f"{'='*60}")
+        print(f"\033[1;30mWorkflow: {self.name} \033[0m")
+        print(f"{'='*60}\n")
+        
+        # Display registered nodes
+        print("Registered Nodes:")
+        print("-" * 60)
+        for label, reg_node in self._register_nodes.items():
+            node_name = reg_node['node'].name
+            node_type = reg_node['ntype'].__name__ if hasattr(reg_node['ntype'], '__name__') else str(reg_node['ntype'])
+            method = reg_node.get('function_name', 'N/A')
+            print(f"  [{label}] {node_name} (type: {node_type}, method: {method})")
+        print("")
+        
+        # Display graph structure
+        print("Graph Structure:")
+        print("-" * 60)
+        
+        graph = self.graphics.graphics
+        
+        if not graph:
+            print("  (empty graph)")
+        else:
+            # Display edges
+            for origin, target in self.graphics.link:
+                if target:
+                    print(f"  {origin} --> {target}")
+                else:
+                    print(f"  {origin} (no connections)")
+        
+        print(f"{'='*60}\n")
 
     @property
-    def starting_node(self,):
-        return self._graphics.first
+    def communicate(self):
+        return self._communicate
+    
+    @communicate.setter
+    def communicate(self, communicate):
 
-    @starting_node.setter
-    def starting_node(self, start):
-        self._graphics.first = start
+        if communicate is None:
+            self._communicate = COMMUNICATE.DIRECT
 
-    @property
-    def ending_node(self,):
-        return self._graphics.last
+        try:
+            self._communicate = communicate(
+                graphics=self.graphics.graphics,
+                interface=self._register_interface,
+                queue=self.queue or Queue()
+            )
+        except Exception as e:
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_COMMUNICATE,
+                message="Communicate didn't work with Workflow",
+                cause=e
+            )
 
-    @ending_node.setter
-    def ending_node(self, end):
-        self._graphics.last = end
 
     # -----------------------------------------------------
-    # Nodes methods
-
-    def add_node(self, node, index=None):
-        if index is None:
-            index = len(self.currents_nodes) + 1
-            while True:
-                if index not in self.currents_nodes.keys():
-                    break
-                index += 1
-        if index not in self.currents_nodes.keys():
-            self.currents_nodes.update({index:node})
-        else:
-            raise ValueError("Index exist in currend nodes")
+    # Logique du noeud à exécuter
         
-    def add_nodes(self,):
-        ...
-
-    def remove_node(self, index: int):
-        if index in self.currents_nodes.keys():
-            del self.currents_nodes[index]
-        else:
-            raise ValueError("Index didn't exist in currend nodes")
-
-    def remove_nodes(self,):
-        ...
+    def execute(self, **data):
         
+        forward = getattr(self, 'forward', None)
+
+        try:
+            exec = self.executor.execute(forward=forward)
+            return exec(**data)
+
+        except Exception as e:
+            logger.critical(f"Execution failed with message :\n{e}")
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_EXECUTION,
+                message=f"Execution failed with message :\n{e}",
+                cause=e
+            )
+        finally:
+            logger.info('Executing Workflow done')
+
+
+    def forward(self, 
+                name=None, 
+                **data):
+        logger.warning(f"Enter in \033[1m{self.name}\033[0m Workflow methods")
+
+
+        with self.communicate as comm:
+
+            logger.debug("Successful open communications")
+            comm.send(data)
+
+            for _label,_node in comm.generator():
+
+                logger.debug(f"Try to execute {_label}")
+
+                _node._node.stdout = self.stdout
+                _node._node.stderr = self.stderr
+                
+                transform = self._register_nodes.get(
+                    _label, {}).get('transformer', None)
+                
+                if transform:
+                    try:
+                        _node.apply_transformer(transformer=transform)
+                    except Exception as e:
+                        logger.critical("Error applying transformer")
+                        raise WorkflowError(
+                            code=ErrorCode.WORKFLOW_APPLY_TRANSFORMER,
+                            message=f"Error applying transformer: {e}",
+                            cause=e
+                        )
+                
+                _node.execute()
+
+            received_msg = comm.receive()
+            logger.info(f"Received Message: {received_msg}")
+
+        logger.warning(f"Successful Workflow execution")
+
+        return received_msg
 
 
 
-    def connect_nodes(self, from_node: str, to_node: str = None):
-        
-        if isinstance(from_node,int):
-            if from_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'from_node'")
-            
-            if to_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'to_node'")
-            
-            self._graphics.add_link(from_node,to_node)
-        else:
-            try:
-                self._graphics.add_links(from_node)
-            except:
-                raise TypeError("'from_node' not <int> or <iterable>")
-
-    def disconnect_nodes(self, from_node: str, to_node: str = None):
-        
-        if isinstance(from_node,int):
-            if from_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'from_node'")
-            
-            if to_node not in self.currents_nodes.keys():
-                raise ValueError("Node unknow in 'to_node'")
-            
-            self._graphics.del_link(from_node,to_node)
-        else:
-            try:
-                self._graphics.del_links(from_node)
-            except:
-                raise TypeError("'from_node' not <int> or <iterable>")
-        
-
-    
-
-    def handler_transformer(self,):
-        ...
-    def handler_message(self,):
-        ...
-
-
-    def to_dict(self,):
-        ...
-    def to_json(self,):
-        ...
-    def from_dict(self,):
-        ...
 
 
 
 
 
 
-    def __str__(self,):
-        return super().__str__()
-    
-    def __len__(self,):
-        return len(self.currents_nodes)
-    
-    def __getstate__(self):
-        return super().__getstate__()
-    
-    def __setstate__(self, state):
-        return super().__setstate__(state)
-    
-    def __contains__(self, key):
-        return super().__contains__(key)
-    
-    def __copy__(self):
-        return super().__copy__()
-    
-    def __deepcopy__(self, memo):
-        return super().__deepcopy__(memo)
-    
-    def __sizeof__(self):
-        return super().__sizeof__()
 
 
 
-    
+
+
+
+
+
+
+
+
+

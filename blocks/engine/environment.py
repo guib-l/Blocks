@@ -6,186 +6,222 @@ import copy
 import json
 
 import inspect
+import importlib.util
 from pathlib import Path
 
 from enum import Enum,Flag
 
-from blocks.engine import PYTHON
+from blocks.engine import ENVIRONMENT_TYPE
 
-from serializable import auto_serializable,simple_serializable
+from tools.serializable import SerializableMixin
 
-from ..encoder import EnvJSONEncoder
-
-class Environment:
-
-    __slots__ = (
-        "name","_functions","_language","_lang",
-        "_build","backend","_backend_env"
-    )
-
-    def __init__(self,
-                 name='env',
-                 language='python3', 
-                 backend_env=PYTHON,
-                 build=True,
-                 functions=None,
-                 **kwargs):
-        
-        self.name = name
-
-        self.functions = functions
-    
-        self.language = language
-        self._build = build
+from tools.encoder import EnvJSONEncoder
 
 
-        self._backend_env = backend_env
-        self.backend      = backend_env.environment
+from blocks.utils.logger import *
 
-        self._backend_env.parameters.update(**kwargs)
-        
-        if inspect.isclass(self.backend):
-            self.backend = self.backend.sub_build(
-                **self._backend_env.parameters
-                )  
-    
+
+from blocks.utils.exceptions import safe_operation
+from blocks.utils.exceptions import (ErrorCodeEnv,
+                                     EnvironmentError)
+
+
+
+
+
+class EnvironMixin:
+
+
+    def __post_init__(self,
+                     backend_env=ENVIRONMENT_TYPE.PYTHON,
+                     **kwargs):
+        env_logger.info('Enter in Environnement Initialization')
+
+        self.env = ENVIRONMENT_TYPE.get(backend_env)
+
+        _backend = backend_env.environment
+        self.backend = _backend( **self.env.parameters ) 
+
+        self.env.parameters.update(**kwargs)
+
+
+    def env_to_dict(self):
+        return {
+            'backend_env': self.env.__name__,
+            'parameters': self.env.parameters,
+        }
+
     # ============================================
-    # Attributes definition
+    # Variables definition
 
     @property
-    def functions(self, name=None):
-        if name is None:
-            return self._functions
-        else:
-            return self._functions[name]
-        
-    @functions.setter
-    def functions(self, defaults=None, **kwfunc):
+    def env(self,):
+        return self.__environ__
 
-        if defaults:
-            if isinstance(defaults, typing.Callable):
-                defaults = {defaults.__name__: defaults}
-            elif isinstance(defaults, dict):
-                for k,v in defaults.items():
-                    if not isinstance(v, typing.Callable):
-                        continue
-                    defaults[k] = v
-            elif isinstance(defaults, typing.List):
-                funcs = {}
-                for func in defaults:
-                    if not isinstance(func, typing.Callable):
-                        continue
-                    funcs[func.__name__] = func
-                defaults = funcs
-            else:
-                raise TypeError("Defaults must be a callable or a dict.")
-            self._functions = defaults
-        else:
-            self._functions.update(kwfunc)
-
-    def get_functions(self, index=-1, name=None):
-        if name is None:
-            name = list(self._functions.keys())[index]
-        return self._functions[name]
-
-
-    @property
-    def language(self):
-        return self._lang
-
-    @language.setter
-    def language(self, lang):
-        self._lang = lang
-
-    # ============================================
-    # Copy of Environment object
-
-    def copy(self, new_name=None):
-        return type(self)(
-            name=new_name or self.name,
-            language=self.language,
-            backend_env=self._backend_env,
-            build=self._build,
-            functions=copy.copy(self.functions),)
-
-
-    # ============================================
-    # Serialization of Environment object
-
-    @classmethod
-    def from_dict(cls, data):
-        print('DATA : \n',data)
-        return cls(**data)
-    
-    def to_dict(self,):
-        return dict(
-            name=self.name,
-            language=self.language,
-            backend_env=self._backend_env,
-            build=self._build,
-            functions=copy.copy(self.functions),)
-
-    def to_json(self,):
-        return json.dumps(self.to_dict(),
-                          indent=4,
-                          cls=EnvJSONEncoder)
-    
-    @classmethod
-    def from_json(cls, data):
-        data = json.loads(data)
-        return cls.from_dict(data)
+    @env.setter
+    def env(self, new_env):
+        self.__environ__ = new_env
 
 
     # ============================================
     # Definition Build-in functions
 
     def __enter__(self):
-        self.open()
-        return self
+        try:
+            self.open()
+            return self
+        except:
+            env_logger.critical(f'Cannot enter in env')
+            raise EnvironmentError(
+                code=ErrorCodeEnv.ENV_ERROR_ENTER,
+                message="Not closed env.")
 
     def __exit__(self, exc_type, exc_value, traceback):        
         try:
             self.close()
         except:
-            raise EnvironmentError("Not closed env.")
+            env_logger.critical(f'Env. not cloded')
+            raise EnvironmentError(
+                code=ErrorCodeEnv.ENV_ERROR_CLOSE,
+                message="Not closed env.")
 
     def __call__(self, _mandat=''):
+        env_logger.debug(f'Call {_mandat} method')
         try:
             return getattr(self.backend, _mandat)
         except:
-            raise NotImplementedError(
-                f'Method {_mandat} not in object {self.backend.__class__}')
+            env_logger.critical(f'Method {_mandat} couldn\'t be called')
+            raise EnvironmentError(
+                code=ErrorCodeEnv.ENV_ERROR_IMPLEMENT,
+                message=f'Method {_mandat} not in object {self.backend.__class__}')
    
-    def __ckeck(self, other):
-        # Check si tout les paramètres sont identiques
+    def __diff__(self, other):
+        env_logger.debug(f'Check differences with another environment')
+
+        if other == self.env:
+            return True
+        
+        elif other.language == self.env.language:
+            if other.environment == self.env.environment:
+                return True
+        else:
+            env_logger.critical(f'Compare only a similar object')
+            raise EnvironmentError(
+                code=ErrorCodeEnv.ENV_ERROR_DIFF,
+                message="Object could not be compare"
+            )        
         return False
 
-    def __add__(self, other):
+    def __mix__(self, other):
         # Ajoute les fonctions de 'other' dans self
         # a condition que tout les paramètres soient identiques
+        env_logger.critical(f'MIX ENV. IS NOT IMPLEMENTED')
+        return NotImplemented
 
-        return self
 
-   
+    # ============================================
+    # Copy of Environment object
+
+    #def copy(self,):
+    #    _env = type(self)(
+    #        backend_env=self._backend_env,)
+    #    return _env
    
     # ============================================
     # Standard function from Backend attribute
 
     def open(self):
-        value =  self.__call__("open")
-        return value()
-
+        env_logger.debug(f'Open environment ')
+        return self.__call__("open")()
+        
     def close(self,):
-        value = self.__call__("close")
-        return value()
+        env_logger.debug(f'Close environment ')
+        return self.__call__("close")()
     
     def create(self, **kwargs):
-        value = self.__call__("create")
-        return value(**kwargs)
+        env_logger.debug(f'Create environment ')
+        return self.__call__("create")(**kwargs)
     
     def update(self,**kwargs):
-        value = self.__call__("update")
-        return value(**kwargs)
+        env_logger.debug(f'Update environment ')
+        return self.__call__("update")(**kwargs)
+
+
+class Environment(EnvironMixin):
+
+    __slots__ = (
+        'name',
+        'language',
+        'backend_env',
+    )
+
+    def __init__(
+            self,
+            *,
+            name='env',
+            language='python3', 
+            backend_env=ENVIRONMENT_TYPE.PYTHON,
+            **kwargs
+        ):
+         
+        try:
+            super().__post_init__(
+                backend_env=ENVIRONMENT_TYPE.get(backend_env),
+                **kwargs
+            )
+        except:
+            raise EnvironmentError(
+                code=ErrorCodeEnv.ENV_ERROR_BUILD,
+                message="Environment is not properly build"
+            )        
+        
+        self.name = name
+        self.language = language
+
+    def __repr__(self):
+        return f" (Environment: {self.name} ; Language: {self.language} ; Backend: {self.env.__name__} ) "
+    
+
+    def to_config(self):
+        return {}
+    
+    def to_dict(self):
+
+        with safe_operation(
+                'Build dict from Environment',
+                code=ErrorCodeEnv.ENV_ERROR_SERIALIZATION,
+                ERROR=EnvironmentError ):
+            
+            return {
+                'name': self.name,
+                'language': self.language,
+                'backend_env': self.env.__name__,
+                'parameters': self.env.parameters,
+            }
+    
+    @classmethod
+    def from_dict(cls, **data: dict):
+
+        with safe_operation(
+                'Build Environment from dict',
+                code=ErrorCodeEnv.ENV_ERROR_DESERIALIZATION,
+                ERROR=EnvironmentError ):
+
+            return cls(
+                name=data.get('name', 'env'),
+                language=data.get('language', 'python3'),
+                backend_env=data.get('backend_env', ENVIRONMENT_TYPE.PYTHON),
+                **data.get('parameters', {})
+            )
+
+
+
+
+
+
+
+
+
 
 
 

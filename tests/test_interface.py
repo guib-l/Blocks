@@ -1,117 +1,134 @@
-import os,sys
+import os
+import sys
 import time
-from datetime import *
-from copy import copy, deepcopy
-from typing import Any, Dict, TypeVar
+from typing import *
 from configs import *
 
-from blocks.nodes.node import Node
+
 from blocks.base import *
+from blocks.nodes.node import Node
 
-from blocks.socket.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.datapacket import DataPacket,DataPacketPriority,DataPacketType
 
-
-class Environment:
-    ... # Placeholder for environment methods 
-    # could include setup, teardown, config management, etc.
+from blocks.interface.interface import INTERFACE
 
 
-class Executor:
-    # Placeholder for executor methods 
-    # could include task execution, job management, etc.
-    ... 
 
 if __name__ == "__main__":
-      
-  
-   # Initialisation d'un Block
-    node1 = Node.load(name='function-test',
-                      directory=BLOCK_PATH)
-    print(node1)
-    node2 = Node.load(name='function-test',
-                      directory=BLOCK_PATH)
-    print(node2)
-    node3 = Node.load(name='function-test',
-                      directory=BLOCK_PATH)
-    print(node3)
 
-    print("Nodes instance created successfully.")
+    # ===============================================
+    # Récupération et exécution dans son environnement
+    print("\n"+"*"*40)
 
+    start = time.time()
+    node = Node.load(name='HC',
+                     ntype='prototype',
+                     directory=BLOCK_PATH)
+    end = time.time()
+    print(node)
+    print("Node instance created successfully.")
+    print(f'Instance created in {end-start} s.')
 
-    interface1 = Interface(node=node1)
-    interface2 = Interface(node=node2)
-    interface3 = Interface(node=node3)
+    # ================================================
+    # Interface simple
+    print("\n"+"="*40)
 
-    msg = MESSAGE(FROM=node1.id, 
-                  TO=node2.id, 
-                  SUBJECT="test_subject", 
-                  DATA={"key": "value"})
-    result = interface2.receive(msg,1)
-    print(result)
+    interf_0 = INTERFACE.SIMPLE(node)
+    print('Interface : ',interf_0)
 
+    interf_1 = INTERFACE.SIMPLE(node)
+    interf_2 = INTERFACE.SIMPLE(node)
 
+    input_message = {'n': 5}
+    print(f"Input Message: {input_message}")
 
-    msgs = [
-            MESSAGE(FROM=node2.id, 
-                    TO=node3.id, 
-                    SUBJECT="subject1", 
-                    DATA={"key1": "value1"}),
-            MESSAGE(FROM=node2.id, 
-                    TO=node3.id, 
-                    SUBJECT="subject2", 
-                    DATA={"key2": "value2"}),
-            MESSAGE(FROM=node2.id, 
-                    TO=node3.id, 
-                    SUBJECT="subject3", 
-                    DATA={"key3": "value3"})
-        ]
+    transform = lambda data : {'n': min(data['result'],9)}
 
+    start = time.time()
+    interf_0.input = input_message
 
-    results = interface3.receive(msgs)
-    print(results)
-    print("Messages received successfully.")
+    interf_0.execute()
+    interf_1.input = interf_0.output
 
-    interface3.provide('key1', 'value_1',output_index=0)
-    interface3.provide('key2', 'value_2',output_index=1)
-    print(interface3.output)
-    print("Messages provided successfully.")
+    interf_1.apply_transformer(transformer=transform)
+
+    interf_1.execute()
+    interf_2.input = interf_1.output
+
+    interf_2.apply_transformer(transformer=transform)
+
+    interf_2.execute()
+
+    end = time.time()
+    print(f'Message assigned in {end-start} s.')
 
 
-    # Test sending multiple messages
-    msgs = [
-            MESSAGE(FROM=node1.id, 
-                    TO=node2.id, 
-                    SUBJECT="subject1", 
-                    DATA={"key1": "value1"}),
-            MESSAGE(FROM=node1.id, 
-                    TO=node2.id, 
-                    SUBJECT="subject2", 
-                    DATA={"key1": "value2"}),
-            ]
-    
-    results = interface1.send(msgs)
-    print(results)
-    print("Messages sent successfully.")
+    # ===============================================
+    # Interface avancée
+    print("\n"+"="*40)
 
-    interface2.input = msgs
-    print("Interface input set successfully.")
+    input_message_1 = DataPacket(
+        FROM=0,
+        TO=1,
+        TYPE=DataPacketType.DIRECT,
+        SUBJECT=node.name,
+        PRIORITY=DataPacketPriority.HIGH,
+        DATA={"n": 7}
+    )
+    input_message_2 = DataPacket(
+        FROM=-1,
+        TO=1,
+        TYPE=DataPacketType.DIRECT,
+        SUBJECT=node.name,
+        PRIORITY=DataPacketPriority.HIGH,
+        DATA={"n": 8}
+    )
+    input_message_3 = DataPacket(
+        FROM=-2,
+        TO=1,
+        TYPE=DataPacketType.DIRECT,
+        SUBJECT=node.name,
+        PRIORITY=DataPacketPriority.HIGH,
+        DATA={"n": 8, 'k':5},
+        TRANSFORM=None  
+    )
 
-    interface1.output = msgs
-    print("Interface output set successfully.")
+    print(f"Input Message: {input_message_1}")
 
-    mrg = interface1.merge()
-    print("Merged DATA:", mrg)
-    print("Messages merged successfully.")
+    start = time.time()
+    InterIO = INTERFACE.ADVANCED(node, ignore_conflict=True, ignore_keys=[])
+    print('Interface : ',InterIO)
 
-    interface2.clear_register()
-    print("Interface register cleared successfully.")
+    InterIO.input = input_message_1
+    InterIO.input = input_message_2
+    InterIO.input = input_message_3
 
-    interface1.clear_outputs()
-    print("Interface outputs cleared successfully.")
+    end = time.time()
+    print(f'Instance and message created in {end-start} s.')
+
+    print("\n"+"="*40)
+    print("Input from Interface:", InterIO.input)
+    print("Executing Node via Interface...")
+
+    start = time.time()
+    InterIO.execute(delay=0.,
+                    transformer=lambda data: {d:v for d,v in data.items() if d=='n'})
+    end = time.time()
+    print(f'Execution completed in {end-start} s.')
+
+    InterIO.product_output(TO=2)
+    print("Output from Interface:", InterIO.output)
+
+    sys.exit()
 
 
-    intdict = interface1.to_dict()
-    print(intdict)
+
+
+
+
+
+
+
 
 
 

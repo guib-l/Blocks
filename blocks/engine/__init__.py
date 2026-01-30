@@ -4,66 +4,55 @@ import json
 
 from enum import Enum
 
-from .python_env import _empty_env,_python_env
-from serializable import simple_serializable
-
-class ExecutionError(RuntimeError):
-    """Base class of error types related to Execution."""
-
-class ExecutionSetupError(ExecutionError):
-    """Execution cannot be performed with the given parameters."""
-
-class ExecutionFailed(ExecutionError):
-    """Calculation failed unexpectedly."""
-
-class ExecutionNotFound(ExecutionError):
-    """Execution not found in the given path."""
-
-class EnvironmentError(ExecutionSetupError):
-    """Raised if Execution is not properly set up with Block."""
-
-class InputError(ExecutionSetupError):
-    """Raised if inputs given to the calculator were incorrect."""
-
-class OutputError(ExecutionSetupError):
-    """Raised if inputs given to the calculator were incorrect."""
+from .envPy import EnvEmpty,EnvPython
+from tools.serializable import SerializableMixin
 
 
-class Language(Enum):
+
+
+class Language:
     PYTHON   = 'python'
     R        = 'r'
     JULIA    = 'julia'
     MATLAB   = 'matlab'
     BASH     = 'bash'
 
-
-class _env_mixin:
-    
     @classmethod
-    def to_dict(cls):
-        attr = {
-            k:v for k,v in cls.__dict__.items()
-                if not k.startswith('__')
+    def get(cls, key):
+        if not isinstance(key, str):
+            return key
+        
+        mapping = {
+            'PYTHON': cls.PYTHON,
+            'R': cls.R,
+            'JULIA': cls.JULIA,
+            'MATLAB': cls.MATLAB,
+            'BASH': cls.BASH,
         }
-        return attr
-    
-    @classmethod
-    def to_json(cls):
-        return json.dump(cls.to_dict)
-    
+        return mapping.get(key.upper(), PYTHON)
 
 
-#@simple_serializable
-class PYTHON(_env_mixin):
-    environment = _empty_env
+
+
+class PYTHON:
+    """
+    Python environment configuration
+        - environment : EnvPython
+        - language    : Language.PYTHON
+        - parameters  : dict(empty)
+    """
+    environment = EnvEmpty
     language    = Language.PYTHON
     parameters  = {}
 
-
-
-#@simple_serializable
-class PYTHON_PIP(_env_mixin):
-    environment = _python_env
+class PYTHON_PIP:
+    """
+    Python environment configuration with pip package manager
+        - environment : EnvPython
+        - language    : Language.PYTHON
+        - parameters  : dict with pip settings
+    """
+    environment = EnvPython
     language    = Language.PYTHON
     parameters  = {
         'directory': '.',
@@ -76,7 +65,42 @@ class PYTHON_PIP(_env_mixin):
     }
 
 
+class ENVIRONMENT_TYPE:
+    """
+    Environment types available in Blocks Engine.
+        - PYTHON : Basic Python environment
+        - PYTHON_PIP : Python environment with pip package manager
+    """
+    
+    PYTHON = PYTHON
+    PYTHON_PIP = PYTHON_PIP
 
+    @classmethod
+    def get(cls, key):
+        if not isinstance(key, str):
+            return key
+        
+        mapping = {
+            'PYTHON': PYTHON,
+            'PYTHON_PIP': PYTHON_PIP,
+        }
+        return mapping.get(key.upper(), PYTHON)
+    
+
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'language': self.language,
+            'parameters': self.parameters,
+        }
+    
+    @classmethod
+    def from_dict(cls, **data: dict):
+        return cls(
+            name=data.get('name', 'env'),
+            language=data.get('language', 'python3'),
+            **data.get('parameters', {})
+        )
 
 
 

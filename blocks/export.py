@@ -1,41 +1,53 @@
-import blocks
-
-from blocks.nodes.node import Node
-from blocks.engine.execute import Execute
-
-from blocks.engine.environment import Environment,PYTHON
 
 
+from blocks.base.prototype import Prototype
 
 
-def task_node(backend='default',
-              **backend_args):
+from blocks.base.prototype import INSTALLER
+from blocks.engine.environment import Environment
+
+
+
+
+def task_node(backend    = 'default',
+              execute    = None,
+              objectType = Prototype,
+              **properties):
+    
+    
 
     def wrap(function):
-        def wrapper(**kwargs):
+        def wrapper_func(**kwargs):
             data_set = {
-                'name': 'task_' + str(function.__name__),
+                'name': str(function.__name__),
                 'id': None,
                 'version': '0.0.1',
-                'path': "",
-                '_build': False,
-                '_mandatory_attr': False,
+                'mandatory_attr': False,
+                'methods':[function,],
+                'allowed_name': [function.__name__,],
                 'metadata': {'source': 'Task', 
                             'version': 1.0,
                             'description': ''},
-                '_environment': Environment(functions=[function,],
-                                            language='python3', 
-                                            backend_env=PYTHON,
-                                            build=True,),
-                '_executor': Execute(backend=backend, 
-                                     **backend_args),}
+                'installer': INSTALLER.PYTHON,
+                'installer_config':{
+                    'auto':False,
+                },
+                'environment': Environment,
+                'environment_config':{},
+                'executor': None,
+                'executor_config':{},
+            }
+            data_set.update(properties)
             
-            if not kwargs == {}:
-                return Node(**data_set).execute(**kwargs)
+            tmp_node = objectType(**data_set)
             
-            return Node(**data_set)
-        return wrapper
+            return tmp_node
+            
+        return wrapper_func
     return wrap
+
+
+
 
 
 def export_function(name='function',

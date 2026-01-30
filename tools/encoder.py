@@ -17,7 +17,7 @@ class BaseJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-class BaseBlockJSONEncoder(json.JSONEncoder):
+class BlockJSONEncoder(json.JSONEncoder):
     
     def default(self, obj: typing.Any):
     

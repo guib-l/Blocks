@@ -24,15 +24,19 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
                  upgrade=False, 
                  with_pip=True, 
                  prompt=None, 
+                 upgrade_deps=False,
                  requirements=None,
-                 auto_build=True):
+                 auto_build=True,
+                 **kwargs):
         
         super().__init__(system_site_packages=system_site_packages, 
                          clear=clear,
                          symlinks=symlinks, 
                          upgrade=upgrade, 
                          with_pip=with_pip,
-                         prompt=prompt,)
+                         prompt=prompt,
+                         upgrade_deps=upgrade_deps,
+                         **kwargs)
         self.env_name = name
         self.directory = directory
         self.env_path = os.path.join(directory, name) if directory and name else None
@@ -48,6 +52,20 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
                 print(f"Virtual environment {self.env_name} created successfully.")
             else:
                 print(f"Failed to create virtual environment {self.env_name}.")
+
+    def __serialize__(self,):
+        return dict(
+            name = self.env_name,
+            directory = self.env_path,
+            system_site_packages = self.system_site_packages,
+            clear = self.clear,
+            symlinks = self.symlinks,
+            upgrade = self.upgrade,
+            with_pip = self.with_pip,
+            prompt = self.prompt,
+            requirements = self.requirements,
+            auto_build = True,)
+    
 
     def copy(self, 
              new_name: str = None,

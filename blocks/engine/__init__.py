@@ -4,8 +4,20 @@ import json
 
 from enum import Enum
 
-from .envPy import EnvEmpty,EnvPython
-from tools.serializable import SerializableMixin
+from blocks.engine.python3.envPy import EnvEmpty,EnvPython
+
+
+from blocks.engine.python3.installerPy import (InstallerPython, 
+                                               InstallerPythonWorkflow)
+from blocks.engine.installer import Installer
+
+
+class INSTALLER:
+    NONE     = None
+    DEFAULT  = Installer
+    PYTHON   = InstallerPython
+    WORKFLOW = InstallerPythonWorkflow
+
 
 
 
@@ -101,12 +113,6 @@ class ENVIRONMENT_TYPE:
             language=data.get('language', 'python3'),
             **data.get('parameters', {})
         )
-
-
-
-
-
-
 
 
 

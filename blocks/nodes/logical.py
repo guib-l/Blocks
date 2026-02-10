@@ -1,18 +1,26 @@
 from typing import *
+from abc import *
+from blocks.base import prototype 
 
-from blocks.interface.signal import Signal
-from blocks.interface.interface import MESSAGE,MessageType
-import node 
-import workflow
+from blocks.utils.logger import *
 
 
-class Condition(node.Node):
 
-    def __init__(self,
-                 **kwargs) -> None:
+class Logical(prototype.Prototype):
 
-        super().__init__(**kwargs)
+    __ntype__ = "logical"
 
+    # -----------------------------------------------------
+    # Logique du noeud à exécuter
+        
+    def forward(self, TYPE=None, **data):
+
+        logger.warning(f"Executing Logicl function {TYPE}")
+
+        func   = self.get_register_methods(name=TYPE).call
+        output = func(**data)            
+        
+        return output
 
 
 

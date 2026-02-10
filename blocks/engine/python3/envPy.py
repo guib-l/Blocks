@@ -10,13 +10,11 @@ from packages.package import Packages
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
-from tools.serializable import SerializableMixin, _std_serialize, _std_deserialize
-
 from blocks.utils.logger import *
 
 
 
-class abstract_env(ABC,SerializableMixin):
+class abstract_env(ABC):
 
     @classmethod  
     @abstractmethod  

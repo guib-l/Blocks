@@ -1,5 +1,7 @@
 from typing import *
 
+from enum import Enum
+
 from blocks.interface.signal import Signal
 from blocks.interface.interface import MESSAGE,MessageType
 import node 

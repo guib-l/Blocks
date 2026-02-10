@@ -18,8 +18,66 @@ class GraphicsError(Exception):
 
 
 
+class Graphics:
 
-class AcyclicGraphMixin:
+    def __init__(
+            self,
+            links=None,
+            first=None,
+            last=None):
+        
+        self._first = first
+        self._last  = last
+
+
+    @property
+    def first(self):
+        """
+        Get the first node to start the topological sort
+        Returns:
+            int: The first node to start the sort
+        """
+        return self._first
+    
+    @first.setter
+    def first(self, first):
+        """
+        Set the first node to start the topological sort
+        Args:
+            first (int): The first node to start the sort
+        """
+        self._first = first
+
+    
+    @property
+    def last(self):
+        """
+        Get the last node to end the topological sort
+        Returns:
+            int: The last node to end the sort
+        """
+        return self._last
+    
+    @last.setter
+    def last(self, last):
+        """
+        Set the last node to end the topological sort
+        Args:
+            last (int): The last node to end the sort
+        """
+        self._last = last
+
+
+
+
+
+
+
+
+
+
+
+class AcyclicGraphMixin(Graphics):
 
     def __init_graph__(self, 
                  links=None, 
@@ -32,6 +90,7 @@ class AcyclicGraphMixin:
             first (int): The first node to start the sort
             last (int): The last node to end the sort
         """
+        super().__init__(first=first, last=last)
         self.frontward  = {}
         self.backward = {}
 
@@ -89,9 +148,8 @@ class AcyclicGraphMixin:
             logger.critical("Format of content not reconized")
             raise GraphicsError("Format of content not reconized")
 
-    def read_graphics(self, data):
-        pass
-        
+
+
 
     @property
     def graphics(self):
@@ -107,42 +165,6 @@ class AcyclicGraphMixin:
         return self._graphics
     
     
-    @property
-    def first(self):
-        """
-        Get the first node to start the topological sort
-        Returns:
-            int: The first node to start the sort
-        """
-        return self._first
-    
-    @first.setter
-    def first(self, first):
-        """
-        Set the first node to start the topological sort
-        Args:
-            first (int): The first node to start the sort
-        """
-        self._first = first
-
-    
-    @property
-    def last(self):
-        """
-        Get the last node to end the topological sort
-        Returns:
-            int: The last node to end the sort
-        """
-        return self._last
-    
-    @last.setter
-    def last(self, last):
-        """
-        Set the last node to end the topological sort
-        Args:
-            last (int): The last node to end the sort
-        """
-        self._last = last
 
     def is_visited(self, node):
         """
@@ -362,8 +384,9 @@ class AcyclicGraphMixin:
         if not self.queue:
             raise StopIteration
         
-        #if self.last in self.visited:
-        #    raise StopIteration
+        #print('c=',self.visited)
+        #print('q=',self.queue)
+        #print('p=',self.progress)
         
         node = self.queue.pop(0)
         self.visited.add(node)
@@ -387,8 +410,8 @@ class AcyclicGraph(AcyclicGraphMixin):
         
         logger.debug("Enter in Acyclic graphics generator")
         super().__init_graph__(links=links, 
-                         first=first, 
-                         last=last) 
+                               first=first, 
+                               last=last,) 
 
     def to_config(self,):
         return {
@@ -396,3 +419,59 @@ class AcyclicGraph(AcyclicGraphMixin):
             'first': self.first,
             'last' : self.last,
         }
+
+
+
+class CyclicGraphMixin(Graphics):
+
+    def __init_graph__(
+            self, 
+            links=None, 
+            first=None, 
+            last=None,):
+        
+        super().__init__(first=first, last=None)
+
+
+    def conditions(
+            self,
+            nodes,
+            condition):
+        pass
+    
+
+    def loop(
+            self,
+            nodes,
+            condition):
+        pass
+
+
+
+class CyclicGraph(CyclicGraphMixin):
+    def __init__(
+            self,
+            links=None,
+            first=None,
+            last=None,):
+        
+        logger.debug("Enter in Cyclic graphics generator")
+        super().__init_graph__(links=links, 
+                               first=first, 
+                               last=last,) 
+
+    def to_config(self,):
+        return {
+            'links': self.link,
+            'first': self.first,
+            'last' : self.last,
+        }
+    
+    def __iter__(self,):
+        pass
+
+    def __next__(self,):
+        pass
+
+
+

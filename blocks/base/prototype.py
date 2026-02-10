@@ -5,9 +5,9 @@ import json
 from typing import *
 
 from blocks.base import block
-from blocks.base import BLOCK_PATH
+from blocks import BLOCK_PATH
 
-from blocks.engine.installerPy import INSTALLER
+from blocks.engine import INSTALLER
 
 from blocks.base.register import Register
 
@@ -194,8 +194,9 @@ class Prototype(block.Block,Register):
             content.update(**structure)
             content.update(**kwargs)
             
-            return cls(**content)
-
+            obj = cls(**content)
+            print(f' \033[1;30m\u21BA {obj.__ntype__} loaded "{name}"\033[0m')
+            return obj
 
 
 
@@ -208,43 +209,60 @@ class Prototype(block.Block,Register):
         Execute the Prototype with given data.
         Redirect stdout/stderr to custom streams
         """
+        error = False
         
         sys.stdout = self.stdout
+        print(f" \u25B6\033[1;30m Executing Prototype '{self.name}'...\033[0m", file=sys.stdout)
 
-        logger.info(f"Executing Prototype '{self.name}'")
+
 
         value   = None
         forward = getattr(self, 'forward', None)
+        logger.info(f"Get forward Prototype methods")
         
         try:
             exec  = self.executor.execute(forward=forward)
             value = exec(**data)
 
         except Exception as e:
+            error = True
             logger.critical(f"Execution failed with message :\n{e}")
-            raise PrototypeError(
+
+            err = PrototypeError(
                 code=ErrorCode.PROTOTYPE_EXECUTION,
                 message=f"Execution failed with message :\n{e}",
                 cause=e
             )
+
+            if not self.ignore_error:
+                raise err
+            
         finally:
-            logger.info('Executing done')
+            txt = f"Execution {self.name} complete"
+
+            if error:
+                print(f' \u274C\033[1;30m {txt} (failed) \033[0m', 
+                      file=sys.stdout)            
+            else:
+                print(f' \u2705\033[1;30m {txt} (succes) \033[0m', 
+                      file=sys.stdout)
+            
+            logger.warning(f"Complete Prototype execution")
         
         sys.stdout = sys.__stdout__
-        
         return value
 
+
+
+
     def forward(self, name=None, **data):
-
-        logger.warning("Executing function in Prototype forward method")
-
 
         with self.environment as env:
 
             func   = self.get_register_methods(name=name).call
             output = func(**data)
-        
-        logger.warning(f"Successful Prototype execution")
+
+
         return output
     
 

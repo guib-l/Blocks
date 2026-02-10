@@ -4,6 +4,7 @@ envs/
 .env/
 .envs/
 myblock/
+archive/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

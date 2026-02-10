@@ -1,4 +1,3 @@
-
 import io
 import sys
 import uuid
@@ -60,8 +59,9 @@ class Block(DataSet):
             codes = [],
             data = {},
             doc = None,
-            stdout = None,
-            stderr = None,
+            stdout = sys.__stdout__,
+            stderr = sys.__stderr__,
+            ignore_error = True,
             **kwargs ):
         """
         Initialize the BaseBlock with given options.
@@ -72,6 +72,8 @@ class Block(DataSet):
         # Gestion stdout/stderr
         self.stdout = stdout or sys.stdout
         self.stderr = stderr or sys.stderr
+
+        self.ignore_error = ignore_error
 
         self.__name__    = None
         self.__id__      = None
@@ -100,22 +102,22 @@ class Block(DataSet):
     @property
     def stdout(self) -> TextIO:
         """Get the current stdout stream."""
-        return self._stdout
-        #return sys.stdout
+        return sys.stdout
     
     @stdout.setter
     def stdout(self, stream: Optional[TextIO]=None):
         """Set a custom stdout stream."""
-        if stream=='LOGGER':
-            stream = StreamLogger(logger=logger, 
-                                  level=logging.DEBUG)
+
+        if isinstance(stream, logging.Logger):
+            stream = StreamLogger(logger=stream, 
+                                  level=LOGGER_BLOCK_LEVEL)
 
         if not hasattr(stream, 'write'):
             raise BlockError(
                 code=ErrorCode.BLOCK_INVALID_TYPE,
                 message="stdout stream must have a write() method."
             )
-        self._stdout = stream 
+        #self._stdout = stream 
         sys.stdout = stream
     
     @property
@@ -127,14 +129,17 @@ class Block(DataSet):
     @stderr.setter
     def stderr(self, stream: Optional[TextIO]):
         """Set a custom stderr stream."""
-        if stream=='LOGGER':
-            stream = StreamLogger(logger=logger, 
-                                  level=logging.ERROR)
+
+        if isinstance(stream, logging.Logger):
+            stream = StreamLogger(logger=stream, 
+                                  level=LOGGER_BLOCK_LEVEL)
+            
         if not hasattr(stream, 'write'):
             raise BlockError(
                 code=ErrorCode.BLOCK_INVALID_TYPE,
                 message="stderr stream must have a write() method."
             )
+        
         #self._stderr = stream 
         sys.stderr = stream
     

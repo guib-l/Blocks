@@ -1,8 +1,14 @@
 import os
 import sys
 
-from blocks.interface.interface import (MessageType,MESSAGE,Interface)
+from blocks.interface.interface import (Interface)
 from blocks.nodes.workflow import Workflow
+
+
+
+
+
+
 
 class Project(Workflow):
 
@@ -14,6 +20,8 @@ class Project(Workflow):
         super().__init__(_mandatory_attr=False, 
                          _interface=global_interface,
                          **kwargs)
+        
+    
 
 
 

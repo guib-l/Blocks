@@ -2,6 +2,8 @@ import os,sys
 import time
 from configs import *
 
+from blocks import BLOCK_PATH
+
 from blocks.base import *
 from blocks.base.prototype import Prototype
 
@@ -11,7 +13,7 @@ from blocks.nodes.workflow import Workflow
 
 from blocks.engine.execute import Execute
 
-from blocks.base.prototype import INSTALLER
+from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
 
@@ -19,10 +21,9 @@ from blocks.interface.queue import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
+from blocks.utils.logger import logger
 
-
-
-
+from blocks.engine.transformer import Transformer
 
 if __name__ == "__main__":
       
@@ -31,10 +32,9 @@ if __name__ == "__main__":
     print("\n"+"*"*40)
 
     start = time.time()
-    node = Node.load(name='HC',
+    node = Node.load(name='basics_prototype',
                      ntype='prototype',
-                     directory=BLOCK_PATH,
-                     stdout='LOGGER', )
+                     directory=BLOCK_PATH,)
     end = time.time()
     print(node)
     print("Node instance created successfully.")
@@ -45,7 +45,17 @@ if __name__ == "__main__":
 
     # ===============================================
     def transf(data):
+        if data['result']==0:
+            return {'n':None}
         return {'n': data['result']}
+    
+    
+
+    transf = Transformer(
+        rename_attr = [('result','n'),],
+        modify_attr = [('n',3),],
+        ignore_attr = []
+    )
 
     # Lancement du workflow
     print("\n"+"*"*40)
@@ -53,8 +63,9 @@ if __name__ == "__main__":
         'name': 'workflow-test',
         'id': None,
         'version': '0.0.1',
-        'stdout': 'LOGGER',
+        'stdout': sys.stdout,
         'stderr': sys.stderr,
+        'ignore_error':False,
         'directory':BLOCK_PATH,
         'mandatory_attr': False,
         'metadata': {'source': 'generated', 
@@ -92,7 +103,7 @@ if __name__ == "__main__":
             'HC_node_3': {'node':node,
                           'method_name':'basic_function',
                           'ntype':Prototype,
-                          'transformer': transf},
+                          'transformer': transf.to_config()},
         }
     }
 
@@ -115,7 +126,7 @@ if __name__ == "__main__":
 
     print(wk.communicate)
 
-    wk.execute(n=3)
+    wk.execute(n=0)
 
     wk.install()
 
@@ -126,7 +137,6 @@ if __name__ == "__main__":
         name='workflow-test',
         directory=BLOCK_PATH,
         ntype="workflow",
-#        stdout='LOGGER'
     )
     print(new_wk)
     print("Workflow instance loaded successfully.")
@@ -154,7 +164,7 @@ if __name__ == "__main__":
     # ===============================================
     print("\n"+"="*40)
 
-    with Workflow.create(stdout='LOGGER') as wkc:
+    with Workflow.create(stdout=sys.stdout) as wkc:
 
         wkc.import_node(
             new_wk,

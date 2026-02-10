@@ -5,6 +5,8 @@ import asyncio
 from copy import copy, deepcopy
 from typing import *
 
+from blocks.utils.logger import *
+
 from queue import Queue
 from blocks.interface.queue import QUEUE,DataQueue,DataPacketQueue
 
@@ -62,10 +64,12 @@ class Communication:
             raise CommunicateGraphics("Failed to update graphics") from e
 
     def __enter__(self):
+        logger.debug("Successful open communications")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.queue.empty()
+        logger.debug("Successful exit communications")
         
 
 
@@ -105,7 +109,9 @@ class DirectCommunication(Communication):
                     break
             
             interf.input = self.queue.get()
-            
+
+            print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
+
             yield interf
 
             if interf.output is not None:
@@ -147,12 +153,16 @@ class LabelCommunication(Communication):
 
         for i,node_label in enumerate(self.graphics):
 
+            print("Node label = ",node_label)
+
             for label,intf in self.interface:
                 if label == node_label:
                     interf = intf
                     break
             
             interf.input = self.queue.get(label=node_label)
+            
+            print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
             
             yield node_label,interf
 

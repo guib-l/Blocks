@@ -164,6 +164,13 @@ class LabelCommunication(Communication):
             
             print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
             
+            # Ajouter un '
+            # try:
+            #   node.resolved(interf.input)
+            # except:pass' et 
+            # retourner le prochin noeud directement sans renvoyer 
+            # le noeud conditinnel 
+
             yield node_label,interf
 
             if interf.output is not None:

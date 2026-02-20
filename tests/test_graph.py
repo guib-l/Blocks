@@ -1,4 +1,8 @@
+import time
+
 from configs import *
+
+
 
 
 class  GRAPH_NODE:
@@ -9,9 +13,9 @@ class  GRAPH_NODE:
             FROM=None, 
             TO=None):
         
-        self.NAME  = NAME
-        self.FROM  = FROM
-        self.TO    = TO
+        self.NAME  = NAME 
+        self.FROM  = FROM 
+        self.TO    = TO 
 
     def __repr__(self):
         return f" {self.FROM} -> ({self.NAME}) -> {self.TO} "
@@ -32,7 +36,8 @@ class GRAPH_COND(GRAPH_NODE):
             **kwargs):
         
         super().__init__(NAME, FROM, TO)
-        self.DEFAULT = DEFAULT
+
+        self.DEFAULT = DEFAULT #if isinstance(DEFAULT,list) else [DEFAULT]
         self.method = method
         self.switch = switch or {}
 
@@ -57,14 +62,43 @@ class GRAPH_LOOP(GRAPH_NODE):
             self, 
             NAME="node-graph-00", 
             FROM=None, 
-            TO=None):
+            TO=None,
+            RETURN=None,
+            epoch=1,
+            method=None,
+            switch=None,
+            **kwargs):
         
         super().__init__(NAME, FROM, TO)
 
-    def resolved(self, **data):
-        ...
+        self.RETURN = RETURN
+        self.epoch = epoch
+        self.method = method
+        self.switch = switch or {}
 
-
+    def resolve(self, **data):
+        #try:
+        #    if self.method is not None and self.switch is not None:
+        #        results = self.method(**data)
+        #        for key,item in self.switch.items():
+        #            if item==results:
+        #                self.TO = [key]
+        #                return
+        #    if self.epoch > 0:
+        #        self.epoch -= 1
+        #        self.TO = [self.NAME]
+        #    else:
+        #        self.TO = [self.DEFAULT]
+        #except Exception as e:
+        #    if self.epoch > 0:
+        #        self.epoch -= 1
+        #        self.TO = [self.NAME]
+        #    else:
+        #        self.TO = [self.DEFAULT]
+        print(self.epoch, self.TO, self.RETURN)
+        self.epoch -= 1
+        if self.epoch <= 0:
+            self.TO = self.RETURN
 
 class Graphics:
     def __init__(
@@ -282,7 +316,8 @@ class CyclicGraphic(Graphics):
             links=None, 
             first=None, 
             last=None, 
-            allow_cycles=True):
+            allow_cycles=True,
+            max_nodes=999):
         
         super().__init__(links, first, last, allow_cycles)
 
@@ -295,6 +330,9 @@ class CyclicGraphic(Graphics):
 
         self.graphic = []
         self.num_condition = 0
+        self.num_loop = 0
+
+        self.max_nodes = max_nodes
 
 
     def add_condition(
@@ -306,12 +344,11 @@ class CyclicGraphic(Graphics):
             method=None,
             switch=None,
             name=None,):
-        import time
+        
         self.num_condition += 1
         
         if name is None:
             name = f"{ctype}-{self.num_condition:04d}"
-        
         
         for st in start:
             self.add_link(st,name)
@@ -329,6 +366,44 @@ class CyclicGraphic(Graphics):
                          'switch':switch
                         }
                     },
+            }
+        )
+        self.set_nodes()
+
+    def add_loop(
+            self,
+            start=None,
+            end=None,
+            epoch=1,
+            ctype='FOR',
+            method=None,
+            switch=None,
+            name=None,):
+        
+        self.num_loop += 1
+        if name is None:
+            name = f"{ctype}-{self.num_loop:04d}"
+
+        print(self.links,end)
+        back = [dst for src,dst in self.links if src==end[-1]]
+        print(back)
+        for st in start:
+            self.add_link(name,st)
+        for ed in end:
+            self.add_link(ed,name)
+
+
+        self.nodes_type.update(
+            {
+                name:{
+                    'type':GRAPH_LOOP,
+                    'args':{
+                        'RETURN':back,
+                        'epoch':epoch,
+                        'method':method,
+                        'switch':switch
+                    }
+                },
             }
         )
         self.set_nodes()
@@ -381,6 +456,8 @@ class CyclicGraphic(Graphics):
         self.visited = set()
         self.prev_node = None
 
+        self.number_iter = 0
+
         self.queue.append(self.first)
 
         return self
@@ -408,18 +485,25 @@ class CyclicGraphic(Graphics):
         
         node = self.queue.pop(0)
 
-        if node in self.visited:
-            if not self.queue:
-                print('No more nodes to visit. Stopping iteration.')
-                raise StopIteration
-            return self.__next__()
+        if not self.allow_cycles:
+            if node in self.visited:
+                if not self.queue:
+                    print('No more nodes to visit. Stopping iteration.')
+                    raise StopIteration
+                return self.__next__()
+            self.visited.add(node)
 
-        self.visited.add(node)
         self.prev_node = node  
         
         if self.last is not None and node == self.last:
             print(f"Reached last node {self.last}. Stopping iteration.")
             raise StopIteration
+        
+        if self.number_iter == self.max_nodes:
+            print(f"Infinite loop. Stopping iteration.")
+            raise StopIteration
+
+        self.number_iter += 1
         
         return self.nodes[node]
 
@@ -460,7 +544,7 @@ if __name__ == "__main__":
     link = [ ('g',2),(4,1),(0,'g'),
             (2,4),(2,54),(3,4),
             ('g',3),(54,8),(3,8), 
-            (96,88) ]
+            (96,52) ]
 
     graph = CyclicGraphic(
         links=link, 
@@ -501,6 +585,61 @@ if __name__ == "__main__":
         g.resolve()
     
 
+    # ==============================================
+
+
+    link = [ ('g',2),(4,1),(0,'g'),
+            (2,4),(2,54),(3,4),
+            ('g',3),(54,8),(3,8), 
+            (96,52),(8,47),(47,9) ]
+
+    graph = CyclicGraphic(
+        links=link, 
+        first=0, 
+        last=None,
+        allow_cycles=True)
+    
+
+    graph.add_loop(
+        start=[2],
+        end=[8],
+        epoch=3,
+        ctype='FOR',
+    )
+    print(graph.nodes)
+
+    for g in graph:
+
+        print('Node : ',g.NAME)
+        g.resolve()
+    
+    sys.exit()
+
+    # ==============================================
+
+
+    link = [ ('g',2),(4,1),(0,'g'),
+            (2,4),(2,54),(3,4),
+            ('g',3),(54,8),(3,8), 
+            (96,52) ]
+
+    graph = CyclicGraphic(
+        links=link, 
+        first=0, 
+        last=None)
+    
+    graph.add_loop(
+        start=[2],
+        end=[8],
+        epoch=3,
+        ctype='WHILE',
+        method=eq,
+        switch={
+            45:True,
+            96:False
+        }    
+    )
+    print(graph.nodes)
 
 
 

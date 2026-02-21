@@ -8,11 +8,11 @@ from blocks.base import *
 from blocks.base.prototype import Prototype
 
 from blocks.nodes.node import Node
-from blocks.nodes.graphics import AcyclicGraph
+#from blocks.nodes.graphics import AcyclicGraph
 from blocks.nodes.workflow import Workflow
 
 from blocks.engine.execute import Execute
-
+from blocks.engine.oriented import AcyclicGraphic
 from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         'environment_config':{},
         'executor': Execute,
         'executor_config':{},
-        'graphics': AcyclicGraph,
+        'graphics': AcyclicGraphic,
         'graphics_config':{
             'links':[('HC_node_1','HC_node_2'), 
                      ('HC_node_2','HC_node_3')],

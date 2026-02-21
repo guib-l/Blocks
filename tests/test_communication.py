@@ -4,12 +4,17 @@ import time
 from typing import *
 from configs import *
 
+from blocks import BLOCK_PATH
 
 from blocks.base import *
 from blocks.nodes.node import Node
 
 from blocks.interface.interface import INTERFACE
 from blocks.interface.communication import COMMUNICATE
+
+from blocks.engine.transformer import Transformer
+
+
 
 if __name__ == "__main__":
 
@@ -18,7 +23,7 @@ if __name__ == "__main__":
     print("\n"+"*"*40)
 
     start = time.time()
-    node = Node.load(name='HC',
+    node = Node.load(name='basics_prototype',
                      ntype='prototype',
                      directory=BLOCK_PATH)
     end = time.time()
@@ -38,7 +43,12 @@ if __name__ == "__main__":
     input_message = {'n': 2}
     print(f"Input Message: {input_message}")
     
-    transform = lambda data : {'n': min(max(2,data['result']),9)}
+    transform = Transformer(
+        rename_attr = [('result','n'),],
+        modify_attr = [('n',3),],
+        ignore_attr = []
+    )
+
 
     start = time.time()
     
@@ -46,6 +56,8 @@ if __name__ == "__main__":
     interf_0.input = input_message
     interf_0.execute()
     interf_1.input = interf_0.output
+
+    sys.exit()
     interf_1.apply_transformer(transformer=transform)
     interf_1.execute()
     interf_2.input = interf_1.output

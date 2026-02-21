@@ -103,6 +103,8 @@ class DirectCommunication(Communication):
 
         for node_label in self.graphics:
 
+            
+
             for label,intf in self.interface:
                 if label == node_label:
                     interf = intf

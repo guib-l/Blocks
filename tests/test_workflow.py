@@ -8,7 +8,6 @@ from blocks.base import *
 from blocks.base.prototype import Prototype
 
 from blocks.nodes.node import Node
-#from blocks.nodes.graphics import AcyclicGraph
 from blocks.nodes.workflow import Workflow
 
 from blocks.engine.execute import Execute
@@ -126,9 +125,10 @@ if __name__ == "__main__":
 
     print(wk.communicate)
 
-    wk.execute(n=0)
+    wk.execute(n=3)
 
     wk.install()
+
 
     # ===============================================
     print("\n"+"="*40)
@@ -142,6 +142,7 @@ if __name__ == "__main__":
     print("Workflow instance loaded successfully.")
 
     new_wk.execute(n=3)
+
 
     # ===============================================
     print("\n"+"="*40)
@@ -158,7 +159,6 @@ if __name__ == "__main__":
     wk.execute(n=3)
 
     wk.del_link('HC_node_3','HC_workflow_1')
-
 
 
     # ===============================================

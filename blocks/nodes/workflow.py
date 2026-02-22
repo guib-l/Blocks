@@ -18,7 +18,7 @@ from blocks.engine import INSTALLER
 from blocks.engine.environment import Environment
 from blocks.engine.execute import Execute
 
-from blocks.nodes.graphics import AcyclicGraph
+from blocks.engine.oriented import AcyclicGraphic
 
 from blocks.interface.queue import QUEUE
 from blocks.interface.communication import COMMUNICATE 
@@ -154,7 +154,7 @@ class Workflow(prototype.Prototype):
         else:
             self.graphics.add_link(origin, to_node)
         
-        self.communicate.update_graphics(self.graphics.graphics)
+        self.communicate.update_graphics(self.graphics)
 
     def del_link(self, origin, to_node=None):
         if isinstance(origin, list):
@@ -162,7 +162,7 @@ class Workflow(prototype.Prototype):
         else:
             self.graphics.del_link(origin, to_node)
         
-        self.communicate.update_graphics(self.graphics.graphics)
+        self.communicate.update_graphics(self.graphics)
 
 
 
@@ -364,7 +364,7 @@ class Workflow(prototype.Prototype):
             environment_config:Optional[Dict[str,Any]]={},
             executor=None,
             executor_config:Optional[Dict[str,Any]]={},
-            graphics=AcyclicGraph,
+            graphics=AcyclicGraphic,
             graphics_config:Optional[Dict[str,Any]]={},
             communicate=COMMUNICATE.LABEL,
             communicate_config:Optional[Dict[str,Any]]={},
@@ -441,7 +441,7 @@ class Workflow(prototype.Prototype):
             print("  (empty graph)")
         else:
             # Display edges
-            for origin, target in self.graphics.link:
+            for origin, target in self.graphics.links:
                 if target:
                     if isinstance(self._register_nodes[target]['node'], Workflow):
                         print(f"  {origin} --> Workflow({target})")
@@ -464,7 +464,7 @@ class Workflow(prototype.Prototype):
 
         try:
             self._communicate = communicate(
-                graphics=self.graphics.graphics,
+                graphics=self.graphics,
                 interface=self._register_interface,
                 queue=self.queue or Queue()
             )
@@ -534,17 +534,18 @@ class Workflow(prototype.Prototype):
             
             comm.send(data)
 
-            for _label,_node in comm.generator():
+            for _graph_node,_interface in comm.generator():
 
-                _node._node.stdout = self.stdout
-                _node._node.stderr = self.stderr
+                _interface._node.stdout = self.stdout
+                _interface._node.stderr = self.stderr
                 
                 transform = self._register_nodes.get(
-                    _label, {}).get('transformer', None)
+                    _graph_node.NAME, {}).get('transformer', None)
                 
+
                 if transform:
                     try:
-                        _node.apply_transformer(transformer=transform)
+                        _interface.apply_transformer(transformer=transform)
 
                     except Exception as e:
                         logger.critical("Error applying transformer")
@@ -556,7 +557,7 @@ class Workflow(prototype.Prototype):
                                 cause=e
                             )
                     
-                _node.execute()
+                _interface.execute()
 
             received_msg = comm.receive()
 

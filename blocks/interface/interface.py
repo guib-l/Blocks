@@ -98,7 +98,7 @@ class Interface:
         self._inputs: Dict|None = {}
         self._output: Dict|None  = None
 
-        self.args = arguments or None
+        self.args = arguments or {}
     
     @property
     def input(self)->Dict|None:

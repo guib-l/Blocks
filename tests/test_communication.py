@@ -23,7 +23,7 @@ if __name__ == "__main__":
     print("\n"+"*"*40)
 
     start = time.time()
-    node = Node.load(name='basics_prototype',
+    node = Node.load(name='heavy_calculation',
                      ntype='prototype',
                      directory=BLOCK_PATH)
     end = time.time()
@@ -56,8 +56,6 @@ if __name__ == "__main__":
     interf_0.input = input_message
     interf_0.execute()
     interf_1.input = interf_0.output
-
-    sys.exit()
     interf_1.apply_transformer(transformer=transform)
     interf_1.execute()
     interf_2.input = interf_1.output
@@ -78,15 +76,15 @@ if __name__ == "__main__":
 
     from queue import Queue
     from blocks.interface.queue import DataQueue
-    from blocks.nodes.graphics import AcyclicGraph
+    from blocks.engine.oriented import AcyclicGraphic
 
     links = [(1,'two'),('two',3)]
-    graph = AcyclicGraph(links=links, first=1, last=3)
+    graph = AcyclicGraphic(links=links, first=1, last=3)
 
     print('Graph : ',graph)
 
     comm_0 = COMMUNICATE.DIRECT(
-        graphics=graph.graphics,
+        graphics=graph,
         interface=[(1,interf_0),
                    ('two',interf_1),
                    (3,interf_2)],
@@ -119,12 +117,12 @@ if __name__ == "__main__":
 
 
     links = [(1,'two'),('two',3)]
-    graph = AcyclicGraph(links=links, first=1, last=3)
+    graph = AcyclicGraphic(links=links, first=1, last=3)
 
     print('Graph : ',graph)
 
     comm_0 = COMMUNICATE.LABEL(
-        graphics=graph.graphics,
+        graphics=graph,
         interface=[(1,interf_0),
                    ('two',interf_1),
                    (3,interf_2)],
@@ -138,7 +136,7 @@ if __name__ == "__main__":
         msg = {'n': 4}        
         comm.send(msg)
 
-        for _node in comm.generator():
+        for _label,_node in comm.generator():
             
             try:
                 _node.apply_transformer(transformer=transform)

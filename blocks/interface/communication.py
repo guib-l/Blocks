@@ -103,12 +103,14 @@ class DirectCommunication(Communication):
 
         for node_label in self.graphics:
 
-            
+            _label = node_label.NAME \
+                if hasattr(node_label,'NAME') else str(node_label)
 
             for label,intf in self.interface:
-                if label == node_label:
+                if label == _label:
                     interf = intf
                     break
+
             
             interf.input = self.queue.get()
 
@@ -137,12 +139,12 @@ class LabelCommunication(Communication):
         
     def send(self, data:Any, label=None):
         if label is None:
-            label = self.graphics[0]
+            label = self.graphics.first
         self.queue.put(data, label=label)
 
     def receive(self,label=None) -> Any:
         if label is None:
-            label = self.graphics[-1]
+            label = self.graphics.prev_node
         if self.queue.not_empty:
             return self.queue.get(label=label)
         return None
@@ -153,31 +155,30 @@ class LabelCommunication(Communication):
             raise CommunicateGraphics(
                 "Graphics and interface must be defined for communication.")
 
-        for i,node_label in enumerate(self.graphics):
+        for i,node in enumerate(self.graphics):
 
-            print("Node label = ",node_label)
+            print("Node label = ",node)
+
 
             for label,intf in self.interface:
-                if label == node_label:
+                if label == node.NAME:
                     interf = intf
                     break
             
-            interf.input = self.queue.get(label=node_label)
+            interf.input = self.queue.get(label=node.NAME)
             
             print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
             
-            # Ajouter un '
-            # try:
-            #   node.resolved(interf.input)
-            # except:pass' et 
-            # retourner le prochin noeud directement sans renvoyer 
-            # le noeud conditinnel 
-
-            yield node_label,interf
+            try:
+                node.resolve(interf.input)
+            except:
+                pass
+            
+            yield node,interf
 
             if interf.output is not None:
                 try:
-                    self.queue.put(interf.output, label=self.graphics[i+1])
+                    self.queue.put(interf.output, label=self.graphics.next_node)
                 except IndexError:
                     self.queue.put(interf.output, label=self.graphics[i])
 

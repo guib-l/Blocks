@@ -137,11 +137,16 @@ class Graphics:
                      'args':{}}
             }
         )
+        if self.first is None:
+            self.first = src
 
         if node:
             self.set_nodes()
 
     def add_links(self, links):
+
+        if links is None:
+            return
         for link in links:
             self.add_link(link[0], link[1], node=False)
 
@@ -205,6 +210,12 @@ class Graphics:
                     if src==node or dst==node]
             )
 
+    def to_config(self,):
+        return {
+            'links': self.links,
+            'first': self.first,
+            'last' : self.last,
+        }
 
 
 

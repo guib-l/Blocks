@@ -25,6 +25,9 @@ class AcyclicGraphic(Graphics):
         self.queue = []
         self.visited = set()
 
+        self.next_node = None
+        self.prev_node = None
+
         self._graphics = []
 
     @property
@@ -84,6 +87,9 @@ class AcyclicGraphic(Graphics):
 
             if self.last is not None and current == self.last:
                 break
+        
+        self.next_node = self._graphics[1]
+        self.prev_node = []
 
         
 
@@ -103,7 +109,10 @@ class AcyclicGraphic(Graphics):
         if not self.queue:
             raise StopIteration
 
+        self.prev_node = self.next_node
         node = self.queue.pop(0)
+        self.next_node = self.queue[0] if self.queue else []
+
 
         if node in self.visited:
             if not self.queue:
@@ -112,7 +121,7 @@ class AcyclicGraphic(Graphics):
 
         self.visited.add(node)
         
-        return node
+        return self.nodes[node]
 
 
 

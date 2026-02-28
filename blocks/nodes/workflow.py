@@ -20,7 +20,7 @@ from blocks.engine.execute import Execute
 
 from blocks.engine.oriented import AcyclicGraphic
 
-from blocks.interface.queue import QUEUE
+from blocks.interface.buffer import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
@@ -492,10 +492,12 @@ class Workflow(prototype.Prototype):
         forward = getattr(self, 'forward', None)
         logger.info(f"Get forward Workflow methods")
 
+        exec  = self.executor.execute(forward=forward)
+        value = exec(**data)
         try:
-            exec  = self.executor.execute(forward=forward)
-            value = exec(**data)
-
+        #    exec  = self.executor.execute(forward=forward)
+        #    value = exec(**data)
+            pass
         except Exception as e:
             logger.critical(f"Execution failed with message :\n{e}")
 
@@ -522,6 +524,8 @@ class Workflow(prototype.Prototype):
         txt = "="*40
         print(f' \033[1;30m{txt}\033[0m')
         sys.stdout = sys.__stdout__
+
+        print(f"Final output of workflow '{self.name}': {value}")
         return value
 
 
@@ -559,7 +563,8 @@ class Workflow(prototype.Prototype):
                     
                 _interface.execute()
 
-            received_msg = comm.receive()
+            received_msg = comm.receive(label=_graph_node.NAME)
+            print("Received message : ",received_msg)
 
         return received_msg
 

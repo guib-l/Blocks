@@ -11,12 +11,12 @@ from blocks.nodes.node import Node
 from blocks.nodes.workflow import Workflow
 
 from blocks.engine.execute import Execute
-from blocks.engine.oriented import AcyclicGraphic
+from blocks.engine.oriented import AcyclicGraphic,CyclicGraphic
 from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
 
-from blocks.interface.queue import QUEUE
+from blocks.interface.buffer import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     transf = Transformer(
         rename_attr = [('result','n'),],
-        modify_attr = [('n',3),],
+        modify_attr = [],
         ignore_attr = []
     )
 
@@ -125,9 +125,8 @@ if __name__ == "__main__":
 
     print(wk.communicate)
 
-    wk.execute(n=3)
-
-    wk.install()
+    #wk.execute(n=3)
+    #wk.install()
 
 
     # ===============================================
@@ -141,7 +140,7 @@ if __name__ == "__main__":
     print(new_wk)
     print("Workflow instance loaded successfully.")
 
-    new_wk.execute(n=3)
+    #new_wk.execute(n=3)
 
 
     # ===============================================
@@ -153,12 +152,12 @@ if __name__ == "__main__":
         transformer=transf )
 
     wk.add_link('HC_node_3','HC_workflow_1')
-
+    wk.graphics.build()
     print( 'Graphics: ',wk.graphics.graphics )
 
-    wk.execute(n=3)
+    #wk.execute(n=3)
 
-    wk.del_link('HC_node_3','HC_workflow_1')
+    #wk.del_link('HC_node_3','HC_workflow_1')
 
 
     # ===============================================
@@ -183,6 +182,46 @@ if __name__ == "__main__":
 
     wkc.draw()
 
+    #sys.exit()
+
+
+    # ===============================================
+    print("\n"+"="*40)
+
+    with Workflow.create(stdout=sys.stdout,
+                         graphics=CyclicGraphic) as wkc:
+
+        wkc.import_node(
+            new_wk,
+            'HC_workflow_1',
+            transformer=None )
+
+
+        wkc.import_node(
+            new_wk,
+            'HC_workflow_2',
+            transformer=transf )
+        
+        wkc.add_link([('HC_workflow_1','HC_workflow_2')])
+
+        wkc.import_node(
+            node,
+            'HC_node_1a',
+            method_name="basic_function",
+            transformer=transf )
+        
+        wkc.add_link([('HC_workflow_2','HC_node_1a')])
+
+        wkc.import_node(
+            node,
+            'HC_node_2b',
+            method_name="basic_function",
+            transformer=transf )
+        
+        wkc.add_link([('HC_node_1a','HC_node_2b')])
+
+
+    wkc.execute(n=3)
 
 
     sys.exit()

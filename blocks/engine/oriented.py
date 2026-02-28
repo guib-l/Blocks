@@ -27,6 +27,7 @@ class AcyclicGraphic(Graphics):
 
         self.next_node = None
         self.prev_node = None
+        self.current_node = None
 
         self._graphics = []
 
@@ -88,8 +89,9 @@ class AcyclicGraphic(Graphics):
             if self.last is not None and current == self.last:
                 break
         
-        self.next_node = self._graphics[1]
-        self.prev_node = []
+        self.next_node = self.nodes[self._graphics[1]]
+        self.current_node = self.nodes[self._graphics[0]]
+        self.prev_node = None
 
         
 
@@ -109,9 +111,10 @@ class AcyclicGraphic(Graphics):
         if not self.queue:
             raise StopIteration
 
-        self.prev_node = self.next_node
+        self.prev_node = self.current_node
         node = self.queue.pop(0)
-        self.next_node = self.queue[0] if self.queue else []
+        self.current_node = self.nodes[node]
+        self.next_node = self.nodes[self.queue[0]] if self.queue else []
 
 
         if node in self.visited:
@@ -120,7 +123,6 @@ class AcyclicGraphic(Graphics):
             return self.__next__()
 
         self.visited.add(node)
-        
         return self.nodes[node]
 
 
@@ -151,6 +153,10 @@ class CyclicGraphic(Graphics):
         self.num_loop = 0
 
         self.max_nodes = max_nodes
+
+        self.next_node = None
+        self.prev_node = None
+        self.current_node = None
 
 
     def add_condition(
@@ -271,7 +277,9 @@ class CyclicGraphic(Graphics):
         self.build()
         self.queue = []
         self.visited = set()
+
         self.prev_node = None
+        self.current_node = self.nodes[self.first]
 
         self.number_iter = 0
 
@@ -281,8 +289,9 @@ class CyclicGraphic(Graphics):
     
     def __next__(self):
         
+
         if self.prev_node is not None:
-            prev_node_obj = self.nodes[self.prev_node]
+            prev_node_obj = self.prev_node
             
             if hasattr(prev_node_obj, 'DEFAULT'):
                 
@@ -298,6 +307,8 @@ class CyclicGraphic(Graphics):
             for next_node in next_nodes:
                 if next_node not in self.visited and next_node not in self.queue:
                     self.queue.append(next_node)
+
+        self.prev_node = self.current_node
         
         if not self.queue:
             raise StopIteration
@@ -312,7 +323,6 @@ class CyclicGraphic(Graphics):
                 return self.__next__()
             self.visited.add(node)
 
-        self.prev_node = node  
         
         if self.last is not None and node == self.last:
             print(f"Reached last node {self.last}. Stopping iteration.")
@@ -324,6 +334,9 @@ class CyclicGraphic(Graphics):
 
         self.number_iter += 1
         
+        self.current_node = self.nodes[node]
+        self.next_node = self.nodes[self.queue[0]] if self.queue else None
+
         return self.nodes[node]
 
 

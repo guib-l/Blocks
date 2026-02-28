@@ -8,7 +8,7 @@ from typing import *
 from blocks.utils.logger import *
 
 from queue import Queue
-from blocks.interface.queue import QUEUE,DataQueue,DataPacketQueue
+from blocks.interface.buffer import QUEUE, DataBuffer, RedisDataBuffer
 
 
 class CommunicationException(Exception):
@@ -63,12 +63,15 @@ class Communication:
         except Exception as e:
             raise CommunicateGraphics("Failed to update graphics") from e
 
+    def reset(self):
+        self.queue.reset()
+
     def __enter__(self):
         logger.debug("Successful open communications")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.queue.empty()
+        self.reset()
         logger.debug("Successful exit communications")
         
 
@@ -81,18 +84,18 @@ class DirectCommunication(Communication):
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=Queue()):
+                 queue=DataBuffer()):
         
         super().__init__(graphics=graphics,
                          interface=interface,
                          queue=queue)
         
     def send(self, data:Any, label=None):
-        self.queue.put(data)
+        self.queue.deposit(data, label=label)
 
     def receive(self,) -> Any:
-        if self.queue.not_empty:
-            return self.queue.get()
+        if self.queue.has_data():
+            return self.queue.withdraw()
         return None
 
     def generator(self):
@@ -101,10 +104,10 @@ class DirectCommunication(Communication):
             raise CommunicateGraphics(
                 "Graphics and interface must be defined for communication.")
 
-        for node_label in self.graphics:
+        for _node in self.graphics:
 
-            _label = node_label.NAME \
-                if hasattr(node_label,'NAME') else str(node_label)
+            _label = _node.NAME \
+                if hasattr(_node,'NAME') else str(_label)
 
             for label,intf in self.interface:
                 if label == _label:
@@ -112,14 +115,24 @@ class DirectCommunication(Communication):
                     break
 
             
-            interf.input = self.queue.get()
+            interf.input = self.queue.withdraw()
+            print(f"Getting input for node '{_node}' from queue...")
+            print(interf.input)
+
+
 
             print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
 
             yield interf
 
+
+            try:
+                _node.resolve(interf.output)
+            except:
+                pass
+
             if interf.output is not None:
-                self.queue.put(interf.output)
+                self.queue.deposit(interf.output)
 
 
 
@@ -131,7 +144,7 @@ class LabelCommunication(Communication):
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=DataQueue()):
+                 queue=DataBuffer()):
         
         super().__init__(graphics=graphics,
                          interface=interface,
@@ -140,47 +153,100 @@ class LabelCommunication(Communication):
     def send(self, data:Any, label=None):
         if label is None:
             label = self.graphics.first
-        self.queue.put(data, label=label)
+        self.queue.deposit(data, label=label)
 
     def receive(self,label=None) -> Any:
         if label is None:
             label = self.graphics.prev_node
-        if self.queue.not_empty:
-            return self.queue.get(label=label)
+        if self.queue.has_data():
+            return self.queue.withdraw(label=label)
         return None
+    
+    def peek(self,label=None, side='input') -> Any:
+        if label is None:
+            raise ValueError(
+                "Label must be provided for peeking data in LabelCommunication.")
+        if self.queue.has_data():
+            return self.queue.peek(label=label, side=side)
+        else:
+            raise CommunicationException(
+                f"No data available in queue for label '{label}'.")
+        return None 
+    
+    def merge(self, 
+              labels: List[Any],
+              side: str = 'input',
+              ignore_conflict=False,
+              ignore_keys: List[str]=[]) -> Dict:
+        
+        merged_data = {}
+
+        for label in labels:
+            
+            data = self.peek(label=label, side=side)
+
+            if data is not None:
+                for key, value in data.items():
+                    if key not in merged_data and key not in ignore_keys:
+                        merged_data[key] = value
+                    else:
+                        if not ignore_conflict:
+                            raise KeyError(f"Key conflict during merge: {key}")
+                        
+                        if key not in ignore_keys:
+                            merged_data[key] = value
+        return merged_data
+
+    def get_current_interface(self, label=None):
+        if label is None:
+            label = self.graphics.current_node.NAME
+        for lbl,intf in self.interface:
+            if lbl == label:
+                return intf
+        raise CommunicateInterface(
+            f"No interface found for label '{label}' in LabelCommunication.")
+
 
     def generator(self):
 
         if not self.graphics or not self.interface:
             raise CommunicateGraphics(
                 "Graphics and interface must be defined for communication.")
+        
+        start = True
 
         for i,node in enumerate(self.graphics):
-
-            print("Node label = ",node)
-
-
-            for label,intf in self.interface:
-                if label == node.NAME:
-                    interf = intf
-                    break
             
-            interf.input = self.queue.get(label=node.NAME)
+            if start:
+                input = self.peek(label=node.NAME, side='input')
+                start = False
+            else:
+                input = self.merge(labels=node.FROM, side='output')
+
+            interf = self.get_current_interface(label=node.NAME)
             
-            print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
+            interf.input = input
             
-            try:
-                node.resolve(interf.input)
-            except:
-                pass
+            _prt_next='followed by'
+            print(f"\t\033[1;30m\u2193\033[0m ({_prt_next})",file=sys.stdout)
+            
             
             yield node,interf
 
+            try:
+                node.resolve(interf.output)
+            except:
+                pass
+
             if interf.output is not None:
                 try:
-                    self.queue.put(interf.output, label=self.graphics.next_node)
-                except IndexError:
-                    self.queue.put(interf.output, label=self.graphics[i])
+                    self.queue.deposit(
+                        interf.output, 
+                        label=self.graphics.current_node.NAME, 
+                        side='output')
+                except Exception as e:
+                    print(f"Error putting output in queue: {e}")
+
 
 
 

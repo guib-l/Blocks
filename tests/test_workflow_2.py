@@ -17,7 +17,7 @@ from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
 
-from blocks.interface.queue import QUEUE
+from blocks.interface.buffer import QUEUE
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 

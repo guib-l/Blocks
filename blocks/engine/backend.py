@@ -71,7 +71,9 @@ class Backend(ABC):
         Returns:
             Any: Result of the function execution
         """
-        return self._worker( *args, **kwargs)
+        result = self._worker( *args, **kwargs)
+        #print(f"Execution result: {result}")
+        return result
         
     def require(self, requirements: Dict[str, Any]) -> bool:
         """Check if the backend meets specific requirements.
@@ -87,6 +89,10 @@ class Backend(ABC):
     def destroy(self) -> None:
         """Clean up resources used by the backend."""
         pass
+
+
+
+
 
 class JoblibBackend(Backend):
 

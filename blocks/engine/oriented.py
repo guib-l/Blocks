@@ -163,7 +163,7 @@ class CyclicGraphic(Graphics):
             self,
             start=None,
             default=None,
-            arrival=None,
+            end=None,
             ctype='IF', 
             method=None,
             switch=None,
@@ -177,7 +177,7 @@ class CyclicGraphic(Graphics):
         for st in start:
             self.add_link(st,name)
 
-        for ar in arrival:
+        for ar in end:
             self.add_link(name,ar)
 
         self.nodes_type.update(

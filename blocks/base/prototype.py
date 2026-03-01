@@ -32,6 +32,7 @@ class Prototype(block.Block,Register):
 
     def __init__(
             self,
+            unique_environment=False,
             *,
             installer = None,
             environment = None,
@@ -40,6 +41,7 @@ class Prototype(block.Block,Register):
         ):
         logger.info("Initializing Prototype instance")
         
+        self.unique_environment = unique_environment
         self.environment = environment(**config.pop('environment_config'))
         #logger.info("[1/5] Import environment")
 

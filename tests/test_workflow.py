@@ -220,6 +220,13 @@ if __name__ == "__main__":
         
         wkc.add_link([('HC_node_1a','HC_node_2b')])
 
+        wkc.add_loop(
+            start='HC_node_1a',
+            end='HC_node_2b',
+            epoch=2,
+            ctype='FOR'
+        )
+
 
     wkc.execute(n=3)
 

@@ -17,7 +17,17 @@ redis = optional_import("redis")
 
 
 def get_new_label(exist_label:Any, new_label:Any=None) -> str:
-    """Génère un label unique si aucun n'est fourni."""
+    """
+    Create a new label that does not exist in the current set of labels.
+    
+    Args:
+        exist_label (Any): The current set of labels to check against.
+        new_label (Any, optional): A proposed new label. If None, a new 
+    label will be generated.
+    
+    Returns:
+        str: A new label that does not exist in exist_label.
+    """
     if exist_label is None:
         return 0
     
@@ -58,6 +68,9 @@ class Buffer(ABC):
 class DataBuffer(Buffer):
 
     def __init__(self):
+        """
+        Initialize a new DataBuffer instance.
+        """
         self._buffer = {
             "input":  {},   
             "output": {},    
@@ -159,7 +172,7 @@ class RedisDataBuffer(Buffer):
             port=port,
             db=db,
             password=password,
-            decode_responses=True   # retourne des str et non des bytes
+            decode_responses=True   
         )
         self._lock = threading.Lock()
 

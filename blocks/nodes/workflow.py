@@ -14,7 +14,6 @@ from blocks.base import prototype
 from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
-from blocks.engine.execute import Execute
 
 from blocks.engine.oriented import AcyclicGraphic
 
@@ -28,6 +27,9 @@ from blocks.utils.logger import *
 
 from blocks.engine.transformer import Transformer
 
+
+
+
 class REGISTER_NODE:
 
     @staticmethod
@@ -38,6 +40,21 @@ class REGISTER_NODE:
             method_name=None,
             transformer=None,
             attributes = {}):
+        """
+        Import a node into the workflow register.
+
+        Args:
+            node (str or Prototype): The node to import, either as a string (name) or as a Prototype instance.
+            ntype (str): The type of the node, used if the node is provided as a string.
+            directory (str): The directory to load the node from, used if the node is provided as a string.
+            method_name (str): The name of the method to execute on the node, if applicable.
+            transformer (dict or Transformer): An optional transformer to apply to the node's output before passing it to the next node.
+            attributes (dict): Additional attributes to store in the register for this node.
+        Returns:
+            dict: A dictionary containing the imported node and its associated information for the workflow register.
+        Raises:
+            WorkflowError: If the node cannot be loaded or if the transformer is of an invalid type
+        """
         
         assert node is not None, "Node instance must be provided."
 
@@ -83,6 +100,15 @@ class REGISTER_NODE:
 
     @staticmethod
     def export_node(register_node):
+        """
+        Export a registered node's information for serialization or external use.
+        Args:
+            register_node (dict): The registered node information to export, typically containing the node instance and its associated metadata.
+        Returns:
+            dict: A dictionary containing the exported information of the registered node, suitable for serialization or external use.
+        Raises:
+            None
+        """
         return {
             'node': register_node['node'].name,
             'directory': register_node['directory'],
@@ -113,7 +139,6 @@ class Workflow(prototype.Prototype):
             buffer = None,
             **config
         ):
-        print(communicate)
 
         self._register_nodes = {}
         self.set_register_nodes(register_nodes)
@@ -163,7 +188,13 @@ class Workflow(prototype.Prototype):
         
         self.communicate.update_graphics(self.graphics)
 
+    def add_loop(self, start, end, epoch=1, ctype='FOR'):
+        self.graphics.add_loop(start, end, epoch, ctype)
+        self.communicate.update_graphics(self.graphics)
 
+    def add_conditional(self, start, end, default, ctype='IF', **kwargs):
+        self.graphics.add_conditional(start, end, default, ctype, **kwargs)
+        self.communicate.update_graphics(self.graphics)
 
 
     # ===========================================
@@ -224,6 +255,9 @@ class Workflow(prototype.Prototype):
                 code=ErrorCode.WORKFLOW_IMPORT_NODES,
                 message='Input node needs to hinerit from prototype object'
             )
+        
+        if self.unique_environment:
+            node.environment = self.environment
 
         _register = REGISTER_NODE.import_node(
             node=node,

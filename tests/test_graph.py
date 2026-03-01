@@ -87,7 +87,7 @@ if __name__ == "__main__":
     graph.add_condition(
         start=[8],
         default=96,
-        arrival=[45,96],
+        end=[45,96],
         ctype='IF',
         method=eq,
         switch={

@@ -8,7 +8,7 @@ from typing import *
 from blocks.utils.logger import *
 
 from queue import Queue
-from blocks.interface.buffer import QUEUE, DataBuffer, RedisDataBuffer
+from blocks.interface.buffer import BUFFER, DataBuffer, RedisDataBuffer
 
 
 class CommunicationException(Exception):
@@ -35,10 +35,10 @@ class Communication:
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=None):
+                 buffer=None):
         
         self.graphics  = graphics
-        self.queue     = QUEUE.get(queue)
+        self.buffer     = BUFFER.get(buffer)
         self.interface = interface 
         
     @property
@@ -57,6 +57,15 @@ class Communication:
             raise CommunicateInterface(
                 "Interface must be a list or a dict with (index,interface) pairs.")
         
+    def get_current_interface(self, label=None):
+        if label is None:
+            label = self.graphics.current_node.NAME
+        for lbl,intf in self.interface:
+            if lbl == label:
+                return intf
+        raise CommunicateInterface(
+            f"No interface found for label '{label}' in LabelCommunication.")
+
     def update_graphics(self, graphics):
         try:
             self.graphics = graphics
@@ -64,7 +73,7 @@ class Communication:
             raise CommunicateGraphics("Failed to update graphics") from e
 
     def reset(self):
-        self.queue.reset()
+        self.buffer.reset()
 
     def __enter__(self):
         logger.debug("Successful open communications")
@@ -84,18 +93,18 @@ class DirectCommunication(Communication):
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=DataBuffer()):
+                 buffer=DataBuffer()):
         
         super().__init__(graphics=graphics,
                          interface=interface,
-                         queue=queue)
+                         buffer=buffer)
         
     def send(self, data:Any, label=None):
-        self.queue.deposit(data, label=label)
+        self.buffer.deposit(data, label=label)
 
     def receive(self,) -> Any:
-        if self.queue.has_data():
-            return self.queue.withdraw()
+        if self.buffer.has_data():
+            return self.buffer.withdraw()
         return None
 
     def generator(self):
@@ -109,17 +118,9 @@ class DirectCommunication(Communication):
             _label = _node.NAME \
                 if hasattr(_node,'NAME') else str(_label)
 
-            for label,intf in self.interface:
-                if label == _label:
-                    interf = intf
-                    break
-
+            interf = self.get_current_interface(label=_label)
             
-            interf.input = self.queue.withdraw()
-            print(f"Getting input for node '{_node}' from queue...")
-            print(interf.input)
-
-
+            interf.input = self.buffer.withdraw()
 
             print("      \033[1;30m\u2193\033[0m (followed by)",file=sys.stdout)
 
@@ -132,7 +133,7 @@ class DirectCommunication(Communication):
                 pass
 
             if interf.output is not None:
-                self.queue.deposit(interf.output)
+                self.buffer.deposit(interf.output, label=_label)
 
 
 
@@ -144,33 +145,33 @@ class LabelCommunication(Communication):
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=DataBuffer()):
+                 buffer=DataBuffer()):
         
         super().__init__(graphics=graphics,
                          interface=interface,
-                         queue=queue)
+                         buffer=buffer)
         
     def send(self, data:Any, label=None):
         if label is None:
             label = self.graphics.first
-        self.queue.deposit(data, label=label)
+        self.buffer.deposit(data, label=label)
 
-    def receive(self,label=None) -> Any:
+    def receive(self, label=None, side='input') -> Any:
         if label is None:
             label = self.graphics.prev_node
-        if self.queue.has_data():
-            return self.queue.withdraw(label=label)
+        if self.buffer.has_data():
+            return self.buffer.withdraw(label=label, side=side)
         return None
     
     def peek(self,label=None, side='input') -> Any:
         if label is None:
             raise ValueError(
                 "Label must be provided for peeking data in LabelCommunication.")
-        if self.queue.has_data():
-            return self.queue.peek(label=label, side=side)
+        if self.buffer.has_data():
+            return self.buffer.peek(label=label, side=side)
         else:
             raise CommunicationException(
-                f"No data available in queue for label '{label}'.")
+                f"No data available in buffer for label '{label}'.")
         return None 
     
     def merge(self, 
@@ -196,15 +197,6 @@ class LabelCommunication(Communication):
                         if key not in ignore_keys:
                             merged_data[key] = value
         return merged_data
-
-    def get_current_interface(self, label=None):
-        if label is None:
-            label = self.graphics.current_node.NAME
-        for lbl,intf in self.interface:
-            if lbl == label:
-                return intf
-        raise CommunicateInterface(
-            f"No interface found for label '{label}' in LabelCommunication.")
 
 
     def generator(self):
@@ -240,12 +232,12 @@ class LabelCommunication(Communication):
 
             if interf.output is not None:
                 try:
-                    self.queue.deposit(
+                    self.buffer.deposit(
                         interf.output, 
                         label=self.graphics.current_node.NAME, 
                         side='output')
                 except Exception as e:
-                    print(f"Error putting output in queue: {e}")
+                    print(f"Error putting output in buffer: {e}")
 
 
 
@@ -257,16 +249,57 @@ class AsyncCommunication(Communication):
     def __init__(self,
                  graphics=None,
                  interface=None,
-                 queue=None):
+                 buffer=None):
         super().__init__(graphics=graphics,
                          interface=interface,
-                         queue=queue)
+                         buffer=buffer)
         
-    async def send(self, data:Any):
-        pass
+    def send(self, data:Any, label=None):
+        if label is None:
+            label = self.graphics.first
+        self.buffer.deposit(data, label=label)
 
-    async def receive(self,) -> Any:
-        pass
+    def receive(self,label=None) -> Any:
+        if label is None:
+            label = self.graphics.prev_node
+        if self.buffer.has_data():
+            return self.buffer.withdraw(label=label)
+        return None
+    
+    def peek(self,label=None, side='input') -> Any:
+        if label is None:
+            raise ValueError(
+                "Label must be provided for peeking data in LabelCommunication.")
+        if self.buffer.has_data():
+            return self.buffer.peek(label=label, side=side)
+        else:
+            raise CommunicationException(
+                f"No data available in buffer for label '{label}'.")
+        return None 
+    
+    def merge(self, 
+              labels: List[Any],
+              side: str = 'input',
+              ignore_conflict=False,
+              ignore_keys: List[str]=[]) -> Dict:
+        
+        merged_data = {}
+
+        for label in labels:
+            
+            data = self.peek(label=label, side=side)
+
+            if data is not None:
+                for key, value in data.items():
+                    if key not in merged_data and key not in ignore_keys:
+                        merged_data[key] = value
+                    else:
+                        if not ignore_conflict:
+                            raise KeyError(f"Key conflict during merge: {key}")
+                        
+                        if key not in ignore_keys:
+                            merged_data[key] = value
+        return merged_data
 
     async def generator(self):
 
@@ -281,12 +314,12 @@ class AsyncCommunication(Communication):
                     interf = intf
                     break
             
-            interf.input = await self.queue.get()
+            interf.input = await self.buffer.get()
             
             yield interf
 
             if interf.output is not None:
-                await self.queue.put(interf.output)
+                await self.buffer.put(interf.output)
 
 
 
@@ -297,11 +330,11 @@ class SocketCommunication:
 
 
 class COMMUNICATE:
+
     DIRECT=DirectCommunication
     LABEL=LabelCommunication
     ASYNC=AsyncCommunication
     SOCKET=SocketCommunication
-
 
     @classmethod
     def get(cls, key):

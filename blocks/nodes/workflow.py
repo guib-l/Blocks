@@ -8,8 +8,6 @@ from pathlib import Path
 from enum import Enum
 import inspect
 
-from queue import Queue
-
 from blocks import BLOCK_PATH
 
 from blocks.base import prototype
@@ -20,7 +18,7 @@ from blocks.engine.execute import Execute
 
 from blocks.engine.oriented import AcyclicGraphic
 
-from blocks.interface.buffer import QUEUE
+from blocks.interface.buffer import BUFFER
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
@@ -112,9 +110,10 @@ class Workflow(prototype.Prototype):
             graphics = None,
             communicate = None,
             interface = None,
-            queue = None,
+            buffer = None,
             **config
         ):
+        print(communicate)
 
         self._register_nodes = {}
         self.set_register_nodes(register_nodes)
@@ -134,7 +133,7 @@ class Workflow(prototype.Prototype):
         self.graphics = graphics(**graph_config)
         logger.info("Build graphical workflow")
 
-        self.queue = queue
+        self.buffer = buffer
         self.interface = interface
 
         self.set_register_interface()
@@ -369,7 +368,7 @@ class Workflow(prototype.Prototype):
             communicate=COMMUNICATE.LABEL,
             communicate_config:Optional[Dict[str,Any]]={},
             interface=INTERFACE.SIMPLE,
-            queue=QUEUE.DATAQUEUE,
+            buffer=BUFFER.DATABUFFER,
             **config
         ):
 
@@ -398,7 +397,7 @@ class Workflow(prototype.Prototype):
                 communicate=communicate,
                 communicate_config=communicate_config,
                 interface=interface,
-                queue=queue,
+                buffer=buffer,
                 **config
             )
 
@@ -466,7 +465,7 @@ class Workflow(prototype.Prototype):
             self._communicate = communicate(
                 graphics=self.graphics,
                 interface=self._register_interface,
-                queue=self.queue or Queue()
+                buffer=self.buffer or BUFFER.DATABUFFER()           
             )
         except Exception as e:
             raise WorkflowError(
@@ -563,7 +562,7 @@ class Workflow(prototype.Prototype):
                     
                 _interface.execute()
 
-            received_msg = comm.receive(label=_graph_node.NAME)
+            received_msg = comm.receive(label=_graph_node.NAME, side='output')
             print("Received message : ",received_msg)
 
         return received_msg

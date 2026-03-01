@@ -114,6 +114,7 @@ if __name__ == "__main__":
     # ================================================
     # Communication interfaces direct par la mémoire python via une Queue Nominative
     print("\n"+"="*40)
+    print("Labeled Communication:")
 
 
     links = [(1,'two'),('two',3)]
@@ -150,8 +151,34 @@ if __name__ == "__main__":
     # ================================================
     # Communication asynchrone en mémoire python
     print("\n"+"="*40)
+    print("Asynchronous Communication:")
+
+    comm_1 = COMMUNICATE.ASYNC(
+        graphics=graph,
+        interface=[(1,interf_0),
+                   ('two',interf_1),
+                   (3,interf_2)],
+        queue=DataBuffer()
+    )
+    print(comm_1)
 
     
+    with comm_0 as comm:
+
+        msg = {'n': 4}
+        comm.send(msg)
+
+        for _label,_node in comm.generator():
+            
+            try:
+                _node.apply_transformer(transformer=transform)
+            except Exception as e:
+                print(f"Error applying transformer: {e}")
+
+            _node.execute()
+
+        received_msg = comm.receive()
+        print(f"Received Message: {received_msg}")
 
 
 

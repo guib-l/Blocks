@@ -16,7 +16,7 @@ from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
 
-from blocks.interface.buffer import QUEUE
+from blocks.interface.buffer import BUFFER
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         'communicate': COMMUNICATE.LABEL,
         'communicate_config':{},
         'interface': INTERFACE.SIMPLE,
-        'queue': QUEUE.DATAQUEUE,
+        'buffer': BUFFER.DATABUFFER,
         'register_nodes':{
             'HC_node_1': {'node':'heavy_calculation', 
                           'directory':BLOCK_PATH,
@@ -125,8 +125,8 @@ if __name__ == "__main__":
 
     print(wk.communicate)
 
-    #wk.execute(n=3)
-    #wk.install()
+    wk.execute(n=3)
+    wk.install()
 
 
     # ===============================================
@@ -140,8 +140,8 @@ if __name__ == "__main__":
     print(new_wk)
     print("Workflow instance loaded successfully.")
 
-    #new_wk.execute(n=3)
-
+    new_wk.execute(n=3)
+    #sys.exit()
 
     # ===============================================
     print("\n"+"="*40)

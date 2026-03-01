@@ -6,6 +6,7 @@ from abc import *
 
 import logging
 import json
+from queue import Queue
 
 from blocks.utils.exceptions import optional_import
 
@@ -262,9 +263,11 @@ class RedisDataBuffer(Buffer):
 
 
 
-from queue import Queue
 
-class QUEUE:
+class BUFFER:
+    DATABUFFER = DataBuffer()
+    REDISBUFFER = RedisDataBuffer
+
     mapping = {
         'DATABUFFER': DataBuffer(),
         'REDISBUFFER': RedisDataBuffer,

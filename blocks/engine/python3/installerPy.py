@@ -285,7 +285,7 @@ class InstallerPythonWorkflow(Installer):
                 'communicate':self.object.communicate.__class__,
                 'communicate_config':{},
                 'interface':self.object.interface,
-                'queue':self.object.queue.__class__,
+                'buffer':self.object.buffer.__class__,
             }
 
             struct = os.path.join(directory, '.environ')
@@ -306,6 +306,8 @@ class InstallerPythonWorkflow(Installer):
         struct = os.path.join(
             abs_directory, name, '.environ' )
 
+        with open(struct,'rb') as f:
+                structural_object = pickle.load(f)
         try:
             with open(struct,'rb') as f:
                 structural_object = pickle.load(f)
@@ -315,7 +317,7 @@ class InstallerPythonWorkflow(Installer):
                 message=f"Cannot import environment of Workflow"
             )
 
-        structural_object['queue'] = structural_object.get('queue', None)()
+        structural_object['buffer'] = structural_object.get('buffer', None)()
         return structural_object
 
 

@@ -1,6 +1,5 @@
-import os
+
 import sys
-import json
 
 from typing import *
 
@@ -21,6 +20,19 @@ from blocks.utils.exceptions import safe_operation
 
 
 class Prototype(block.Block,Register):
+    """Executable block prototype.
+
+    A `Prototype` is a `Block` with an associated environment, executor and
+    installer. It can be loaded from disk and executed by forwarding inputs to a
+    registered callable.
+
+    Attributes:
+        __ntype__ (str): Object type marker used by the framework.
+
+    Notes:
+        The constructor expects configuration dictionaries inside `**config`
+        (e.g. `environment_config`, `executor_config`, `installer_config`).
+    """
 
     __ntype__ = "prototype"
 
@@ -39,6 +51,41 @@ class Prototype(block.Block,Register):
             executor = None,
             **config
         ):
+        """Initialize a `Prototype` instance.
+
+        Args:
+            unique_environment (bool): Whether this prototype should use a
+                unique environment instance (behavior depends on the provided
+                environment implementation).
+            installer (type | Callable | None): Installer class/factory used to
+                create the `installer` instance. It is called as
+                `installer(self, **installer_config)`.
+            environment (type | Callable | None): Environment class/factory used
+                to create the `environment` instance. It is called as
+                `environment(**environment_config)`.
+            executor (type | Callable | None): Optional executor class/factory.
+                If `None`, a default :class:`blocks.engine.execute.Execute`
+                backend is created.
+            **config: Additional configuration. Expected keys include:
+
+                - `environment_config` (dict): Passed to `environment(...)`.
+                - `executor_config` (dict): Passed to `executor(...)` when a
+                  custom executor is provided.
+                - `installer_config` (dict): Passed to `installer(self, ...)`.
+                - `allowed_name` (list[str]): Allowed method names for the
+                  register (if supported by the register implementation).
+                - `methods` (list): Optional methods to register.
+                - `files` (list[str]): Optional files to register.
+
+                Remaining keys are forwarded to the base `Block` constructor.
+
+        Raises:
+            PrototypeError: If executor/installer initialization fails.
+            KeyError: If required config keys are missing (e.g.
+                `environment_config`, `executor_config`, `installer_config`).
+            Exception: Any exception raised by the provided environment,
+                executor, installer, register, or `Block` initialization.
+        """
         logger.info("Initializing Prototype instance")
         
         self.unique_environment = unique_environment
@@ -109,6 +156,17 @@ class Prototype(block.Block,Register):
 
         
     def to_dict(self,):
+        """Serialize the prototype into a dictionary.
+
+        The returned mapping is compatible with :meth:`from_dict`.
+
+        Returns:
+            dict: A dictionary containing the base `Block` fields plus
+            installer/environment/executor classes and their configuration.
+
+        Raises:
+            PrototypeError: If serialization fails.
+        """
 
         logger.info(f"Transform Prototype {self.name} into dictionary")
 
@@ -130,6 +188,17 @@ class Prototype(block.Block,Register):
     
     @classmethod
     def from_dict(cls, **data):
+        """Deserialize a `Prototype` from a dictionary.
+
+        Args:
+            **data: Keyword arguments forwarded to the constructor.
+
+        Returns:
+            Prototype: Instantiated prototype.
+
+        Raises:
+            PrototypeError: If deserialization fails.
+        """
 
         with safe_operation(
                 'dict deserialisation',
@@ -144,6 +213,17 @@ class Prototype(block.Block,Register):
 
     def install(self, 
                 **properties):
+        """Install dependencies/resources for this prototype.
+
+        This delegates to `self.installer.__install__(...)`.
+
+        Args:
+            **properties: Installer-specific properties.
+
+        Raises:
+            PrototypeError: If the installer does not provide `__install__`.
+            Exception: Any error raised by the underlying installer.
+        """
         
         assert hasattr(self.installer,'__install__'),\
             PrototypeError(
@@ -155,6 +235,17 @@ class Prototype(block.Block,Register):
 
     def uninstall(self,
                   **properties):
+        """Uninstall dependencies/resources for this prototype.
+
+        This delegates to `self.installer.__uninstall__(...)`.
+
+        Args:
+            **properties: Installer-specific properties.
+
+        Raises:
+            PrototypeError: If the installer does not provide `__uninstall__`.
+            Exception: Any error raised by the underlying installer.
+        """
         
         assert hasattr(self.installer,'__uninstall__'),\
             PrototypeError(
@@ -180,6 +271,24 @@ class Prototype(block.Block,Register):
             installer=INSTALLER.PYTHON,
             **kwargs
         ):
+        """Load a prototype from persistent storage.
+
+        Args:
+            name (str): Prototype name to load.
+            directory (str): Base directory where blocks are stored.
+            format (str): Storage format used by the installer (e.g. `json`).
+            ntype (str): Expected type marker (defaults to `prototype`).
+            installer: Installer backend used to perform the loading. It must
+                provide a `__load__` method returning `(content, structure)`.
+            **kwargs: Extra keyword arguments merged into the loaded content
+                before instantiation.
+
+        Returns:
+            Prototype: Loaded prototype instance.
+
+        Raises:
+            PrototypeError: If loading fails.
+        """
 
         with safe_operation(
                 'loading prototype',
@@ -207,9 +316,22 @@ class Prototype(block.Block,Register):
     # ===========================================
         
     def execute(self, **data):
-        """
-        Execute the Prototype with given data.
-        Redirect stdout/stderr to custom streams
+        """Execute the prototype.
+
+        The execution calls the executor produced by `self.executor.execute()`
+        and forwards inputs to the prototype `forward` method (if present).
+        During execution, `sys.stdout` is redirected to `self.stdout`.
+
+        Args:
+            **data: Input payload forwarded to the executor.
+
+        Returns:
+            Any: The execution result.
+
+        Raises:
+            PrototypeError: When execution fails and `self.ignore_error` is
+                `False`.
+            Exception: Any exception not handled by the executor pathway.
         """
         error = False
         
@@ -258,6 +380,16 @@ class Prototype(block.Block,Register):
 
 
     def forward(self, name=None, **data):
+        """Forward inputs to a registered method inside the environment.
+
+        Args:
+            name (str | None): Optional registered method name. If `None`, the
+                register implementation decides what to call.
+            **data: Input payload forwarded to the registered callable.
+
+        Returns:
+            Any: Output returned by the registered callable.
+        """
 
         with self.environment as env:
 

@@ -102,6 +102,7 @@ class DataSet:
     def update(self, **kwargs) -> None:
         """
         Update the dataset with new options.
+        
         Args:
             kwargs (dict): Dictionary of options to update.
         """

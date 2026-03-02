@@ -78,9 +78,6 @@ def _std_serialize(obj):
                 '__module__': obj.__class__.__module__,
                 'attributes': attr }
     
-    #elif not isinstance(obj,type):
-    #    return {'__class__' : obj.__class__.__name__,
-    #            '__module__': obj.__class__.__module__,}
     else:
         return str(obj)
     

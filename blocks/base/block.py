@@ -64,10 +64,44 @@ class Block(DataSet):
             ignore_error = True,
             **kwargs ):
         """
-        Initialize the BaseBlock with given options.
+        Initialize the Block with given options.
         Args:
-            options (dict): Dictionary to be added to the block 
-            along with standard elements.
+            id (str or uuid.UUID, optional): Unique identifier for the block. If None, a new UUID will be generated.
+            name (str, optional): Name of the block. Defaults to "default".
+            version (str, optional): Version of the block. Defaults to "0.0.1".
+            directory (str, optional): Directory where the block is located. Defaults to current directory.
+            authors (list of str, optional): List of authors of the block. Defaults to ["Anonymous"].
+            files (list, optional): List of files associated with the block. Defaults to an empty list.
+            codes (list, optional): List of code snippets associated with the block. Defaults to an empty list.
+            data (dict, optional): Additional data for the block. Defaults to an empty dictionary.
+            doc (str, optional): Documentation string for the block. Defaults to None.
+            stdout (TextIO, optional): Stream for standard output. Defaults to sys.__stdout__.
+            stderr (TextIO, optional): Stream for standard error. Defaults to sys.__stderr__.
+            ignore_error (bool, optional): Whether to ignore errors during execution. Defaults to True.
+            **kwargs: Additional keyword arguments for future extensions.
+        
+        Example:
+            >>> block = Block(
+            ...     name="MyBlock",
+            ...     version="1.0.0",
+            ...     directory="/path/to/block",
+            ...     authors=["Alice", "Bob"],
+            ...     files=["file1.py", "file2.py"], 
+            ...     codes=["print('Hello World')"],
+            ...     data={"key": "value"},
+            ...     doc="This is a sample block.",
+            ...     stdout=sys.stdout,
+            ...     stderr=sys.stderr,
+            ...     ignore_error=False
+            ... )
+            >>> print(block)
+        
+        Notes:
+            - The block will automatically generate a unique ID if none is provided.
+            - The version is managed using the VersionManager class, allowing for easy version upgrades and changelogs.
+            - The stdout and stderr streams can be customized, and if they are logging.Logger instances, they will be wrapped in a StreamLogger for proper logging.
+            - The block can be extended with additional attributes and methods in the future using **kwargs.
+
         """
         # Gestion stdout/stderr
         self.stdout = stdout or sys.stdout

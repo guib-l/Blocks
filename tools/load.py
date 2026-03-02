@@ -12,6 +12,15 @@ from pathlib import Path
 
 
 def _import_modules(file_path: str):
+    """
+    Import a Python module from a given file path.
+
+    Args:
+        file_path (str): Path to the Python file to import
+        
+    Returns:
+        The imported module object
+    """
 
     module_name = Path(file_path).stem
     spec = importlib.util.spec_from_file_location(module_name, file_path)
@@ -25,6 +34,21 @@ def _import_modules(file_path: str):
 def _load_function_from_file(file_path: str, 
                              function_name: str=None,
                              ignore_restriction: bool=False):
+    """
+    Load a function from a Python file.
+
+    Args:
+        file_path (str): Path to the Python file
+        function_name (str): Name of the function to load (if None, loads the first function found)
+        ignore_restriction (bool): If True, allows loading the first function if multiple are found without
+                            raising an error; if False, raises an error if multiple functions are found without a specified name
+
+    Returns:
+        The loaded function object
+    
+    Raises:
+        ValueError: If no functions are found or if multiple functions are found without specifying a name.
+    """
 
     module = _import_modules(file_path=file_path)
 

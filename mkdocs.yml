@@ -1,0 +1,67 @@
+site_name: Blocks
+site_description: A framework for building and executing workflows.
+site_author: Blocks Team
+repo_url: 
+repo_name: blocks
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
+    - content.code.expand
+    - content.code.focus
+    - content.code.inherit
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_headings: true
+            show_root_full_path: true
+            docstrings_style: google
+
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - Nodes:
+      - Node Overview: nodes/overview.md
+      - Node Registration: nodes/registration.md
+      - Node Execution: nodes/execution.md
+  - Workflows:
+      - Workflow Overview: workflows/overview.md
+      - Workflow Creation: workflows/creation.md
+      - Workflow Execution: workflows/execution.md
+  - API Reference:
+      - Prototype: api/prototype.md
+      - Workflow: api/workflow.md
+      - Node: api/node.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.details

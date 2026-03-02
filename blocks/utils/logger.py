@@ -2,6 +2,8 @@ import os
 import sys
 import json
 
+from blocks import *
+
 from typing import *
 from abc import *
 from pathlib import Path
@@ -104,30 +106,30 @@ def setup_logger(
 
 logger = setup_logger(
         name='BLOCKS ',
-        level=logging.DEBUG,
-        log_filename='blocks.log',
+        level=LOGGER_BLOCK_LEVEL,
+        log_filename=LOGGER_BLOCK_FILE,
         log_format=None,
         log_directory='.',
-        log_to_file=False    
+        log_to_file=LOG_TO_FILE    
 )
     
     
 exec_logger = setup_logger(
         name='EXECUTE',
-        level=logging.INFO,
-        log_filename='blocks.log',
+        level=LOGGER_EXECUTE_LEVEL,
+        log_filename=LOGGER_EXECUTE_FILE,
         log_format=None,
         log_directory='.',
-        log_to_file=False    
+        log_to_file=LOG_TO_FILE    
 )
 
 env_logger = setup_logger(
         name='ENVIRON',
-        level=logging.INFO,
-        log_filename='blocks.log',
+        level=LOGGER_ENVIRONMENT_LEVEL,
+        log_filename=LOGGER_ENVIRONMENT_FILE,
         log_format=None,
         log_directory='.',
-        log_to_file=False    
+        log_to_file=LOG_TO_FILE    
 )
 
 

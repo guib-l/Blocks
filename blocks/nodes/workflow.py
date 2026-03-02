@@ -8,24 +8,25 @@ from pathlib import Path
 from enum import Enum
 import inspect
 
-from queue import Queue
+from blocks import BLOCK_PATH
 
 from blocks.base import prototype
-from blocks.base import BLOCK_PATH
-from blocks.base.prototype import INSTALLER
+from blocks.engine import INSTALLER
 
 from blocks.engine.environment import Environment
-from blocks.engine.execute import Execute
 
-from blocks.nodes.graphics import AcyclicGraph
+from blocks.engine.oriented import AcyclicGraphic
 
-from blocks.interface.queue import QUEUE
+from blocks.interface.buffer import BUFFER
 from blocks.interface.communication import COMMUNICATE 
 from blocks.interface.interface import INTERFACE
 
 from blocks.utils.exceptions import WorkflowError,ErrorCode
 from blocks.utils.exceptions import safe_operation
 from blocks.utils.logger import *
+
+from blocks.engine.transformer import Transformer
+
 
 
 
@@ -39,6 +40,21 @@ class REGISTER_NODE:
             method_name=None,
             transformer=None,
             attributes = {}):
+        """
+        Import a node into the workflow register.
+
+        Args:
+            node (str or Prototype): The node to import, either as a string (name) or as a Prototype instance.
+            ntype (str): The type of the node, used if the node is provided as a string.
+            directory (str): The directory to load the node from, used if the node is provided as a string.
+            method_name (str): The name of the method to execute on the node, if applicable.
+            transformer (dict or Transformer): An optional transformer to apply to the node's output before passing it to the next node.
+            attributes (dict): Additional attributes to store in the register for this node.
+        Returns:
+            dict: A dictionary containing the imported node and its associated information for the workflow register.
+        Raises:
+            WorkflowError: If the node cannot be loaded or if the transformer is of an invalid type
+        """
         
         assert node is not None, "Node instance must be provided."
 
@@ -57,7 +73,21 @@ class REGISTER_NODE:
                 details={"expected":prototype.Prototype,"current":type(node)}
             )
             
-        
+        if isinstance(transformer, dict):
+            transformer = Transformer(**transformer)
+        elif isinstance(transformer, Transformer):
+            pass
+        elif transformer is None:
+            transformer = Transformer()
+        else:
+            logger.critical(f"Transformer {transformer} coudn't be loaded (wrong type)")
+            
+            raise WorkflowError(
+                code=ErrorCode.WORKFLOW_ERROR_TYPE,
+                message="The 'transformer' parameter must be a dict or a Transformer instance.",
+                details={"expected":Transformer,"current":type(transformer)}
+            )
+
         return {
             'node': node,
             'name': node.name,
@@ -70,12 +100,21 @@ class REGISTER_NODE:
 
     @staticmethod
     def export_node(register_node):
+        """
+        Export a registered node's information for serialization or external use.
+        Args:
+            register_node (dict): The registered node information to export, typically containing the node instance and its associated metadata.
+        Returns:
+            dict: A dictionary containing the exported information of the registered node, suitable for serialization or external use.
+        Raises:
+            None
+        """
         return {
             'node': register_node['node'].name,
             'directory': register_node['directory'],
             'ntype': register_node['ntype'].__name__.lower(),
             'method_name': register_node['function_name'],
-            'transformer': register_node['transformer'],
+            'transformer': register_node['transformer'].to_config() if register_node['transformer'] else None,
             'attributes': register_node['attributes'],
         }
 
@@ -97,7 +136,7 @@ class Workflow(prototype.Prototype):
             graphics = None,
             communicate = None,
             interface = None,
-            queue = None,
+            buffer = None,
             **config
         ):
 
@@ -119,7 +158,7 @@ class Workflow(prototype.Prototype):
         self.graphics = graphics(**graph_config)
         logger.info("Build graphical workflow")
 
-        self.queue = queue
+        self.buffer = buffer
         self.interface = interface
 
         self.set_register_interface()
@@ -139,7 +178,7 @@ class Workflow(prototype.Prototype):
         else:
             self.graphics.add_link(origin, to_node)
         
-        self.communicate.update_graphics(self.graphics.graphics)
+        self.communicate.update_graphics(self.graphics)
 
     def del_link(self, origin, to_node=None):
         if isinstance(origin, list):
@@ -147,9 +186,15 @@ class Workflow(prototype.Prototype):
         else:
             self.graphics.del_link(origin, to_node)
         
-        self.communicate.update_graphics(self.graphics.graphics)
+        self.communicate.update_graphics(self.graphics)
 
+    def add_loop(self, start, end, epoch=1, ctype='FOR'):
+        self.graphics.add_loop(start, end, epoch, ctype)
+        self.communicate.update_graphics(self.graphics)
 
+    def add_conditional(self, start, end, default, ctype='IF', **kwargs):
+        self.graphics.add_conditional(start, end, default, ctype, **kwargs)
+        self.communicate.update_graphics(self.graphics)
 
 
     # ===========================================
@@ -210,6 +255,9 @@ class Workflow(prototype.Prototype):
                 code=ErrorCode.WORKFLOW_IMPORT_NODES,
                 message='Input node needs to hinerit from prototype object'
             )
+        
+        if self.unique_environment:
+            node.environment = self.environment
 
         _register = REGISTER_NODE.import_node(
             node=node,
@@ -326,7 +374,10 @@ class Workflow(prototype.Prototype):
                 'register_nodes': register
             })
             content.update(**kwargs)
-            return cls(**content)
+            obj = cls(**content)
+            print(f' \033[1;30m\u21BA {obj.__ntype__} loaded "{name}"\033[0m')
+            return obj
+
 
 
     @classmethod
@@ -346,12 +397,12 @@ class Workflow(prototype.Prototype):
             environment_config:Optional[Dict[str,Any]]={},
             executor=None,
             executor_config:Optional[Dict[str,Any]]={},
-            graphics=AcyclicGraph,
+            graphics=AcyclicGraphic,
             graphics_config:Optional[Dict[str,Any]]={},
             communicate=COMMUNICATE.LABEL,
             communicate_config:Optional[Dict[str,Any]]={},
             interface=INTERFACE.SIMPLE,
-            queue=QUEUE.DATAQUEUE,
+            buffer=BUFFER.DATABUFFER,
             **config
         ):
 
@@ -380,7 +431,7 @@ class Workflow(prototype.Prototype):
                 communicate=communicate,
                 communicate_config=communicate_config,
                 interface=interface,
-                queue=queue,
+                buffer=buffer,
                 **config
             )
 
@@ -397,10 +448,10 @@ class Workflow(prototype.Prototype):
         """Display the workflow graph in the terminal."""
 
         self.stdout = stdout or self.stdout
-        print(f"\n{'='*6}",self.stdout,sys.stdout)
+        #print(f"\n{'='*6}",self.stdout,sys.stdout)
 
         print(f"{'='*60}")
-        print(f"\033[1;30mWorkflow: {self.name} \033[0m")
+        print(f"\033[1;30m Workflow: {self.name} \033[0m")
         print(f"{'='*60}\n")
         
         # Display registered nodes
@@ -423,9 +474,12 @@ class Workflow(prototype.Prototype):
             print("  (empty graph)")
         else:
             # Display edges
-            for origin, target in self.graphics.link:
+            for origin, target in self.graphics.links:
                 if target:
-                    print(f"  {origin} --> {target}")
+                    if isinstance(self._register_nodes[target]['node'], Workflow):
+                        print(f"  {origin} --> Workflow({target})")
+                    else:
+                        print(f"  {origin} --> {target}")
                 else:
                     print(f"  {origin} (no connections)")
         
@@ -443,9 +497,9 @@ class Workflow(prototype.Prototype):
 
         try:
             self._communicate = communicate(
-                graphics=self.graphics.graphics,
+                graphics=self.graphics,
                 interface=self._register_interface,
-                queue=self.queue or Queue()
+                buffer=self.buffer or BUFFER.DATABUFFER()           
             )
         except Exception as e:
             raise WorkflowError(
@@ -460,61 +514,90 @@ class Workflow(prototype.Prototype):
         
     def execute(self, **data):
         
+        logger.warning(f"Enter in {self.name} Workflow methods")
+
+        error = False
+        txt = "="*40
+        print(f' \033[1;30m{txt}\033[0m')
+        print(f" \u25B6\033[1;30m Executing Workflow '{self.name}'...\033[0m",
+              file=sys.stdout)
+
         forward = getattr(self, 'forward', None)
+        logger.info(f"Get forward Workflow methods")
 
+        exec  = self.executor.execute(forward=forward)
+        value = exec(**data)
         try:
-            exec = self.executor.execute(forward=forward)
-            return exec(**data)
-
+        #    exec  = self.executor.execute(forward=forward)
+        #    value = exec(**data)
+            pass
         except Exception as e:
             logger.critical(f"Execution failed with message :\n{e}")
-            raise WorkflowError(
+
+            error = True
+            err =  WorkflowError(
                 code=ErrorCode.WORKFLOW_EXECUTION,
                 message=f"Execution failed with message :\n{e}",
                 cause=e
             )
+            if not self.ignore_error:
+                raise err
         finally:
-            logger.info('Executing Workflow done')
+            txt = f"Execution {self.name} complete"
+
+            if error:
+                print(f' \u274C\033[1;30m {txt} (failed) \033[0m', 
+                      file=sys.stdout)            
+            else:
+                print(f' \u2705\033[1;30m {txt} (succes) \033[0m', 
+                      file=sys.stdout)
+            
+            logger.warning(f"Complete Workflow execution")
+
+        txt = "="*40
+        print(f' \033[1;30m{txt}\033[0m')
+        sys.stdout = sys.__stdout__
+
+        print(f"Final output of workflow '{self.name}': {value}")
+        return value
+
 
 
     def forward(self, 
                 name=None, 
                 **data):
-        logger.warning(f"Enter in \033[1m{self.name}\033[0m Workflow methods")
-
 
         with self.communicate as comm:
-
-            logger.debug("Successful open communications")
+            
             comm.send(data)
 
-            for _label,_node in comm.generator():
+            for _graph_node,_interface in comm.generator():
 
-                logger.debug(f"Try to execute {_label}")
-
-                _node._node.stdout = self.stdout
-                _node._node.stderr = self.stderr
+                _interface._node.stdout = self.stdout
+                _interface._node.stderr = self.stderr
                 
                 transform = self._register_nodes.get(
-                    _label, {}).get('transformer', None)
+                    _graph_node.NAME, {}).get('transformer', None)
                 
+
                 if transform:
                     try:
-                        _node.apply_transformer(transformer=transform)
+                        _interface.apply_transformer(transformer=transform)
+
                     except Exception as e:
                         logger.critical("Error applying transformer")
-                        raise WorkflowError(
-                            code=ErrorCode.WORKFLOW_APPLY_TRANSFORMER,
-                            message=f"Error applying transformer: {e}",
-                            cause=e
-                        )
-                
-                _node.execute()
 
-            received_msg = comm.receive()
-            logger.info(f"Received Message: {received_msg}")
+                        if not self.ignore_error:
+                            raise WorkflowError(
+                                code=ErrorCode.WORKFLOW_APPLY_TRANSFORMER,
+                                message=f"Error applying transformer: {e}",
+                                cause=e
+                            )
+                    
+                _interface.execute()
 
-        logger.warning(f"Successful Workflow execution")
+            received_msg = comm.receive(label=_graph_node.NAME, side='output')
+            print("Received message : ",received_msg)
 
         return received_msg
 

@@ -4,12 +4,17 @@ import time
 from typing import *
 from configs import *
 
+from blocks import BLOCK_PATH
 
 from blocks.base import *
 from blocks.nodes.node import Node
 
 from blocks.interface.interface import INTERFACE
 from blocks.interface.communication import COMMUNICATE
+
+from blocks.engine.transformer import Transformer
+
+
 
 if __name__ == "__main__":
 
@@ -18,7 +23,7 @@ if __name__ == "__main__":
     print("\n"+"*"*40)
 
     start = time.time()
-    node = Node.load(name='HC',
+    node = Node.load(name='heavy_calculation',
                      ntype='prototype',
                      directory=BLOCK_PATH)
     end = time.time()
@@ -38,7 +43,12 @@ if __name__ == "__main__":
     input_message = {'n': 2}
     print(f"Input Message: {input_message}")
     
-    transform = lambda data : {'n': min(max(2,data['result']),9)}
+    transform = Transformer(
+        rename_attr = [('result','n'),],
+        modify_attr = [],
+        ignore_attr = []
+    )
+
 
     start = time.time()
     
@@ -65,20 +75,20 @@ if __name__ == "__main__":
 
 
     from queue import Queue
-    from blocks.interface.queue import DataQueue
-    from blocks.nodes.graphics import AcyclicGraph
+    from blocks.interface.buffer import DataBuffer
+    from blocks.engine.oriented import AcyclicGraphic,CyclicGraphic
 
     links = [(1,'two'),('two',3)]
-    graph = AcyclicGraph(links=links, first=1, last=3)
+    graph = AcyclicGraphic(links=links, first=1, last=3)
 
     print('Graph : ',graph)
 
-    comm_0 = COMMUNICATE.DIRECT(
-        graphics=graph.graphics,
+    comm_0 = COMMUNICATE.LABEL(
+        graphics=graph,
         interface=[(1,interf_0),
                    ('two',interf_1),
                    (3,interf_2)],
-        queue=Queue()
+        queue=DataBuffer()
     )
     print(comm_0)
 
@@ -88,14 +98,14 @@ if __name__ == "__main__":
         msg = {'n': 4}        
         comm.send(msg)
 
-        for _node in comm.generator():
+        for _node,_interf in comm.generator():
             
             try:
-                _node.apply_transformer(transformer=transform)
+                _interf.apply_transformer(transformer=transform)
             except Exception as e:
                 print(f"Error applying transformer: {e}")
 
-            _node.execute()
+            _interf.execute()
 
         received_msg = comm.receive()
         print(f"Received Message: {received_msg}")
@@ -104,29 +114,29 @@ if __name__ == "__main__":
     # ================================================
     # Communication interfaces direct par la mémoire python via une Queue Nominative
     print("\n"+"="*40)
+    print("Labeled Communication:")
 
 
     links = [(1,'two'),('two',3)]
-    graph = AcyclicGraph(links=links, first=1, last=3)
+    graph = CyclicGraphic(links=links, first=1, last=3)
 
     print('Graph : ',graph)
 
     comm_0 = COMMUNICATE.LABEL(
-        graphics=graph.graphics,
+        graphics=graph,
         interface=[(1,interf_0),
                    ('two',interf_1),
                    (3,interf_2)],
-        queue=DataQueue()
+        queue=DataBuffer()
     )
     print(comm_0)
-    print('DataQueue : ',comm_0.queue._queue)
 
     with comm_0 as comm:
 
-        msg = {'n': 4}        
+        msg = {'n': 4}
         comm.send(msg)
 
-        for _node in comm.generator():
+        for _label,_node in comm.generator():
             
             try:
                 _node.apply_transformer(transformer=transform)
@@ -141,8 +151,34 @@ if __name__ == "__main__":
     # ================================================
     # Communication asynchrone en mémoire python
     print("\n"+"="*40)
+    print("Asynchronous Communication:")
+
+    comm_1 = COMMUNICATE.ASYNC(
+        graphics=graph,
+        interface=[(1,interf_0),
+                   ('two',interf_1),
+                   (3,interf_2)],
+        queue=DataBuffer()
+    )
+    print(comm_1)
 
     
+    with comm_0 as comm:
+
+        msg = {'n': 4}
+        comm.send(msg)
+
+        for _label,_node in comm.generator():
+            
+            try:
+                _node.apply_transformer(transformer=transform)
+            except Exception as e:
+                print(f"Error applying transformer: {e}")
+
+            _node.execute()
+
+        received_msg = comm.receive()
+        print(f"Received Message: {received_msg}")
 
 
 

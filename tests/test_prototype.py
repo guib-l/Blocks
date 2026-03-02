@@ -2,6 +2,8 @@ import os
 import time
 from configs import *
 
+from blocks import BLOCK_PATH
+
 from blocks.base import *
 from blocks.base.prototype import Prototype
 
@@ -142,10 +144,10 @@ if __name__ == "__main__":
     proto.installer.move( BLOCK_PATH, erase_source=True )
 
     # Changer le nom
-    proto.installer.rename('HC')
+    proto.installer.rename('basics_prototype')
 
     new_proto = Prototype.load(
-        name='HC',
+        name='basics_prototype',
         directory=BLOCK_PATH,
         format='json',
         ntype='prototype'
@@ -169,7 +171,7 @@ if __name__ == "__main__":
     print("Prototype instance decompressed successfully.")
 
     new_proto = Prototype.load(
-        name='HC',
+        name='basics_prototype',
         directory=BLOCK_PATH,
         format='json',
         ntype='prototype'

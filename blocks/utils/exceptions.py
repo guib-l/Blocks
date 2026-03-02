@@ -7,6 +7,15 @@ from contextlib import contextmanager
 
 from blocks.utils.logger import *
 
+import importlib
+
+def optional_import(module_name):
+    try:
+        return importlib.import_module(module_name)
+    except ImportError:
+        return None
+
+
 @contextmanager
 def safe_operation(
         operation_name: str, 

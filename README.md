@@ -1,17 +1,11 @@
 # Blocks
 
-Projet en cours de production 
+Code manager written in python available for all languages.
 
-Gestioninaire de packets et  version de code en python pour tout types de languages.
+## Installation
 
-## Blocks
 
-## Engine
-
-## Communication
-
-## Project
-
+## Exemple
 
 
 

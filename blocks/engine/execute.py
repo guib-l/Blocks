@@ -142,7 +142,7 @@ class Execute(BaseExecute):
                  queue = Queue(),
                  backend='DEFAULT',
                  build_backend=True,
-                 ignore_warning=True,
+                 ignore_warning=False,
                  **kwargs):
 
         exec_logger.info("Loading Executor method")

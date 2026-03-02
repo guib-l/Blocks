@@ -10,12 +10,14 @@ from blocks.base import *
 
 from blocks.interface.interface import Interface
 from blocks.interface.datapacket import (DataPacket,
-                                         DataPacketQueue,
+                                         #DataPacketQueue,
                                          DataPacketPriority,
                                          DataPacketType)
 from blocks.base.prototype import Prototype
 
+from blocks.interface.buffer import DataBuffer
 
+from blocks import BLOCK_PATH
 
 
 
@@ -76,7 +78,7 @@ if __name__ == "__main__":
         PRIORITY=DataPacketPriority.NORMAL
     )
 
-    queue = DataPacketQueue()
+    queue = DataBuffer()
     queue.enqueue(msg_1)
     queue.enqueue(msg_2)
 

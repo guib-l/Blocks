@@ -1,6 +1,7 @@
 import os
 import sys
 
+import logging
 
 
 BLOCK_PATH      = "myblock/"
@@ -14,17 +15,21 @@ if 'BLOCK_WORKSPACE' in os.environ:
 
 
 
+LOG_TO_FILE = False
+
+LOGGER_BLOCK = False
+LOGGER_BLOCK_FILE = "blocks.log"
+LOGGER_BLOCK_LEVEL = logging.CRITICAL
 
 
-LOGGER_BLOCK = True
-LOGGER_BLOCK_FILE = ""
+LOGGER_EXECUTE = False
+LOGGER_EXECUTE_FILE = "blocks.log"
+LOGGER_EXECUTE_LEVEL = logging.CRITICAL
 
-LOGGER_EXECUTE = True
-LOGGER_EXECUTE_FILE = ""
 
-LOGGER_ENVIRONMENT = True
-LOGGER_ENVIRONMENT_FILE = ""
-
+LOGGER_ENVIRONMENT = False
+LOGGER_ENVIRONMENT_FILE = "blocks.log"
+LOGGER_ENVIRONMENT_LEVEL = logging.CRITICAL
 
 
 

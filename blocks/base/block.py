@@ -41,6 +41,7 @@ class Block(DataSet):
     _mandatory_attributes = []
 
     __slots__ = [
+        'ignore_error',
         '__name__',
         '__id__',
         '__version__',
@@ -121,7 +122,7 @@ class Block(DataSet):
         # Gestion stdout/stderr
         self.stdout = stdout or sys.stdout
         self.stderr = stderr or sys.stderr
-
+        
         self.ignore_error = ignore_error
 
         self.__name__    = None

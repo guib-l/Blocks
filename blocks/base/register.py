@@ -39,6 +39,14 @@ class Register:
             files=[],
             methods=[]
         ):
+        """
+        Initialize register
+
+        Args: 
+            allowed_name ():
+            files (list):
+            methods (list):
+        """
 
         self._register_methods = {}
 

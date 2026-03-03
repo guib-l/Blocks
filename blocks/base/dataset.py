@@ -20,7 +20,7 @@ class DataSet:
     Class representing a dataset with various attributes.
     """
 
-    __slots__ = ['_dataset']
+    __slots__ = ['_dataset','__dict__']
     
     def __init__(self, **options: dict):
         """

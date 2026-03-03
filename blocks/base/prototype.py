@@ -37,6 +37,7 @@ class Prototype(block.Block,Register):
     __ntype__ = "prototype"
 
     __slots__ = [
+        'unique_environment',
         'installer',
         'environment',
         'executor',
@@ -332,6 +333,11 @@ class Prototype(block.Block,Register):
             PrototypeError: When execution fails and `self.ignore_error` is
                 `False`.
             Exception: Any exception not handled by the executor pathway.
+
+        Examples:
+            >>> prototype = Prototype(...)
+            >>> result = prototype.execute(input_data="example")
+            >>> print(result)
         """
         error = False
         
@@ -389,6 +395,11 @@ class Prototype(block.Block,Register):
 
         Returns:
             Any: Output returned by the registered callable.
+
+        Examples:
+            >>> prototype = Prototype()
+            >>> result = prototype.forward(name="example_method", data="example_data")
+            >>> print(result)
         """
 
         with self.environment as env:

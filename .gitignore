@@ -1,6 +1,7 @@
 # Personnal customization
 env/
 envs/
+tests/
 .env/
 .envs/
 myblock/

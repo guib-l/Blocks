@@ -342,13 +342,13 @@ class Prototype(block.Block,Register):
         error = False
         
         sys.stdout = self.stdout
-        print(f" \u25B6\033[1;30m Executing Prototype '{self.name}'...\033[0m", file=sys.stdout)
+        print(f" \u25B6\033[1;30m Executing {self.__class__.__name__} '{self.name}'...\033[0m", file=sys.stdout)
 
 
 
         value   = None
         forward = getattr(self, 'forward', None)
-        logger.info(f"Get forward Prototype methods")
+        logger.info(f"Get forward {self.__class__.__name__} methods")
         
         try:
             exec  = self.executor.execute(forward=forward)
@@ -377,7 +377,7 @@ class Prototype(block.Block,Register):
                 print(f' \u2705\033[1;30m {txt} (succes) \033[0m', 
                       file=sys.stdout)
             
-            logger.warning(f"Complete Prototype execution")
+            logger.warning(f"Complete {self.__class__.__name__} execution")
         
         sys.stdout = sys.__stdout__
         return value

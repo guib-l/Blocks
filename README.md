@@ -11,11 +11,14 @@ Not Implemented
 ## Example
 
 ```python
-from blocks import CodeManager
+from blocks import BLOCK_EXEMPLES
+from blocks.nodes.node import Node
 
-manager = CodeManager()
-manager.load_project('.')
-manager.analyze()
+node = Node.load(name='node_001',
+                 directory=BLOCK_EXEMPLES)
+                 
+node.execute(n=4, delay=0.1)
+
 ```
 
 ## Features

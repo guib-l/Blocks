@@ -16,7 +16,7 @@ class Node(prototype.Prototype):
         
     def forward(self, name=None, **data):
 
-        logger.warning("Executing function in Workflow forward method")
+        logger.warning("Executing function in Node forward method")
 
         with self.environment as env:
 

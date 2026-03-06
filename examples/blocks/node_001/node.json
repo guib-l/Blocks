@@ -1,0 +1,23 @@
+{
+    "id": "c89d0c26-5dae-434e-8216-5ed0ecd15291",
+    "name": "node_001",
+    "version": "0.0.1",
+    "directory": "/home/workstation/Documents/Blocks/examples/blocks",
+    "authors": [
+        "Anonymous"
+    ],
+    "files": [
+        "/home/workstation/Documents/Blocks/examples/blocks/node_001/node_001.py"
+    ],
+    "codes": [],
+    "data": {},
+    "doc": null,
+    "allowed_name": [
+        "basic_function"
+    ],
+    "mandatory_attr": false,
+    "metadata": {
+        "source": "generated",
+        "description": "A simple Node for testing"
+    }
+}

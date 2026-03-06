@@ -25,12 +25,35 @@ class TestBlockInitialization:
                'metadata': {'source': 'generated', 'version': 1.0}
           }
           block = Block(**data)
-          
+
           assert block.name == 'block-test'
           assert block.version == '0.0.1'
           assert block.path == "myblock/"
           assert block.values == [1, 2, 3, 4, 5]
 
+     def test_serialization(self):
+          data = {
+               'name': 'block-test',
+               'id': None,
+               'version': '0.0.1',
+               'path': "myblock/",
+               'values': [1, 2, 3, 4, 5],
+               'auto_create': True,
+               'metadata': {'source': 'generated', 'version': 1.0}
+          }
+          block = Block(**data)
+          serialized = block.to_dict()
+          assert isinstance(serialized, dict)
+          assert serialized['name'] == 'block-test'
+          assert serialized['version'] == '0.0.1'
+          assert serialized['path'] == "myblock/"
+          assert serialized['values'] == [1, 2, 3, 4, 5]
+
+          block_bis = Block.from_dict(**serialized)
+          assert block_bis.name == 'block-test'
+          assert block_bis.version == '0.0.1'
+          assert block_bis.path == "myblock/"
+          assert block_bis.values == [1, 2, 3, 4, 5]
 
 class TestBlockCopy:
      """Test Block deepcopy functionality."""

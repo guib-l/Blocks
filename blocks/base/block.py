@@ -144,7 +144,6 @@ class Block(DataSet):
             **kwargs
         )
 
-
     # ===========================================
     # Propriétés stdout/stderr
     # ===========================================
@@ -326,6 +325,10 @@ class Block(DataSet):
             return True
         except (ValueError, AttributeError, TypeError):
             return False
+        
+    # ===========================================
+    # Versioning
+    # ===========================================
 
     @property
     def version(self):

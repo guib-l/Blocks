@@ -25,17 +25,17 @@ class SimpleProfile:
         if not self.directory.exists():
             raise ValueError(f"Directory {self.directory} does not exist")
 
-    def _execute_command(self, cmd: List[str]) -> tuple[str, str, int]:
+    def _execute_command(self, cmd: List[str], **kwargs) -> tuple[str, str, int]:
         """Execute a single command and return stdout, stderr, and return code."""
         try:
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True,
+                text=kwargs.pop('text', True),
                 shell=self.shell,
-                #bufsize=1,
-                cwd=str(self.directory)
+                cwd=str(self.directory),
+                **kwargs
             )
             stdout, stderr = process.communicate(timeout=self.timeout)
             return stdout, stderr, process.returncode
@@ -47,7 +47,7 @@ class SimpleProfile:
         except Exception as e:
             raise RuntimeError(f"Failed to execute command {cmd}: {e}")
 
-    def execute(self, commands=None) -> dict:
+    def execute(self, commands=None, **kwargs) -> dict:
         """Execute all commands and return results."""
         
         if commands is None:
@@ -65,7 +65,7 @@ class SimpleProfile:
 
         for i, cmd in enumerate(commands):
             try:
-                stdout, stderr, returncode = self._execute_command(cmd)
+                stdout, stderr, returncode = self._execute_command(cmd, **kwargs)
                 results['outputs'].append(stdout)
                 results['errors'].append(stderr)
                 results['return_codes'].append(returncode)
@@ -85,7 +85,7 @@ class SimpleProfile:
 
 class Select:
 
-    __slots__ = ("_environ","_manager")
+    #__slots__ = ("_environ","_manager")
 
     def __init__(self, 
                  env_type: str, 
@@ -153,7 +153,7 @@ class Packages(Select, SerializableMixin):
                  env_name = 'conda-env.01',
                  env_type = 'conda',
                  mng_type = 'conda',
-                 dependencies = ['numpy'],
+                 dependencies = [],
                  auto_build = False,
                  profile = None,
                  **args ):
@@ -203,6 +203,7 @@ class Packages(Select, SerializableMixin):
                 name = self.env_name,
                 directory = self.directory,
             )
+            print(f"Environment {self.env_name} built successfully")
 
             self._backend_manager = self.manager(
                 #context = self._backend_environ,
@@ -210,8 +211,9 @@ class Packages(Select, SerializableMixin):
                 env_path=self._backend_environ.env_path,
                 profile=self.profile,
             )
+            print(f"Manager for environment {self.env_name} initialized successfully")
         except:
-            print('Manager and environ are build.')
+            print('Manager and environ are not build.')
             pass
 
     def install(self):
@@ -233,7 +235,7 @@ class Packages(Select, SerializableMixin):
 
     def list_dependencies(self):
         print(f"Listing dependencies for environment {self.env_name}")
-        return self._backend_manager.list_context()
+        return self._backend_manager.list_dependencies()
     
     def install_dependencies(self, dependencies: List[str]):
         print(f"Installing dependencies {dependencies} in environment {self.env_name}")
@@ -280,17 +282,86 @@ class Packages(Select, SerializableMixin):
     def del_dependencies(self, dependency: str):
         print(f"Deleting dependency {dependency} from environment {self.env_name}")
 
-    # TODO : implement diff logic
-    def diff(self, other_pkg):
-        print(f"Comparing environment {self.env_name} with another environment")
-        return {}
+    def diff(self, other_pkg: 'Packages') -> dict:
+        """
+        Compare the installed packages of two environments.
 
-    # TODO : implement merge logic
-    def merge(self, 
-              pkg, 
-              directory: str, 
-              ignore_dependencies: Optional[List[str]] = None):
-        print(f"Merging environment {self.env_name} with another environment into directory {directory}")
+        Returns a dict with three keys:
+            - 'only_in_self'  : list of (name, version) present only in this env
+            - 'only_in_other' : list of (name, version) present only in other_pkg
+            - 'common'        : list of (name, self_version, other_version) —
+                                version differs when self_version != other_version
+        """
+        print(f"Comparing environment {self.env_name} with {other_pkg.env_name}")
+
+        self_deps  = {name: ver for name, ver in self.list_dependencies()}
+        other_deps = {name: ver for name, ver in other_pkg.list_dependencies()}
+
+        self_names  = set(self_deps)
+        other_names = set(other_deps)
+
+        return {
+            'only_in_self':  [(n, self_deps[n])  for n in sorted(self_names  - other_names)],
+            'only_in_other': [(n, other_deps[n]) for n in sorted(other_names - self_names)],
+            'common':        [(n, self_deps[n], other_deps[n])
+                              for n in sorted(self_names & other_names)],
+        }
+
+    def merge(self,
+              pkg: 'Packages',
+              new_name: str,
+              directory: Optional[str] = None,
+              ignore_dependencies: Optional[List[str]] = None) -> 'Packages':
+        """
+        Merge this environment with *pkg* into a brand-new environment.
+
+        The resulting environment contains the union of all installed packages
+        from both environments, minus anything listed in *ignore_dependencies*.
+        When the same package exists in both, the version from *pkg* takes
+        precedence (it will be installed last, effectively upgrading).
+
+        Args:
+            pkg:                  The other Packages object to merge with.
+            new_name:             Name of the merged environment.
+            directory:            Target directory (defaults to self.directory).
+            ignore_dependencies:  Package names to exclude from the merge.
+
+        Returns:
+            A new Packages object for the merged environment.
+        """
+        print(f"Merging {self.env_name} + {pkg.env_name} → {new_name}")
+
+        if not isinstance(pkg, Packages):
+            raise TypeError(f"Expected a Packages object to merge with, got {type(pkg)}")
+        
+        if pkg.env_type != self.env_type or pkg.mng_type != self.mng_type:
+            raise ValueError("Both environments must have the same type and manager to be merged")
+
+        ignore = set(ignore_dependencies or [])
+
+        # Collect installed packages from both environments
+        self_deps  = {name: ver for name, ver in self.list_dependencies()}
+        other_deps = {name: ver for name, ver in pkg.list_dependencies()}
+
+        # Union — other_pkg wins on version conflicts
+        merged = {**self_deps, **other_deps}
+        merged_names = [name for name in merged if name not in ignore]
+
+        merged_pkg = type(self)(
+            directory  = str(directory or self.directory),
+            env_name   = new_name,
+            env_type   = self.env_type,
+            mng_type   = self.mng_type,
+            dependencies = [],
+            auto_build = False,
+            profile    = self.profile,
+        )
+        merged_pkg.build()
+        merged_pkg.install_dependencies(merged_names)
+        merged_pkg.dependencies = merged_names
+
+        print(f"Merged environment '{new_name}' created with {len(merged_names)} packages.")
+        return merged_pkg
 
 
     def __eq__(self, other):

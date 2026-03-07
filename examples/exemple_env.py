@@ -1,5 +1,6 @@
 import os
 import time
+import copy
 from configs import *
 
 from blocks import BLOCK_PATH
@@ -11,19 +12,12 @@ from blocks.nodes.node import Node
 from blocks.nodes.workflow import Workflow
 
 from blocks.base.prototype import INSTALLER
+
+from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
 from blocks.engine.execute import Execute
 from blocks.engine.environment import Environment
+from blocks.engine.python3.envPy import EnvPython
 
-
-
-def basic_function(n=5, delay=0.2):
-    result = 0
-    for i in range(n):
-        # Simulation de calcul lourd
-        result += i
-        time.sleep(delay)
-        print(f"Calcul en cours... étape {i+1}/{n}")
-    return result
 
 
 def install_node():
@@ -39,6 +33,31 @@ def install_node():
     
     # Default environment
     ENVIRONMENT = Environment
+
+    ENVIRONMENT_CONFIG = {
+        'environment':EnvPython,
+        'language':'python3',
+        'parameters':{
+            'directory': './envs/pip_env/',
+            'env_name': 'generic-env.01',
+            'env': 'venv',
+            'mng': 'pip',
+            'dependencies': ['numpy'],
+            'auto_build': True,
+            'profile': None,}
+    }
+
+    temp = copy.copy(PYTHON_PIP)
+    temp.environment = EnvPython
+    temp.parameters['packages'] = ['numpy',]
+
+    ENVIRONMENT_CONFIG = {
+        'name':'pip',
+        'directory':'./envs/pip_env/',
+        'language':'python3',
+        'backend_env':temp,
+        'env_name':'generic-env.01',
+    } 
 
     # Default installer for python programmes
     INSTALL = INSTALLER.PYTHON
@@ -59,11 +78,12 @@ def install_node():
             'auto':False, # Create the Node if it does not exist
         },
         'environment': ENVIRONMENT,
-        'environment_config':{},
+        'environment_config':ENVIRONMENT_CONFIG,
         'executor': EXECUTE,
         'executor_config':{},
-        'methods':[basic_function,],
-        'allowed_name':[]
+        'files':["script/script.py"],
+        'methods':[],
+        'allowed_name':['basic_function']
     }
 
     node = Node(**data)
@@ -71,12 +91,12 @@ def install_node():
     # Node installation (if auto is False, it will not create the 
     # Node if it does not exist, but it will check if it exists and 
     # is correctly installed)
-    node.install()
+    #node.install()
 
     # Node execution
     node.execute(n=4, delay=0.1)
 
-    del node
+    #del node
 
 
 
@@ -111,5 +131,10 @@ if __name__ == "__main__":
 
     install_node()
 
-    load_node()
+    #load_node()
+
+
+
+
+
 

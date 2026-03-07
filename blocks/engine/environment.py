@@ -26,7 +26,7 @@ class EnvironMixin:
         self.backend = _backend( **self.env.parameters ) 
 
         self.env.parameters.update(**kwargs)
-
+        print('Environment parameters : ',self.env.parameters)
 
     def env_to_dict(self):
         return {
@@ -51,13 +51,13 @@ class EnvironMixin:
 
     def __enter__(self):
         try:
-            self.open()
-            return self
+            self.open()            
         except:
             env_logger.critical(f'Cannot enter in env')
             raise EnvironmentError(
                 code=ErrorCodeEnv.ENV_ERROR_ENTER,
                 message="Not closed env.")
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback):        
         try:

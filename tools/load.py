@@ -23,6 +23,7 @@ def _import_modules(file_path: str):
     """
 
     module_name = Path(file_path).stem
+    print(module_name, file_path)
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     module = importlib.util.module_from_spec(spec)
 

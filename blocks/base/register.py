@@ -11,9 +11,8 @@ from enum import Enum
 from dataclasses import dataclass
 
 from tools.load import (
-    _import_modules,_load_function_from_file,
-    _load_callable_from_file,_load_function_with_dependencies,
-    _load_function_without_decorators,save_function_to_file
+    PluginLoader,
+    save_function_to_file,
 )
 
 
@@ -49,10 +48,11 @@ class Register:
         """
 
         self._register_methods = {}
+        self._plugin_loader = PluginLoader()
 
         for _out in [methods, files]:
             self.set_register_methods(_out, ignore_duplicata=False)
-                
+
         self.registred_files = files
             
         self.allowed_name = allowed_name or list(self._register_methods.keys())  
@@ -123,23 +123,29 @@ class Register:
             return
 
         if isinstance(defaults, str):
-            func = _load_function_from_file(
-                defaults, name_defaults,
-                ignore_restriction=True
-            )
-            if isinstance(func,list):
-                for method in func:
-                    self.set_register_methods(method)
+            module_name = Path(defaults).stem
+            module = self._plugin_loader.load(module_name, defaults)
+
+            if name_defaults:
+                func = getattr(module, name_defaults, None)
+                if func is None:
+                    raise ValueError(f"Function '{name_defaults}' not found in {defaults}")
+                funcs = [func]
             else:
+                funcs = [
+                    obj for _, obj in inspect.getmembers(module, inspect.isfunction)
+                    if obj.__module__ == module_name
+                ]
+
+            for func in funcs:
                 method_obj = MethodObjects()
-                method_obj.name = func.__name__ or name_defaults
+                method_obj.name = func.__name__
                 method_obj.ftype = type(func)
                 method_obj.call = func
                 method_obj.directory = defaults
-
                 self._register_methods[method_obj.name] = method_obj
-                return    
-                
+            return
+
         if isinstance(defaults, list):
             for method in defaults:
                 self.set_register_methods(method)
@@ -188,20 +194,50 @@ class Register:
 
 
     def import_method(self,
-                      source: str=None, 
-                      allowed_methods=None):
-        
+                      source: str = None,
+                      allowed_methods: list = None):
+
         if not os.path.isabs(source):
             source = os.path.abspath(source)
 
-        functions = _load_function_from_file(source,
-                                             None,
-                                             ignore_restriction=True)
-        
-        self.set_register_methods(functions)
+        self.set_register_methods(source)
 
         self.filter_register_methods(
             allowed_name=allowed_methods or self.allowed_name)
+
+    def reload_method(self, name: str) -> None:
+        """
+        Reload the module that provided *name* from disk and refresh
+        the corresponding entry in the register.
+        """
+        method = self.get_register_methods(name=name)
+        if method.directory is None:
+            raise ValueError(f"Method '{name}' was not loaded from a file and cannot be reloaded")
+
+        module_name = Path(method.directory).stem
+        self._plugin_loader.reload(module_name)
+
+        # Re-register all functions from the reloaded module
+        self.set_register_methods(method.directory, ignore_duplicata=True)
+        self.filter_register_methods()
+
+    def unload_method(self, name: str) -> bool:
+        """
+        Unload the module that provided *name* and remove it from the register.
+        """
+        method = self.get_register_methods(name=name)
+        if method.directory is None:
+            raise ValueError(f"Method '{name}' was not loaded from a file and cannot be unloaded")
+
+        module_name = Path(method.directory).stem
+        self._plugin_loader.unload(module_name)
+
+        # Remove all methods that came from the same file
+        self._register_methods = {
+            k: v for k, v in self._register_methods.items()
+            if v.directory != method.directory
+        }
+        return True
 
 
 

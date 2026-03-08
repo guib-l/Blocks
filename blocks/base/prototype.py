@@ -119,13 +119,13 @@ class Prototype(block.Block,Register):
 
         if hasattr(self,'init_register'):
             #try:
-                with self.environment as env:
+                #with self.environment as env:
                     self.init_register(
                         config.pop('allowed_name',[]),
                         methods=methods, 
                         files=files,
                     )
-                print('Register methods : ',self._register_methods)
+                    print('Register methods : ',self._register_methods)
             #except PrototypeError as e:
             #
             #    logger.critical("Executor didn't loaded")

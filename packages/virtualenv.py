@@ -25,6 +25,11 @@ class EnvironMixin:
     def context_exists(self, trim):
         self._exist = trim
 
+    @property
+    def site_packages(self) -> str:
+        """Path to the site-packages directory of this environment. Override in subclasses."""
+        return None
+
     def enable(self,):
         pass
         

@@ -84,6 +84,16 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
             auto_build = True,
         )
 
+    @property
+    def site_packages(self) -> str:
+        """Absolute path to the venv's site-packages directory."""
+        return os.path.join(
+            self.env_path,
+            'lib',
+            f'python{sys.version_info.major}.{sys.version_info.minor}',
+            'site-packages',
+        )
+
     def enable(self,):
         env_dir = self.env_path
 

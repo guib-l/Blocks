@@ -15,7 +15,7 @@ from blocks.base.prototype import INSTALLER
 
 from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
 from blocks.engine.execute import Execute
-from blocks.engine.environment import Environment
+from blocks.engine.environment import EnvironmentBase,pyEnvironment
 from blocks.engine.python3.envPy import EnvPython
 
 from os import path
@@ -48,20 +48,40 @@ def import_modules():
     print("Fonctions disponibles :", funcs)
 
     # Appeler une fonction du module directement
-    result = module.basic_function(n=3, delay=0.1)
-    print("Résultat :", result)
-
-    # Accéder à un attribut ou une variable du module
-    # print(module.MY_CONSTANT)
+    if hasattr(module, 'basic_function'):
+        result = module.basic_function(n=3, delay=0.1)
+        print("Résultat :", result)
 
     return module
 
 
+def test_environment():
+
+    env = EnvironmentBase(
+        name="env_test",
+        language="python3",
+        environment=pyEnvironment,
+        parameters={
+            'python_version': '3.8',
+            'dependencies': ['numpy', 'pandas'],
+        }
+    )
+
+
+    with env as e:
+        print("Environnement actif :", e.name)
+        print("Version de Python :", e.parameters['python_version'])
+        print("Dépendances :", e.parameters['dependencies'])
+
+        
+
+
+
 if __name__ == "__main__":
 
-    import_modules()
+    #import_modules()
 
-
+    test_environment()
 
 
 

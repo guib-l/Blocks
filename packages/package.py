@@ -195,26 +195,27 @@ class Packages(Select, SerializableMixin):
     # ============================================
     # Build of Packages object
 
+    @property
+    def _is_built(self) -> bool:
+        """True if both backend_environ and backend_manager have been instantiated."""
+        return (hasattr(self, '_backend_environ') and self._backend_environ is not None
+                and hasattr(self, '_backend_manager') and self._backend_manager is not None)
+
     def build(self, **kwargs):
         print(f"Building environment {self.env_name} with dependencies {self.dependencies}")
 
-        try:
-            self._backend_environ = self.environ(
-                name = self.env_name,
-                directory = self.directory,
-            )
-            print(f"Environment {self.env_name} built successfully")
+        self._backend_environ = self.environ(
+            name=self.env_name,
+            directory=self.directory,
+        )
+        print(f"Environment {self.env_name} built successfully")
 
-            self._backend_manager = self.manager(
-                #context = self._backend_environ,
-                dependencies = self.dependencies,
-                env_path=self._backend_environ.env_path,
-                profile=self.profile,
-            )
-            print(f"Manager for environment {self.env_name} initialized successfully")
-        except:
-            print('Manager and environ are not build.')
-            pass
+        self._backend_manager = self.manager(
+            dependencies=self.dependencies,
+            env_path=self._backend_environ.env_path,
+            profile=self.profile,
+        )
+        print(f"Manager for environment {self.env_name} initialized successfully")
 
     def install(self):
         print(f"Installing dependencies in environment {self.env_name}")
@@ -224,9 +225,14 @@ class Packages(Select, SerializableMixin):
         print(f"Uninstalling dependencies from environment {self.env_name}")
         self._backend_environ.uninstall_context()
 
-    def activate(self):
+    @property
+    def site_packages(self) -> str:
+        """Convenience proxy to the backend environment's site-packages path."""
+        return self._backend_environ.site_packages
+
+    def activate(self) -> bool:
         print(f"Activating environment {self.env_name}")
-        self._backend_environ.enable()
+        return self._backend_environ.enable()
 
     def update(self, dependencies: List[str]=None):
         print(f"Updating dependencies {dependencies} in environment {self.env_name}")
@@ -245,9 +251,45 @@ class Packages(Select, SerializableMixin):
         print(f"Uninstalling dependencies {dependencies} from environment {self.env_name}")
         self._backend_manager.uninstall_dependencies(dependencies)
 
-    def deactivate(self):
+    def deactivate(self) -> bool:
         print(f"Deactivating environment {self.env_name}")
-        self._backend_environ.disable()
+        return self._backend_environ.disable()
+
+    # ============================================
+    # Context manager — activation / désactivation automatique
+
+    def __enter__(self) -> 'Packages':
+        """Activate the environment when entering a `with` block.
+
+        If the environment has not been built yet, `build()` is called
+        automatically so that a freshly constructed `Packages` object can be
+        used directly as a context manager::
+
+            with Packages(env_name='my-env', env_type='venv', mng_type='pip') as pkg:
+                pkg.install_dependencies(['numpy'])
+        """
+        if not self._is_built:
+            self.build()
+        self.activate()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """Deactivate the environment when leaving the `with` block.
+
+        Exceptions raised inside the block are *not* suppressed.
+        """
+        self.deactivate()
+        return False  # propagate any exception
+
+    def __call__(self) -> 'Packages':
+        """Allow a `Packages` instance to be used directly as a context manager
+        factory when an explicit call style is preferred::
+
+            pkg = Packages(env_name='my-env', env_type='venv', mng_type='pip')
+            with pkg() as p:
+                ...
+        """
+        return self
 
     def move_env(self, target: str):
         print(f"Moving environment {self.env_name} to {target}")

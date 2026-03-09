@@ -3,6 +3,7 @@ import subprocess
 from configs import *
 
 from packages.package import Packages
+from packages.load import PluginLoader, load_plugins
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +263,144 @@ def example_merge():
 
 
 # ---------------------------------------------------------------------------
+# 10. Context manager — activation / désactivation automatique
+# ---------------------------------------------------------------------------
+
+def example_context_manager():
+    """
+    Utiliser Packages comme context manager.
+
+    L'environnement est activé à l'entrée du bloc `with` et désactivé
+    automatiquement à la sortie, même en cas d'exception.
+    """
+
+    # --- Cas A : construction manuelle avant le `with` ---
+    pkg = Packages(
+        directory='./.envs/',
+        env_name='pip-env.01',
+        env_type='venv',
+        mng_type='pip',
+        dependencies=['numpy'],
+        auto_build=True, )
+
+    with pkg as p:
+        # sys.path contient le site-packages du venv ici
+        deps = p.list_dependencies()
+        print("Dans le contexte — dépendances :", deps)
+    # env désactivé ici
+
+    # --- Cas B : construction déléguée au `with` (auto_build=False) ---
+    with Packages(
+            directory='./.envs/',
+            env_name='pip-env.ctx',
+            env_type='venv',
+            mng_type='pip',
+            dependencies=['requests'],
+            auto_build=False, ) as p:
+
+        print("Environnement :", p.env_name, "activé")
+        p.install_dependencies(['requests'])
+        print("Dépendances installées :", p.list_dependencies())
+    # env désactivé ici
+
+
+# ---------------------------------------------------------------------------
+# 11. Charger un plugin avec PluginLoader dans un environnement activé
+# ---------------------------------------------------------------------------
+
+def example_plugin_loader():
+    """
+    Charger dynamiquement un script Python (plugin) en utilisant le
+    site-packages d'un venv isolé.
+
+    Grâce à `PluginLoader`, le module est mis en cache : un second appel à
+    `loader.load()` avec le même nom retourne le module déjà chargé sans
+    relire le disque.
+    """
+
+    script_path = os.path.join(DIRECTORY, 'script', 'script.py')
+
+    pkg = Packages(
+        directory='./.envs/',
+        env_name='pip-env.numpy',
+        env_type='venv',
+        mng_type='pip',
+        dependencies=['numpy'],
+        auto_build=False,
+    )
+    pkg.build()
+
+    loader = PluginLoader()
+
+    with pkg as p:
+
+        site_packages = p.site_packages
+        
+        # Chargement du script depuis le venv
+        module = loader.load(
+            name='script',
+            path=script_path,
+            site_packages=site_packages,)
+
+        # Appel d'une fonction du plugin
+        result = module.basic_function(n=3, delay=0.0)
+        print("Résultat plugin :", result)
+
+    # Second appel : le module est servi depuis le cache (hors contexte)
+    cached = loader.get_plugin('script')
+    print("Module en cache :", cached)
+    print("Plugins chargés :", loader.list_plugins())
+
+
+# ---------------------------------------------------------------------------
+# 12. Context manager + PluginLoader — chargement conditionnel
+# ---------------------------------------------------------------------------
+
+def example_context_with_loader():
+    """
+    Combiner le context manager et PluginLoader pour charger plusieurs
+    plugins dans des environnements distincts, puis décharger proprement.
+
+    Chaque `with` garantit que l'environnement est actif pendant le
+    chargement, et le désactive ensuite sans effort.
+    """
+
+    script_path = os.path.join(DIRECTORY, 'script', 'script.py')
+    loader = PluginLoader()
+
+    envs = [
+        ('pip-env.A', ['numpy']),
+        ('pip-env.B', ['numpy', 'requests']),
+    ]
+
+    for env_name, deps in envs:
+
+        with Packages(
+            directory='./.envs/',
+            env_name=env_name,
+            env_type='venv',
+            mng_type='pip',
+            dependencies=deps,
+            auto_build=False, ) as pkg:
+
+            module = loader.load(
+                name=f'script_{env_name}',
+                path=script_path,
+                site_packages=pkg.site_packages,
+            )
+            result = module.basic_function(n=2, delay=0.0)
+            print(f"[{env_name}] résultat : {result}")
+
+    print("Plugins actifs :", loader.list_plugins())
+
+    # Déchargement explicite
+    for env_name, _ in envs:
+        loader.unload(f'script_{env_name}')
+
+    print("Plugins après déchargement :", loader.list_plugins())
+
+
+# ---------------------------------------------------------------------------
 # Point d'entrée
 # ---------------------------------------------------------------------------
 
@@ -290,6 +429,15 @@ if __name__ == "__main__":
 
     print("\n=== 8. Merge ===")
     example_merge()
+
+    print("\n=== 10. Context manager ===")
+    example_context_manager()
+
+    print("\n=== 11. PluginLoader ===")
+    example_plugin_loader()
+
+    print("\n=== 12. Context manager + PluginLoader ===")
+    example_context_with_loader()
 
 
 

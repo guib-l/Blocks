@@ -12,7 +12,7 @@ from blocks.nodes.workflow import Workflow
 
 from blocks.base.prototype import INSTALLER
 from blocks.engine.execute import Execute
-from blocks.engine.environment import Environment
+from blocks.engine.environment import EnvironmentBase,pyEnvironment
 
 
 
@@ -38,7 +38,7 @@ def install_node():
     BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
     
     # Default environment
-    ENVIRONMENT = Environment
+    ENVIRONMENT = EnvironmentBase
 
     # Default installer for python programmes
     INSTALL = INSTALLER.PYTHON
@@ -59,7 +59,19 @@ def install_node():
             'auto':False, # Create the Node if it does not exist
         },
         'environment': ENVIRONMENT,
-        'environment_config':{},
+        'environment_config':{
+            'name': 'env_001',
+            'language': 'python',
+            'environment': pyEnvironment,
+            'parameters':{
+                'directory': os.path.join(BLOCK_PATH, 'envs'),
+                'env_name': 'pip-env.01',
+                'env_type': 'venv',
+                'mng_type': 'pip',
+                'dependencies': ['numpy'],
+                'auto_build': True,
+            }
+        },
         'executor': EXECUTE,
         'executor_config':{},
         'methods':[basic_function,],
@@ -71,7 +83,7 @@ def install_node():
     # Node installation (if auto is False, it will not create the 
     # Node if it does not exist, but it will check if it exists and 
     # is correctly installed)
-    node.install()
+    #node.install()
 
     # Node execution
     node.execute(n=4, delay=0.1)
@@ -111,5 +123,5 @@ if __name__ == "__main__":
 
     install_node()
 
-    load_node()
+    #load_node()
 

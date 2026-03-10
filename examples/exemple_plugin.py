@@ -67,6 +67,8 @@ def test_environment():
         }
     )
 
+    loader = PluginLoader()
+    script_path = os.path.join(DIRECTORY, 'script', 'script.py')
 
     with env as e:
         print("Environnement actif :", e.name)
@@ -74,7 +76,17 @@ def test_environment():
         print("Dépendances :", e.parameters['dependencies'])
 
         
-
+        module = loader.load(
+            name=f'script',
+            path=script_path,
+            site_packages=e.environment.site_packages,
+        )
+        if hasattr(module, 'basic_function'):
+            function = getattr(module, 'basic_function')
+            result = module.basic_function(n=2, delay=0.0)
+            print(f"[{e.name}] résultat : {result}")
+    
+    #function(n=5, delay=0.0)  
 
 
 if __name__ == "__main__":

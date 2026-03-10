@@ -5,7 +5,7 @@ import abc
 import copy
 import json
 
-from packages.package import Packages
+from blocks.packages.package import Packages
 
 from dataclasses import dataclass
 from abc import ABC, abstractmethod

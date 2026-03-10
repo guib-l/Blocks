@@ -13,7 +13,7 @@ from blocks import BLOCK_PATH
 from blocks.base import prototype
 from blocks.engine import INSTALLER
 
-from blocks.engine.environment import Environment
+from blocks.engine.environment import EnvironmentBase
 
 from blocks.engine.oriented import AcyclicGraphic
 
@@ -393,7 +393,7 @@ class Workflow(prototype.Prototype):
             metadata:Optional[Dict[str,Any]]={'source': 'generated'},
             installer=INSTALLER.WORKFLOW,
             installer_config:Optional[Dict[str,Any]]={'auto':False},
-            environment=Environment,
+            environment=EnvironmentBase,
             environment_config:Optional[Dict[str,Any]]={},
             executor=None,
             executor_config:Optional[Dict[str,Any]]={},

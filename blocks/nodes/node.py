@@ -18,11 +18,11 @@ class Node(prototype.Prototype):
 
         logger.warning("Executing function in Node forward method")
 
-        with self.environment as env:
+        #with self.environment as env:
 
-            func   = self.get_register_methods(name=name).call
-            output = func(**data)
-            
+        func   = self.get_register_methods(name=name).call
+        output = func(**data)
+        
         logger.warning(f"Successful Node execution")
         
         return output

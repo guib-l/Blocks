@@ -90,11 +90,9 @@ class Prototype(block.Block,Register):
         logger.info("Initializing Prototype instance")
         
         self.unique_environment = unique_environment
-        print('Create environment instance')
-        print(config.get('environment_config',{}))
+        
         self.environment = environment(**config.pop('environment_config'))
 
-        print(self.environment)
         #logger.info("[1/5] Import environment")
 
         exec_config = config.pop('executor_config')
@@ -118,23 +116,22 @@ class Prototype(block.Block,Register):
         files   = config.pop('files',[])
 
         if hasattr(self,'init_register'):
-            #try:
-                #with self.environment as env:
-                    self.init_register(
-                        config.pop('allowed_name',[]),
-                        methods=methods, 
-                        files=files,
-                    )
-                    print('Register methods : ',self._register_methods)
-            #except PrototypeError as e:
-            #
-            #    logger.critical("Executor didn't loaded")
-            #
-            #    raise PrototypeError(
-            #        code=ErrorCode.PROTOTYPE_INIT_EXECUTOR,
-            #        message="Invalid executor object in parameters",
-            #        cause=e
-            #    ) 
+            try:
+                self.init_register(
+                    config.pop('allowed_name',[]),
+                    methods=methods, 
+                    files=files,
+                )
+                #print('Register methods : ',self._register_methods)
+            except PrototypeError as e:
+            
+                logger.critical("Executor didn't loaded")
+            
+                raise PrototypeError(
+                    code=ErrorCode.PROTOTYPE_INIT_EXECUTOR,
+                    message="Invalid executor object in parameters",
+                    cause=e
+                ) 
 
         #logger.info("[3/5] Create register")
 
@@ -350,8 +347,6 @@ class Prototype(block.Block,Register):
         sys.stdout = self.stdout
         print(f" \u25B6\033[1;30m Executing {self.__class__.__name__} '{self.name}'...\033[0m", file=sys.stdout)
 
-
-
         value   = None
         forward = getattr(self, 'forward', None)
         logger.info(f"Get forward {self.__class__.__name__} methods")
@@ -408,10 +403,10 @@ class Prototype(block.Block,Register):
             >>> print(result)
         """
 
-        with self.environment as env:
+        #with self.environment as env:
 
-            func   = self.get_register_methods(name=name).call
-            output = func(**data)
+        func   = self.get_register_methods(name=name).call
+        output = func(**data)
 
 
         return output

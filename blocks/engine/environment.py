@@ -431,42 +431,16 @@ class EnvironmentBase:
         return f" (Environment: {self.name} ; Language: {self.language} ; Type: {self.environment.__class__.__name__} ) "
     
     def to_config(self):
-        return {}
+        return self.to_dict()
     
     def to_dict(self):
-
+        
         return {
                 'name': self.name,
                 'language': self.language,
-                'environment': self.environment,
-                'parameters': self.environment.parameters,
+                'environment': self.environment.__class__,
+                'parameters': self.environment.to_dict(),
         }
-
-
-class pyEnvironment(Packages):
-
-    def __init__(self, **kwargs):
-        super().__init__(
-            directory=kwargs.get('directory', '.'),
-            env_name=kwargs.get('env_name', 'pip-venv.01'),
-            env_type=kwargs.get('env_type', 'venv'),
-            mng_type=kwargs.get('mng_type', 'pip'),
-            dependencies=kwargs.get('dependencies', []),
-            auto_build=kwargs.get('auto_build', True),
-        )
-
-    def open(self, **kwds):
-        env_logger.debug(f'Open Python environment ')
-        self.activate()
-        
-    def close(self, **kwds):
-        env_logger.debug(f'Close Python environment ')
-        self.deactivate()
-
-    def to_dict(self,):
-        return self.package_to_dict()
-
-
 
 
 

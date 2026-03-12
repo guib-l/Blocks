@@ -16,7 +16,7 @@ from blocks.base.prototype import INSTALLER
 from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
 from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironmentBase,pyEnvironment
-from blocks.engine.python3.envPy import EnvPython
+from blocks.asset.python3.envPy import EnvPython
 
 from os import path
 import inspect

@@ -6,6 +6,7 @@ import subprocess
 import venv
 from blocks.packages.virtualenv import EnvironMixin
 
+from blocks.utils.logger import *
 
 class VenvEnv(venv.EnvBuilder, EnvironMixin):
     """
@@ -45,13 +46,13 @@ class VenvEnv(venv.EnvBuilder, EnvironMixin):
 
         if self.env_path and os.path.exists(self.env_path):
             self.context_exists = True
-            print(f"Virtual environment {self.env_name} already exists.")
+            env_logger.info(f"Virtual environment {self.env_name} already exists.")
 
         if auto_build and not self.context_exists:
             if self.install_context():
-                print(f"Virtual environment {self.env_name} created successfully.")
+                env_logger.info(f"Virtual environment {self.env_name} created successfully.")
             else:
-                print(f"Failed to create virtual environment {self.env_name}.")
+                env_logger.error(f"Failed to create virtual environment {self.env_name}.")
 
     def __serialize__(self,):
         return dict(

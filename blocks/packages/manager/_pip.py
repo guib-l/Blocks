@@ -6,6 +6,7 @@ import subprocess
 
 from blocks.packages.dependencies import DependenciesMixin
 
+from blocks.utils.logger import *
 
 class PipManager(DependenciesMixin):
 
@@ -81,7 +82,7 @@ class PipManager(DependenciesMixin):
             else:
                 self.profile.execute(commands=command)
         except Exception as e:
-            print(f"Error executing pip command {' '.join(command)}: {e}")
+            env_logger.error(f"Error executing pip command {' '.join(command)}: {e}")
             return False
         return True
     
@@ -105,7 +106,7 @@ class PipManager(DependenciesMixin):
     def install_depends(self, package):
 
         if self._is_installed(package):
-            print(f"Package '{package}' is already installed.")
+            env_logger.info(f"Package '{package}' is already installed.")
             return True
 
         cmd = [self.executable, '-m', 'pip', 'install', package]        
@@ -162,7 +163,7 @@ class PipManager(DependenciesMixin):
             return packages
         
         except Exception as e:
-            print(f"Error listing dependencies via pip: {e}")
+            env_logger.error(f"Error listing dependencies via pip: {e}")
             return []
         
 

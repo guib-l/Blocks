@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from contextlib import ExitStack
 import subprocess
 
+from blocks.utils.logger import *
 
 
 @dataclass
@@ -201,27 +202,31 @@ class Packages(Select):
                 and hasattr(self, '_backend_manager') and self._backend_manager is not None)
 
     def build(self, **kwargs):
-        print(f"Building environment {self.env_name} with dependencies {self.dependencies}")
-
+        env_logger.info(f"Building environment {self.env_name} with dependencies {self.dependencies}")
+        #import time
+        #ax = time.time()
+        #print("build",)
         self._backend_environ = self.environ(
             name=self.env_name,
             directory=self.directory,
         )
-        print(f"Environment {self.env_name} built successfully")
+        env_logger.info(f"Environment {self.env_name} built successfully")
 
         self._backend_manager = self.manager(
             dependencies=self.dependencies,
             env_path=self._backend_environ.env_path,
             profile=self.profile,
         )
-        print(f"Manager for environment {self.env_name} initialized successfully")
+        #bx = time.time()
+        #print("end_build", bx-ax)
+        env_logger.info(f"Manager for environment {self.env_name} initialized successfully")
 
     def install(self):
-        print(f"Installing dependencies in environment {self.env_name}")
+        env_logger.info(f"Installing dependencies in environment {self.env_name}")
         self._backend_environ.install_context()
 
     def uninstall(self):
-        print(f"Uninstalling dependencies from environment {self.env_name}")
+        env_logger.info(f"Uninstalling dependencies from environment {self.env_name}")
         self._backend_environ.uninstall_context()
 
     @property
@@ -230,28 +235,28 @@ class Packages(Select):
         return self._backend_environ.site_packages
 
     def activate(self) -> bool:
-        print(f"Activating environment {self.env_name}")
+        env_logger.info(f"Activating environment {self.env_name}")
         return self._backend_environ.enable()
 
     def update(self, dependencies: List[str]=None):
-        print(f"Updating dependencies {dependencies} in environment {self.env_name}")
+        env_logger.info(f"Updating dependencies {dependencies} in environment {self.env_name}")
         for dep in dependencies:
             self._backend_manager.update_dependencies(dep)
 
     def list_dependencies(self):
-        print(f"Listing dependencies for environment {self.env_name}")
+        env_logger.info(f"Listing dependencies for environment {self.env_name}")
         return self._backend_manager.list_dependencies()
     
     def install_dependencies(self, dependencies: List[str]):
-        print(f"Installing dependencies {dependencies} in environment {self.env_name}")
+        env_logger.info(f"Installing dependencies {dependencies} in environment {self.env_name}")
         self._backend_manager.install_dependencies(dependencies)
 
     def uninstall_dependencies(self, dependencies: List[str]):
-        print(f"Uninstalling dependencies {dependencies} from environment {self.env_name}")
+        env_logger.info(f"Uninstalling dependencies {dependencies} from environment {self.env_name}")
         self._backend_manager.uninstall_dependencies(dependencies)
 
     def deactivate(self) -> bool:
-        print(f"Deactivating environment {self.env_name}")
+        env_logger.info(f"Deactivating environment {self.env_name}")
         return self._backend_environ.disable()
 
     # ============================================
@@ -291,19 +296,19 @@ class Packages(Select):
         return self
 
     def move_env(self, target: str):
-        print(f"Moving environment {self.env_name} to {target}")
+        env_logger.info(f"Moving environment {self.env_name} to {target}")
         self._backend_environ.move_env(
             target_dir=target,
             delete_source=True,
         )
         self.directory = self._backend_environ.directory
-        print(f"New environment path: {self.directory}")
+        env_logger.info(f"New environment path: {self.directory}")
         self._backend_manager.env_path = self._backend_environ.env_path
 
     def copy(self, 
              new_name: Optional[str] = None, 
              directory: Optional[str] = None,):
-        print(f"Copying environment {self.env_name}")
+        env_logger.info(f"Copying environment {self.env_name}")
 
         assert new_name is not None, "A new name must be provided for the copied environment"
 
@@ -318,10 +323,10 @@ class Packages(Select):
         )
 
     def add_dependencies(self, dependency: str):
-        print(f"Adding dependency {dependency} to environment {self.env_name}")
+        env_logger.info(f"Adding dependency {dependency} to environment {self.env_name}")
 
     def del_dependencies(self, dependency: str):
-        print(f"Deleting dependency {dependency} from environment {self.env_name}")
+        env_logger.info(f"Deleting dependency {dependency} from environment {self.env_name}")
 
     def diff(self, other_pkg: 'Packages') -> dict:
         """
@@ -333,7 +338,7 @@ class Packages(Select):
             - 'common'        : list of (name, self_version, other_version) —
                                 version differs when self_version != other_version
         """
-        print(f"Comparing environment {self.env_name} with {other_pkg.env_name}")
+        env_logger.info(f"Comparing environment {self.env_name} with {other_pkg.env_name}")
 
         self_deps  = {name: ver for name, ver in self.list_dependencies()}
         other_deps = {name: ver for name, ver in other_pkg.list_dependencies()}
@@ -370,7 +375,7 @@ class Packages(Select):
         Returns:
             A new Packages object for the merged environment.
         """
-        print(f"Merging {self.env_name} + {pkg.env_name} → {new_name}")
+        env_logger.info(f"Merging {self.env_name} + {pkg.env_name} → {new_name}")
 
         if not isinstance(pkg, Packages):
             raise TypeError(f"Expected a Packages object to merge with, got {type(pkg)}")
@@ -401,7 +406,7 @@ class Packages(Select):
         merged_pkg.install_dependencies(merged_names)
         merged_pkg.dependencies = merged_names
 
-        print(f"Merged environment '{new_name}' created with {len(merged_names)} packages.")
+        env_logger.warning(f"Merged environment '{new_name}' created with {len(merged_names)} packages.")
         return merged_pkg
 
 

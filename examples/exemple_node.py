@@ -12,7 +12,8 @@ from blocks.nodes.workflow import Workflow
 
 from blocks.base.prototype import INSTALLER
 from blocks.engine.execute import Execute
-from blocks.engine.environment import EnvironmentBase,pyEnvironment
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.envPy import pyEnvironment
 
 
 
@@ -83,7 +84,7 @@ def install_node():
     # Node installation (if auto is False, it will not create the 
     # Node if it does not exist, but it will check if it exists and 
     # is correctly installed)
-    #node.install()
+    node.install()
 
     # Node execution
     node.execute(n=4, delay=0.1)
@@ -123,5 +124,5 @@ if __name__ == "__main__":
 
     install_node()
 
-    #load_node()
+    load_node()
 

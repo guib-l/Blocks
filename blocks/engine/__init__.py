@@ -4,10 +4,10 @@ import json
 
 from enum import Enum
 
-from blocks.engine.python3.envPy import EnvEmpty,EnvPython
+from blocks.asset.python3.envPy import EnvEmpty
 
 
-from blocks.engine.python3.installerPy import (InstallerPython, 
+from blocks.asset.python3.installerPy import (InstallerPython, 
                                                InstallerPythonWorkflow)
 from blocks.engine.installer import Installer
 
@@ -56,7 +56,7 @@ class PYTHON:
     environment = EnvEmpty
     language    = Language.PYTHON
     parameters  = {}
-
+'''
 class PYTHON_PIP:
     """
     Python environment configuration with pip package manager
@@ -75,6 +75,7 @@ class PYTHON_PIP:
         'auto_build': True,
         'profile': None,
     }
+'''
 
 
 class ENVIRONMENT_TYPE:
@@ -85,7 +86,7 @@ class ENVIRONMENT_TYPE:
     """
     
     PYTHON = PYTHON
-    PYTHON_PIP = PYTHON_PIP
+    #PYTHON_PIP = PYTHON_PIP
 
     @classmethod
     def get(cls, key):
@@ -94,7 +95,7 @@ class ENVIRONMENT_TYPE:
         
         mapping = {
             'PYTHON': PYTHON,
-            'PYTHON_PIP': PYTHON_PIP,
+            #'PYTHON_PIP': PYTHON_PIP,
         }
         return mapping.get(key.upper(), PYTHON)
     

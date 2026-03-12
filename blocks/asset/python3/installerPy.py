@@ -74,7 +74,7 @@ class InstallerPython(Installer):
             format : format of export (pickle)
         
         """
-        
+        print()
         structural_object = {
             'installer':self.object.installer.__class__,
             'installer_config':self.object.installer.to_config(),
@@ -266,12 +266,13 @@ class InstallerPythonWorkflow(Installer):
             self,
             directory,
             format='pickle'):
-        
 
         with safe_operation(
                 'Export environment of Workflow',
                 ErrorCodeInstall.INSTALL_ERROR_ENVIRON,
                 ERROR=InstallError):
+            
+
             
             structural_object = {
                 'installer':self.object.installer.__class__,
@@ -450,7 +451,7 @@ class InstallerPythonWorkflow(Installer):
             name=name,
             directory=directory,
         )
-
+        
         return (content, structure, register)
     
     def __uninstall__(self, directory=None):

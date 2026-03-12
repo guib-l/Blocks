@@ -13,10 +13,10 @@ from blocks.nodes.workflow import Workflow
 
 from blocks.base.prototype import INSTALLER
 
-from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
+#from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
 from blocks.engine.execute import Execute
-from blocks.engine.environment import Environment
-from blocks.asset.python3.envPy import EnvPython
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.envPy import pyEnvironment
 
 
 
@@ -32,32 +32,8 @@ def install_node():
     BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
     
     # Default environment
-    ENVIRONMENT = Environment
+    ENVIRONMENT = EnvironmentBase
 
-    ENVIRONMENT_CONFIG = {
-        'environment':EnvPython,
-        'language':'python3',
-        'parameters':{
-            'directory': './envs/pip_env/',
-            'env_name': 'generic-env.01',
-            'env': 'venv',
-            'mng': 'pip',
-            'dependencies': ['numpy'],
-            'auto_build': True,
-            'profile': None,}
-    }
-
-    temp = copy.copy(PYTHON_PIP)
-    temp.environment = EnvPython
-    temp.parameters['packages'] = ['numpy',]
-
-    ENVIRONMENT_CONFIG = {
-        'name':'pip',
-        'directory':'./envs/pip_env/',
-        'language':'python3',
-        'backend_env':temp,
-        'env_name':'generic-env.01',
-    } 
 
     # Default installer for python programmes
     INSTALL = INSTALLER.PYTHON
@@ -66,7 +42,7 @@ def install_node():
     EXECUTE = Execute
 
     data = {
-        'name': 'node_001',
+        'name': 'node_002',
         'id': None,
         'version': '0.0.1',
         'directory':BLOCK_PATH,
@@ -78,7 +54,19 @@ def install_node():
             'auto':False, # Create the Node if it does not exist
         },
         'environment': ENVIRONMENT,
-        'environment_config':ENVIRONMENT_CONFIG,
+        'environment_config':{
+            'name': 'env_001',
+            'language': 'python',
+            'environment': pyEnvironment,
+            'parameters':{
+                'directory': os.path.join(BLOCK_PATH, 'envs'),
+                'env_name': 'pip-env.01',
+                'env_type': 'venv',
+                'mng_type': 'pip',
+                'dependencies': ['numpy'],
+                'auto_build': True,
+            }
+        },
         'executor': EXECUTE,
         'executor_config':{},
         'files':["script/script.py"],
@@ -91,7 +79,7 @@ def install_node():
     # Node installation (if auto is False, it will not create the 
     # Node if it does not exist, but it will check if it exists and 
     # is correctly installed)
-    #node.install()
+    node.install()
 
     # Node execution
     node.execute(n=4, delay=0.1)

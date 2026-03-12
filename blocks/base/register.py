@@ -36,7 +36,8 @@ class Register:
             allowed_name,
             *,
             files=[],
-            methods=[]
+            methods=[],
+            site_packages=None,
         ):
         """
         Initialize register
@@ -45,10 +46,15 @@ class Register:
             allowed_name ():
             files (list):
             methods (list):
+            site_packages (str | None): Path to the site-packages directory of
+                the virtual environment used to load file-based plugins.
+                Forwarded to :class:`PluginLoader` so that dependencies of
+                those plugins (e.g. numpy) are resolvable.
         """
 
         self._register_methods = {}
         self._plugin_loader = PluginLoader()
+        self._register_site_packages = site_packages
 
         for _out in [methods, files]:
             self.set_register_methods(_out, ignore_duplicata=False)
@@ -124,7 +130,10 @@ class Register:
 
         if isinstance(defaults, str):
             module_name = Path(defaults).stem
-            module = self._plugin_loader.load(module_name, defaults)
+            module = self._plugin_loader.load(
+                module_name, defaults,
+                site_packages=getattr(self, '_register_site_packages', None),
+            )
 
             if name_defaults:
                 func = getattr(module, name_defaults, None)
@@ -133,7 +142,8 @@ class Register:
                 funcs = [func]
             else:
                 funcs = [
-                    obj for _, obj in inspect.getmembers(module, inspect.isfunction)
+                    obj for _, obj in inspect.getmembers(
+                        module, inspect.isfunction)
                     if obj.__module__ == module_name
                 ]
 

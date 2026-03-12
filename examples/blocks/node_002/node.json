@@ -1,13 +1,13 @@
 {
-    "id": "6114f68d-4125-441f-9ae5-b37fd7ee7cb1",
-    "name": "node_001",
+    "id": "f23240b8-3f8d-4f4f-9ead-0a4f41e7367b",
+    "name": "node_002",
     "version": "0.0.1",
     "directory": "/home/workstation/Documents/Blocks/examples/blocks",
     "authors": [
         "Anonymous"
     ],
     "files": [
-        "/home/workstation/Documents/Blocks/examples/blocks/node_001/node_001.py"
+        "/home/workstation/Documents/Blocks/examples/blocks/node_002/node_002.py"
     ],
     "codes": [],
     "data": {},

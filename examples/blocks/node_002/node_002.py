@@ -1,8 +1,7 @@
-
+import numpy as np
 import os
 import time
 
-import numpy as np
 
 def basic_function(n=5, delay=0.2):
     result = 0
@@ -13,5 +12,6 @@ def basic_function(n=5, delay=0.2):
         value = np.random.rand()
         print(f"Calcul en cours... étape {i+1}/{n}, valeur aléatoire : {value}")
     return result
+
 
 

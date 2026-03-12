@@ -116,11 +116,14 @@ class Prototype(block.Block,Register):
         files   = config.pop('files',[])
 
         if hasattr(self,'init_register'):
+            
             try:
                 self.init_register(
                     config.pop('allowed_name',[]),
                     methods=methods, 
                     files=files,
+                    site_packages=getattr(
+                        self.environment.environment, 'site_packages', None),
                 )
                 #print('Register methods : ',self._register_methods)
             except PrototypeError as e:

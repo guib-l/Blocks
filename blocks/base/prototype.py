@@ -15,6 +15,7 @@ from blocks.engine.execute import Execute
 from blocks.utils.logger import *
 from blocks.utils.exceptions import PrototypeError,ErrorCode
 
+from blocks.engine.environment import EnvironmentBase
 
 from blocks.utils.exceptions import safe_operation
 
@@ -48,7 +49,7 @@ class Prototype(block.Block,Register):
             unique_environment=False,
             *,
             installer = None,
-            environment = None,
+            environment = EnvironmentBase,
             executor = None,
             **config
         ):
@@ -231,6 +232,7 @@ class Prototype(block.Block,Register):
             PrototypeError: If the installer does not provide `__install__`.
             Exception: Any error raised by the underlying installer.
         """
+        print(f" \u2699\033[1;30m Installing {self.__class__.__name__} '{self.name}'\033[0m", file=sys.stdout)
         
         assert hasattr(self.installer,'__install__'),\
             PrototypeError(
@@ -253,6 +255,7 @@ class Prototype(block.Block,Register):
             PrototypeError: If the installer does not provide `__uninstall__`.
             Exception: Any error raised by the underlying installer.
         """
+        print(f" \u2699\033[1;30m Uninstalling {self.__class__.__name__} '{self.name}'\033[0m", file=sys.stdout)
         
         assert hasattr(self.installer,'__uninstall__'),\
             PrototypeError(

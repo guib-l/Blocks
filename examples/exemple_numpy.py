@@ -1,7 +1,7 @@
 import os
 import time
 import copy
-from configs import *
+
 
 from blocks import BLOCK_PATH
 
@@ -13,7 +13,6 @@ from blocks.nodes.workflow import Workflow
 
 from blocks.base.prototype import INSTALLER
 
-#from blocks.engine import PYTHON,PYTHON_PIP,ENVIRONMENT_TYPE
 from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironmentBase
 from blocks.asset.python3.envPy import pyEnvironment
@@ -97,7 +96,7 @@ def load_node():
     import time
 
     start = time.time()
-    node = Node.load(name='node_001',
+    node = Node.load(name='node_002',
                      ntype='node',
                      directory=BLOCK_PATH)
     print(node)
@@ -119,7 +118,7 @@ if __name__ == "__main__":
 
     install_node()
 
-    #load_node()
+    load_node()
 
 
 

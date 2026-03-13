@@ -1,13 +1,13 @@
 {
-    "id": "6114f68d-4125-441f-9ae5-b37fd7ee7cb1",
+    "id": "b1e35b1a-0567-4441-9308-627fabd31274",
     "name": "node_001",
     "version": "0.0.1",
-    "directory": "/home/workstation/Documents/Blocks/examples/blocks",
+    "directory": "/home/vboxuser/Documents/blocks/examples/blocks",
     "authors": [
         "Anonymous"
     ],
     "files": [
-        "/home/workstation/Documents/Blocks/examples/blocks/node_001/node_001.py"
+        "/home/vboxuser/Documents/blocks/examples/blocks/node_001/node_001.py"
     ],
     "codes": [],
     "data": {},

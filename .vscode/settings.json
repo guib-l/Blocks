@@ -7,6 +7,9 @@
     "${workspaceFolder}/examples",
     "${workspaceFolder}/test"
   ],
-  "python.analysis.typeCheckingMode": "basic",
-  "python-envs.defaultEnvManager": "ms-python.python:system"
+  "python.analysis.typeCheckingMode": "off",
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingTypeStubs": "none"
+  }
 }

@@ -20,10 +20,10 @@ from tools.load import (
 
 @dataclass
 class MethodObjects:
-    name = ''
-    ftype = None
-    call = None
-    directory = None 
+    name: str = ''
+    ftype: Optional[type] = None
+    call: Optional[Any] = None
+    directory: Optional[str] = None
 
     def __repr__(self):
         return f'{self.name}:{self.ftype}()'
@@ -110,7 +110,7 @@ class Register:
 
         if isinstance(defaults, Callable):
             method_obj = MethodObjects()
-            method_obj.name = defaults.__name__ or name_defaults
+            method_obj.name = defaults.__name__ or name_defaults or ''
             method_obj.ftype = type(defaults)
             method_obj.call = defaults
             method_obj.directory = None
@@ -120,7 +120,7 @@ class Register:
 
         if inspect.isfunction(defaults):
             method_obj = MethodObjects()
-            method_obj.name = defaults.__name__ or name_defaults
+            method_obj.name = defaults.__name__ or name_defaults or ''
             method_obj.ftype = type(defaults)
             method_obj.call = defaults
             method_obj.directory = None
@@ -129,10 +129,11 @@ class Register:
             return
 
         if isinstance(defaults, str):
+            
             module_name = Path(defaults).stem
             module = self._plugin_loader.load(
                 module_name, defaults,
-                site_packages=getattr(self, '_register_site_packages', None),
+                site_packages=getattr(self, '_register_site_packages', None) or '',
             )
 
             if name_defaults:
@@ -161,7 +162,7 @@ class Register:
                 self.set_register_methods(method)
 
     def filter_register_methods(self,
-                                allowed_name: List[str] = None):
+                                allowed_name: Optional[List[str]] = None):
         if allowed_name is None:
             allowed_name = self.allowed_name
 
@@ -176,20 +177,20 @@ class Register:
         save_function_to_file(
             method.call,
             path,
-            exclude_decorator=exclude_decorator
+            exclude_decorator=exclude_decorator or ''
         )
 
     def export_method(self, 
                       filename: Union[str,Iterable]="",
-                      destination: str=None,
+                      destination: Optional[str] = None,
                       single_file: bool=True,
                       **register):
         
-        if not os.path.isabs(destination):
-            destination = os.path.abspath(destination)
+        if not os.path.isabs(destination or ''):
+            destination = os.path.abspath(destination or '.')
 
         if single_file:
-            pathing = os.path.join(destination,filename)
+            pathing = os.path.join(destination or '.', str(filename))
             if os.path.exists(pathing):
                 os.remove(pathing)
 
@@ -204,11 +205,11 @@ class Register:
 
 
     def import_method(self,
-                      source: str = None,
-                      allowed_methods: list = None):
+                      source: Optional[str] = None,
+                      allowed_methods: Optional[list] = None):
 
-        if not os.path.isabs(source):
-            source = os.path.abspath(source)
+        if not os.path.isabs(source or ''):
+            source = os.path.abspath(source or '.')
 
         self.set_register_methods(source)
 

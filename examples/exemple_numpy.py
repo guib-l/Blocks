@@ -2,8 +2,7 @@ import os
 import time
 import copy
 
-
-from blocks import BLOCK_PATH
+from configs import *
 
 from blocks.base import *
 from blocks.nodes import *
@@ -15,7 +14,7 @@ from blocks.base.prototype import INSTALLER
 
 from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironmentBase
-from blocks.asset.python3.envPy import pyEnvironment
+from blocks.asset.python3.env import pyEnvironment
 
 
 
@@ -83,7 +82,7 @@ def install_node():
     # Node execution
     node.execute(n=4, delay=0.1)
 
-    #del node
+    del node
 
 
 

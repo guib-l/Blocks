@@ -34,12 +34,12 @@ class REGISTER_NODE:
 
     @staticmethod
     def import_node(
-            node=None,
-            ntype=None,
-            directory=None,
-            method_name=None,
-            transformer=None,
-            attributes = {}):
+            node:Union[prototype.Prototype,Any]=None,
+            ntype:Any=None,
+            directory:Union[str, None]=None,
+            method_name:Union[str, None]=None,
+            transformer:Union[dict, Transformer, None]=None,
+            attributes:dict={}):
         """
         Import a node into the workflow register.
 
@@ -87,11 +87,13 @@ class REGISTER_NODE:
                 message="The 'transformer' parameter must be a dict or a Transformer instance.",
                 details={"expected":Transformer,"current":type(transformer)}
             )
+        
+        _directory = directory or getattr(node, 'directory', None)
 
         return {
             'node': node,
             'name': node.name,
-            'directory': directory or node.directory,
+            'directory': _directory,
             'function_name': method_name,
             'ntype': ntype,
             'transformer': transformer,
@@ -130,18 +132,18 @@ class Workflow(prototype.Prototype):
             self,
             register_nodes: Optional[Dict[str, Any]] = {},
             *,
-            installer = None,
-            environment = None,
-            executor = None,
-            graphics = None,
-            communicate = None,
-            interface = None,
-            buffer = None,
+            installer:Any = None,
+            environment:Any = None,
+            executor:Any = None,
+            graphics:Any = None,
+            communicate:Any = None,
+            interface:Any = None,
+            buffer:Any = None,
             **config
         ):
 
         self._register_nodes = {}
-        self.set_register_nodes(register_nodes)
+        self.set_register_nodes(register_nodes or {})
         logger.info("Loaded nodes into workflow")
 
         self._register_interface = []
@@ -262,7 +264,7 @@ class Workflow(prototype.Prototype):
         _register = REGISTER_NODE.import_node(
             node=node,
             ntype=node.__ntype__,
-            directory=directory or node.directory,
+            directory=directory or getattr(node, 'directory', None),
             method_name=method_name,
             transformer=transformer,
             attributes = kwargs
@@ -270,11 +272,10 @@ class Workflow(prototype.Prototype):
 
         self._register_nodes[label] = _register
 
-        if interface is None:
-            interf = self.interface
+        _interf = interface if interface is not None else self.interface
 
         self._register_interface.append(
-            (label, interf(node=node, name=method_name))
+            (label, _interf(node=node, name=method_name))
         )
 
 
@@ -289,7 +290,7 @@ class Workflow(prototype.Prototype):
         with safe_operation(
                 'dict serialisation',
                 ErrorCode.WORKFLOW_SERIALIZE_ERR,
-                WorkflowError ):
+                ERROR=WorkflowError ):
             
             _dict = super().to_dict()
             _dict.update({
@@ -301,7 +302,7 @@ class Workflow(prototype.Prototype):
                 'executor_config':self.executor.to_config() or {},
                 'graphics':self.graphics.__class__,
                 'graphics_config':self.graphics.to_config() or {},
-                'registered_nodes':self._registred_nodes,
+                'registered_nodes':self._register_nodes,
             })
             return _dict
     
@@ -310,7 +311,7 @@ class Workflow(prototype.Prototype):
         with safe_operation(
                 'dict deserialisation',
                 ErrorCode.WORKFLOW_DESERIALIZE_ERR,
-                WorkflowError ):
+                ERROR=WorkflowError ):
             
             return cls(**data)
 
@@ -354,7 +355,7 @@ class Workflow(prototype.Prototype):
             directory=None,
             format='json',
             ntype='prototype',
-            installer=INSTALLER.WORKFLOW,
+            installer: Any = INSTALLER.WORKFLOW,
             **kwargs
         ):
 
@@ -369,6 +370,8 @@ class Workflow(prototype.Prototype):
                 format=format,
                 ntype=ntype,
             )
+            content = content or {}
+            structure = structure or {}
             content.update(**structure)
             content.update({
                 'register_nodes': register
@@ -382,7 +385,7 @@ class Workflow(prototype.Prototype):
 
     @classmethod
     def create(
-            self,
+            cls,
             name:str='workflow-create',
             directory:Optional[str]=BLOCK_PATH,
             ntype:str='workflow',
@@ -410,7 +413,7 @@ class Workflow(prototype.Prototype):
         with safe_operation(
                 'Creating workflow',
                 ErrorCode.WORKFLOW_CREATING_ERR,
-                WorkflowError ):
+                ERROR=WorkflowError ):
             
             return Workflow(
                 name=name,
@@ -493,13 +496,13 @@ class Workflow(prototype.Prototype):
     def communicate(self, communicate):
 
         if communicate is None:
-            self._communicate = COMMUNICATE.DIRECT
+            communicate = COMMUNICATE.DIRECT
 
         try:
             self._communicate = communicate(
                 graphics=self.graphics,
                 interface=self._register_interface,
-                buffer=self.buffer or BUFFER.DATABUFFER()           
+                buffer=self.buffer if self.buffer is not None else BUFFER.DATABUFFER
             )
         except Exception as e:
             raise WorkflowError(
@@ -571,6 +574,7 @@ class Workflow(prototype.Prototype):
             
             comm.send(data)
 
+            _graph_node = None
             for _graph_node,_interface in comm.generator():
 
                 _interface._node.stdout = self.stdout
@@ -596,7 +600,7 @@ class Workflow(prototype.Prototype):
                     
                 _interface.execute()
 
-            received_msg = comm.receive(label=_graph_node.NAME, side='output')
+            received_msg = comm.receive(label=_graph_node.NAME if _graph_node is not None else None, side='output')  # type: ignore[call-arg]
             print("Received message : ",received_msg)
 
         return received_msg

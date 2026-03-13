@@ -2,8 +2,6 @@ import os
 import time
 from configs import *
 
-from blocks import BLOCK_PATH
-
 from blocks.base import *
 from blocks.nodes import *
 
@@ -13,7 +11,7 @@ from blocks.nodes.workflow import Workflow
 from blocks.base.prototype import INSTALLER
 from blocks.engine.execute import Execute
 from blocks.engine.environment import EnvironmentBase
-from blocks.asset.python3.envPy import pyEnvironment
+from blocks.asset.python3.env import pyEnvironment
 
 
 

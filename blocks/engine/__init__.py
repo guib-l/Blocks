@@ -4,10 +4,10 @@ import json
 
 from enum import Enum
 
-from blocks.asset.python3.envPy import EnvEmpty
+from blocks.asset.python3.env import EnvEmpty
 
 
-from blocks.asset.python3.installerPy import (InstallerPython, 
+from blocks.asset.python3.install import (InstallerPython, 
                                                InstallerPythonWorkflow)
 from blocks.engine.installer import Installer
 

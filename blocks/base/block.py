@@ -4,13 +4,12 @@ import sys
 import uuid
 import json
 from datetime import *
-from copy import copy, deepcopy
+from copy import deepcopy
 import csv
 from typing import *
 from abc import abstractmethod
 
 from .dataset import DataSet
-from copy import copy, deepcopy
 
 from blocks.base.version import VersionManager
 
@@ -84,7 +83,7 @@ class Block(DataSet):
             files: list = [],
             codes: list = [],
             data: dict = {},
-            doc: str = None,
+            doc: Optional[str] = None,
             stdout: Optional[TextIO] = sys.__stdout__,
             stderr: Optional[TextIO] = sys.__stderr__,
             ignore_error: bool = True,
@@ -158,7 +157,7 @@ class Block(DataSet):
         return sys.stdout
     
     @stdout.setter
-    def stdout(self, stream: Optional[TextIO]=None):
+    def stdout(self, stream: Union[TextIO, 'logging.Logger', None] = None):
         """Set a custom stdout stream.
 
         If `stream` is a `logging.Logger`, it will be wrapped in a
@@ -173,7 +172,7 @@ class Block(DataSet):
         """
 
         if isinstance(stream, logging.Logger):
-            stream = StreamLogger(logger=stream, 
+            stream = StreamLogger(logger=stream,   # type: ignore[assignment]
                                   level=LOGGER_BLOCK_LEVEL)
 
         if not hasattr(stream, 'write'):
@@ -182,7 +181,7 @@ class Block(DataSet):
                 message="stdout stream must have a write() method."
             )
         #self._stdout = stream 
-        sys.stdout = stream
+        sys.stdout = stream  # type: ignore[assignment]
     
     @property
     def stderr(self) -> TextIO:
@@ -195,7 +194,7 @@ class Block(DataSet):
         return sys.stderr
     
     @stderr.setter
-    def stderr(self, stream: Optional[TextIO]):
+    def stderr(self, stream: Union[TextIO, 'logging.Logger', None] = None):
         """Set a custom stderr stream.
 
         If `stream` is a `logging.Logger`, it will be wrapped in a
@@ -210,7 +209,7 @@ class Block(DataSet):
         """
 
         if isinstance(stream, logging.Logger):
-            stream = StreamLogger(logger=stream, 
+            stream = StreamLogger(logger=stream,   # type: ignore[assignment]
                                   level=LOGGER_BLOCK_LEVEL)
             
         if not hasattr(stream, 'write'):
@@ -220,7 +219,7 @@ class Block(DataSet):
             )
         
         #self._stderr = stream 
-        sys.stderr = stream
+        sys.stderr = stream  # type: ignore[assignment]
     
     
 
@@ -299,7 +298,7 @@ class Block(DataSet):
             if not isinstance(id, uuid.UUID):
                 raise BlockError(
                     code=ErrorCode.BLOCK_INVALID_UUID,
-                    message=f'ID needs to be {uuid.__class__} object'
+                    message=f'ID needs to be {uuid.UUID} object'
                 )
             
             self.__id__ = id
@@ -354,7 +353,7 @@ class Block(DataSet):
         """
         try:
             if self.vsm.current_version != version:
-                self.vsm.upgrade_version(version,changelog=changelog)
+                self.vsm.upgrade_version(version, changelog=changelog or "")
 
             self.__version__ = self.vsm.current_version
             self._dataset['version'] = self.vsm.current_version
@@ -372,7 +371,7 @@ class Block(DataSet):
         Returns:
             str: Changelog text.
         """
-        return self.vsm.changelog
+        return self.vsm.get_changelog()
 
     @property
     def version_info(self):
@@ -437,7 +436,7 @@ class Block(DataSet):
 
     def __repr__(self, base=''):
         """Developer-facing representation."""
-        n_symb = len(self.__class__.__name__)
+        n_symb = len(self.__class__.__name__ or '')
         space = ' ' * (n_symb+1)
         attrs = f",\n{space}".join(f"{k}={repr(v.__str__())}" for k, v in self._dataset.items() 
                       if k in ['name', 'id', 'version'])
@@ -475,7 +474,7 @@ class Block(DataSet):
     # ===========================================
 
 
-    def to_csv(self):
+    def to_csv(self, filepath: str = '', delimiter: str = ',') -> str:
         """Serialize the block dataset as a single-row CSV.
 
         Returns:
@@ -488,16 +487,16 @@ class Block(DataSet):
         with safe_operation(
                 'CSV serialisation',
                 ErrorCode.BLOCK_INVALID_NAME,
-                BlockError ):
+                ERROR=BlockError ):
             output = io.StringIO()
             writer = csv.writer(output)
             writer.writerow(self._dataset.keys())
             writer.writerow(self._dataset.values())
             return output.getvalue()
 
-    def to_json(self, 
-                indent=4,
-                encoder=BlockJSONEncoder):
+    def to_json(self,
+                encoder: Type[json.JSONEncoder] = BlockJSONEncoder,
+                indent: int = 4):
         """Serialize the block dataset as JSON.
 
         Args:
@@ -514,7 +513,7 @@ class Block(DataSet):
         with safe_operation(
                 'JSON serialisation',
                 ErrorCode.BLOCK_INVALID_NAME,
-                BlockError ):
+                ERROR=BlockError ):
             
             return json.dumps(self._dataset, 
                               indent=indent, 
@@ -546,7 +545,7 @@ class Block(DataSet):
     # ===========================================
 
 
-    def update_version(major=None,minor=None,patch=None):
+    def update_version(self, major=None, minor=None, patch=None):
         pass
 
     @abstractmethod

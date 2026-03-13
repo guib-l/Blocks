@@ -1,5 +1,4 @@
-from blocks import BLOCK_PATH
-from blocks.asset.python3.envPy import pyEnvironment
+from blocks.asset.python3.env import pyEnvironment
 from blocks.base import *
 from blocks.base.prototype import INSTALLER
 from blocks.engine.environment import EnvironmentBase

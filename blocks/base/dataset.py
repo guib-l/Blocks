@@ -22,7 +22,7 @@ class DataSet:
 
     __slots__ = ['_dataset','__dict__']
     
-    def __init__(self, **options: dict):
+    def __init__(self, **options: Any):
         """
         Initialize the DataSet with given options.
 
@@ -81,7 +81,7 @@ class DataSet:
         """
         return key.lower() in {k.lower() for k in self._dataset.keys()}
     
-    def set_empty(self, empty_values: dict = None) -> dict:
+    def set_empty(self, empty_values: typing.Optional[dict] = None) -> dict:
         """
         Set all elements to empty values.
         
@@ -281,7 +281,7 @@ class DataSet:
         for key, value in state.items():
             self.set_option(key, value)
 
-    def __copy__(self) -> T:
+    def __copy__(self) -> 'DataSet':
         """
         Create a copy of the DataSet instance.
 
@@ -290,7 +290,7 @@ class DataSet:
         """
         return type(self)(**self._dataset.copy())
     
-    def __deepcopy__(self, memo: Dict[int, Any]) -> T:
+    def __deepcopy__(self, memo: Dict[int, Any]) -> 'DataSet':
         """
         Create a deep copy of the DataSet instance.
 
@@ -373,7 +373,7 @@ class DataSet:
         with open(filepath, 'r') as f:
             return cls.from_json(f.read())
 
-    def merge(self, other: 'DataSet', overwrite: bool = True) -> T:
+    def merge(self, other: 'DataSet', overwrite: bool = True) -> 'DataSet':
         """
         Merge another DataSet into this one.
         
@@ -449,7 +449,7 @@ class DataSet:
             
         return filepath
         
-    def to_yaml(self, filepath: str = None) -> Union[str, str]:
+    def to_yaml(self, filepath: typing.Optional[str] = None) -> Union[str, str]:
         """
         Convert the dataset to YAML format.
         
@@ -477,7 +477,7 @@ class DataSet:
     # Data Filtering Methods
     # -----------------------------------------------------
 
-    def filter(self, predicate: callable) -> T:
+    def filter(self, predicate: typing.Callable) -> 'DataSet':
         """
         Create a new DataSet containing only items that satisfy the predicate.
         
@@ -493,7 +493,7 @@ class DataSet:
                 result.set_option(key, value)
         return result
         
-    def select(self, *keys) -> T:
+    def select(self, *keys) -> 'DataSet':
         """
         Create a new DataSet containing only the specified keys.
         
@@ -509,7 +509,7 @@ class DataSet:
                 result.set_option(key, self._dataset[key])
         return result
     
-    def exclude(self, *keys) -> T:
+    def exclude(self, *keys) -> 'DataSet':
         """
         Create a new DataSet excluding the specified keys.
         
@@ -529,7 +529,7 @@ class DataSet:
     # Data Transformation Methods
     # -----------------------------------------------------
 
-    def transform(self, transformer: callable) -> T:
+    def transform(self, transformer: typing.Callable) -> 'DataSet':
         """
         Create a new DataSet with transformed values.
         
@@ -544,7 +544,7 @@ class DataSet:
             result.set_option(key, transformer(key, value))
         return result
         
-    def apply(self, func: callable, *keys) -> T:
+    def apply(self, func: typing.Callable, *keys) -> 'DataSet':
         """
         Apply a function to specific values in the DataSet.
         

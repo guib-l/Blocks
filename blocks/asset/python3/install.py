@@ -95,8 +95,8 @@ class InstallerPython(Installer):
     
     @staticmethod
     def import_structure(
-            name: str = None,
-            directory = None,):
+            name: Optional[str] = None,
+            directory: Optional[str] = None,):
         """
         Import environment structure of Block
 
@@ -111,11 +111,11 @@ class InstallerPython(Installer):
             InstallError: If import fails
         """
         
-        abs_directory = os.path.abspath(directory)
+        abs_directory = os.path.abspath(directory or '.')
 
         struct = os.path.join(
             abs_directory, 
-            name,
+            name or '',
             '.environ'
         )
 
@@ -137,7 +137,7 @@ class InstallerPython(Installer):
             files=[],
             directory=None,
             extension='py',
-            **kwargs):
+            **kwargs) -> 'InstallerPython':
         """
         Install Block
 
@@ -179,6 +179,7 @@ class InstallerPython(Installer):
 
         self.export_environ(_path_to_install,
                               format='pickle')
+        return self
             
         
     @staticmethod
@@ -235,9 +236,14 @@ class InstallerPython(Installer):
 
 class Transformer:
 
-    def __init__(self, func=None):
+    def __init__(self, func: Optional[Dict[str, Any]] = None):
         self.func = func
     def __call__(self, *args, **kwargs):
+        if self.func is None:
+            raise InstallError(
+                code=ErrorCodeInstall.INSTALL_ERROR_BUILD,
+                message="Transformer has no function set"
+            )
         return self.func["func"](*args, **kwargs)
 
 
@@ -246,14 +252,14 @@ class InstallerPythonWorkflow(Installer):
 
     def __init__(
             self,
-            object=None, /,
+            object: Any = None, /,
             *,
-            directory=None,
-            auto=False):
+            directory: Optional[str] = None,
+            auto: bool = False):
         
         self.object = object     
         self.auto_create = auto
-        self.path_to_install = directory or os.path.abspath(object.directory)
+        self.path_to_install: str = directory or os.path.abspath(str(object.directory))
 
         self.filemanager = FileManager(
             base_directory=os.path.join(
@@ -300,12 +306,12 @@ class InstallerPythonWorkflow(Installer):
             
     @staticmethod
     def import_environ(
-            name: str = None,
-            directory = None,):
+            name: Optional[str] = None,
+            directory: Optional[str] = None,):
         
-        abs_directory = os.path.abspath(directory)
+        abs_directory = os.path.abspath(directory or '.')
         struct = os.path.join(
-            abs_directory, name, '.environ' )
+            abs_directory, name or '', '.environ' )
 
         with open(struct,'rb') as f:
                 structural_object = pickle.load(f)
@@ -318,7 +324,7 @@ class InstallerPythonWorkflow(Installer):
                 message=f"Cannot import environment of Workflow"
             )
 
-        structural_object['buffer'] = structural_object.get('buffer', None)()
+        structural_object['buffer'] = (structural_object.get('buffer') or (lambda: None))()
         return structural_object
 
 
@@ -369,13 +375,13 @@ class InstallerPythonWorkflow(Installer):
 
     @staticmethod
     def import_register_nodes(
-            name: str = None,
-            directory = None,
-            format="pickle"):
+            name: Optional[str] = None,
+            directory: Optional[str] = None,
+            format: str = "pickle"):
         
-        abs_directory = os.path.abspath(directory)
+        abs_directory = os.path.abspath(directory or '.')
         struct = os.path.join(
-            abs_directory, name, '.register' )
+            abs_directory, name or '', '.register' )
         
 
         if format=='pickle':
@@ -399,7 +405,7 @@ class InstallerPythonWorkflow(Installer):
             files=[],
             directory=None,
             extension='py',
-            **kwargs):
+            **kwargs) -> 'InstallerPythonWorkflow':
         
         if directory is not None:
             directory = os.path.abspath(directory)
@@ -420,6 +426,7 @@ class InstallerPythonWorkflow(Installer):
             
         self.export_register_nodes(_path_to_install,
                                    format='pickle')
+        return self
         
     @staticmethod
     def __load__(

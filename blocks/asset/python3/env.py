@@ -16,11 +16,6 @@ from blocks.utils.logger import *
 
 class abstract_env(ABC):
 
-    @classmethod  
-    @abstractmethod  
-    def sub_build(cls, **kwargs):
-        ...
-
     @abstractmethod
     def open(self,):
         ...
@@ -37,17 +32,11 @@ class abstract_env(ABC):
     def update(self, **kwargs):
         ...
 
-
-
 @dataclass
 class EnvEmpty(abstract_env):
 
     __ntype__ = "empty_env"
 
-    @classmethod
-    def sub_build(cls, **kwargs):
-        return cls(**kwargs)
-    
     def open(self,):
         env_logger.info(f'Open empty environment')
         ...
@@ -63,9 +52,6 @@ class EnvEmpty(abstract_env):
     def update(self, **kwargs):
         env_logger.info(f'Update empty environment')
         ...
-
-
-
 
 
 class pyEnvironment(Packages):
@@ -89,7 +75,7 @@ class pyEnvironment(Packages):
         self.deactivate()
 
     def to_dict(self,):
-        self.auto_build = False
+        #self.auto_build = False
         return self.package_to_dict()
 
 

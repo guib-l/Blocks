@@ -1,13 +1,13 @@
 
 from typing import *
 from abc import *
-from blocks.base import prototype 
+from blocks.base.prototype import Prototype 
 
 from blocks.utils.logger import *
 
     
 
-class Node(prototype.Prototype):
+class Node(Prototype):
 
     __ntype__ = "node"
 

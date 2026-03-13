@@ -33,6 +33,8 @@ class PluginLoader:
     def __init__(self):
         self.plugins = {}
         self.paths = {}  
+
+        print("PluginLoader initialized")
     
     def load(self, name: str, path: str, site_packages: str = None):
         """Load a plugin or return cached version."""

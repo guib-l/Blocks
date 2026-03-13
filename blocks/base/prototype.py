@@ -116,26 +116,23 @@ class Prototype(block.Block,Register):
         methods = config.pop('methods',[])
         files   = config.pop('files',[])
 
-        if hasattr(self,'init_register'):
-            
-            try:
-                self.init_register(
-                    config.pop('allowed_name',[]),
-                    methods=methods, 
-                    files=files,
-                    site_packages=getattr(
-                        self.environment.environment, 'site_packages', None),
-                )
-                #print('Register methods : ',self._register_methods)
-            except PrototypeError as e:
-            
-                logger.critical("Executor didn't loaded")
-            
-                raise PrototypeError(
-                    code=ErrorCode.PROTOTYPE_INIT_EXECUTOR,
-                    message="Invalid executor object in parameters",
-                    cause=e
-                ) 
+        try:
+            self.init_register(
+                config.pop('allowed_name',[]),
+                methods=methods, 
+                files=files,
+                site_packages=getattr(
+                    self.environment.environment, 'site_packages', None),
+            )
+        except PrototypeError as e:
+        
+            logger.critical("Executor didn't loaded")
+        
+            raise PrototypeError(
+                code=ErrorCode.PROTOTYPE_INIT_EXECUTOR,
+                message="Invalid executor object in parameters",
+                cause=e
+            ) 
 
         #logger.info("[3/5] Create register")
 
@@ -145,6 +142,9 @@ class Prototype(block.Block,Register):
                          **config)
         
         #logger.info("[4/5] Build Block")
+
+        if installer is None:
+            installer = INSTALLER.DEFAULT
 
         try:
             self.installer = installer(
@@ -311,7 +311,9 @@ class Prototype(block.Block,Register):
                 format=format,
                 ntype=ntype,
             )
-            
+
+            content = content or {}
+            structure = structure or {}
             content.update(**structure)
             content.update(**kwargs)
             

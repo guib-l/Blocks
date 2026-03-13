@@ -107,7 +107,7 @@ class TestPrototypeInitialization:
         from blocks.base.prototype import Prototype
 
         from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.installerPy import InstallerPython
+        from blocks.asset.python3.install import InstallerPython
         from blocks.engine.execute import Execute
         from blocks.engine.environment import Environment
 
@@ -152,7 +152,7 @@ class TestPrototypeInitialization:
         from blocks.base.prototype import Prototype
 
         from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.installerPy import InstallerPython
+        from blocks.asset.python3.install import InstallerPython
         from blocks.engine.execute import Execute
         from blocks.engine.environment import Environment
 
@@ -198,7 +198,7 @@ class TestPrototypeInitialization:
         from blocks.base.prototype import Prototype
 
         from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.installerPy import InstallerPython
+        from blocks.asset.python3.install import InstallerPython
         from blocks.engine.execute import Execute
         from blocks.engine.environment import Environment
 
@@ -245,7 +245,7 @@ class TestPrototypeInitialization:
         from blocks.base.prototype import Prototype
 
         from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.installerPy import InstallerPython
+        from blocks.asset.python3.install import InstallerPython
         from blocks.engine.execute import Execute
         from blocks.engine.environment import Environment
 
@@ -293,7 +293,7 @@ class TestPrototypeInitialization:
         from blocks.base.prototype import Prototype
 
         from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.installerPy import InstallerPython
+        from blocks.asset.python3.install import InstallerPython
         from blocks.engine.execute import Execute
         from blocks.engine.environment import Environment
 
@@ -338,7 +338,7 @@ class TestPrototypeInitialization:
         from blocks.base.prototype import Prototype
 
         from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.installerPy import InstallerPython
+        from blocks.asset.python3.install import InstallerPython
         from blocks.engine.execute import Execute
         from blocks.engine.environment import Environment
 

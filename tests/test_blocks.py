@@ -28,8 +28,8 @@ class TestBlockInitialization:
 
           assert block.name == 'block-test'
           assert block.version == '0.0.1'
-          assert block.path == "myblock/"
-          assert block.values == [1, 2, 3, 4, 5]
+          assert block.path == "myblock/"   # type: ignore[attr-defined]
+          assert block.values == [1, 2, 3, 4, 5]   # type: ignore[attr-defined]
 
      def test_serialization(self):
           data = {
@@ -52,8 +52,8 @@ class TestBlockInitialization:
           block_bis = Block.from_dict(**serialized)
           assert block_bis.name == 'block-test'
           assert block_bis.version == '0.0.1'
-          assert block_bis.path == "myblock/"
-          assert block_bis.values == [1, 2, 3, 4, 5]
+          assert block_bis.path == "myblock/"   # type: ignore[attr-defined]
+          assert block_bis.values == [1, 2, 3, 4, 5]   # type: ignore[attr-defined]
 
 class TestBlockCopy:
      """Test Block deepcopy functionality."""

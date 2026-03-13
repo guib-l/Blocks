@@ -9,7 +9,8 @@ from blocks.nodes.workflow import Workflow
 from blocks.engine.oriented import AcyclicGraphic
 from blocks.engine.installer import Installer
 from blocks.engine.execute import Execute
-from blocks.engine.environment import Environment
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.env import pyEnvironment
 from blocks.interface.communication import COMMUNICATE
 from blocks.interface.interface import INTERFACE
 from blocks.interface.buffer import BUFFER
@@ -17,7 +18,7 @@ from blocks.interface.buffer import BUFFER
 BLOCK_PATH  = "myblock/"
 INSTALL     = Installer
 EXECUTE     = Execute
-ENVIRONMENT = Environment
+ENVIRONMENT = EnvironmentBase
 
 data = {
         'name': 'workflow-test',
@@ -39,7 +40,19 @@ data = {
         'interface': INTERFACE.SIMPLE,
         'buffer': BUFFER.DATABUFFER,
         'environment': ENVIRONMENT,
-        'environment_config':{},
+        'environment_config':{
+            'name': 'env_001',
+            'language': 'python',
+            'environment': pyEnvironment,
+            'parameters':{
+                'directory': os.path.join(BLOCK_PATH, 'envs'),
+                'env_name': 'pip-env.01',
+                'env_type': 'venv',
+                'mng_type': 'pip',
+                'dependencies': [],
+                'auto_build': True,
+            }
+        },
         'executor': EXECUTE,
         'executor_config':{},
         'register_nodes':{},
@@ -55,9 +68,9 @@ class TestWorkflowInitialization:
         
         assert workflow.name == 'workflow-test'
         assert workflow.version == '0.0.1'
-        assert workflow.directory == "myblock/"
+        assert workflow.directory == "myblock/"  # type: ignore[attr-defined]
 
-        assert isinstance(workflow.environment, Environment)
+        assert isinstance(workflow.environment, EnvironmentBase)
         assert isinstance(workflow.installer, Installer)
         assert isinstance(workflow.executor, Execute)
 
@@ -99,11 +112,11 @@ class TestWorkflowInitialization:
                           'method_name':'heavy_calculation',
                           'ntype':Prototype,
                           'transformer': None},
-            'HC_node_2': {'node':proto,
+            'HC_node_2': {'node':proto,   # type: ignore[attr-defined]
                           'method_name':'say',
                           'ntype':Prototype,
                           'transformer': None},
-            'HC_node_3': {'node':proto,
+            'HC_node_3': {'node':proto,   # type: ignore[attr-defined]
                           'method_name':'say2',
                           'ntype':Prototype,
                           'transformer': None},
@@ -143,7 +156,7 @@ class TestWorkflowInitialization:
                           'method_name':'say2',
                           'ntype':Prototype,
                           'transformer': None},
-            'HC_node_2': {'node':proto,
+            'HC_node_2': {'node':proto,   # type: ignore[attr-defined]
                           'method_name':'say',
                           'ntype':Prototype,
                           'transformer': None},

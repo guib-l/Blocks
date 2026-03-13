@@ -50,8 +50,6 @@ def install_workflow():
     TRANSFORMER = Transformer(
         rename_attr=[('result', 'n'),]
     )
-
-
     # Default installer for python programmes
     INSTALL = InstallerPythonWorkflow
 
@@ -59,7 +57,7 @@ def install_workflow():
     EXECUTE = Execute
 
     data = {
-        'name': 'node_002',
+        'name': 'workflow_001',
         'id': None,
         'version': '0.0.1',
         'directory':BLOCK_PATH,
@@ -114,12 +112,74 @@ def install_workflow():
     # Node installation (if auto is False, it will not create the 
     # Node if it does not exist, but it will check if it exists and 
     # is correctly installed)
-    #workflow.install()
+    workflow.install()
 
     # Node execution
     workflow.execute(n=4, delay=0.1)
 
-    #del node
+    del workflow
+
+
+
+def load_workflow():
+    
+    # Create a first basic example of a Workflow and execute 
+    # it in its environment. We have setup all values by default, 
+    # so we can just create the Workflow with its name and type, and 
+    # it will be able to find all the necessary information to execute 
+    # itself in its environment.
+
+    # Directory where the Node is located
+    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+
+    workflow = Workflow.load(name='workflow_001',
+                             ntype='workflow',
+                             directory=BLOCK_PATH)
+
+    print(workflow)
+    print("Workflow instance created successfully.")
+    
+    workflow.execute(n=4, delay=0.1)
+
+
+def mix_node_and_workflow():
+
+    # Create a first basic example of a Workflow and execute 
+    # it in its environment. We have setup all values by default, 
+    # so we can just create the Workflow with its name and type, and 
+    # it will be able to find all the necessary information to execute 
+    # itself in its environment.
+
+    # Directory where the Node is located
+    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+
+    node = Node.load(name='node_002',
+                     ntype='node',
+                     directory=BLOCK_PATH)
+    
+    print("Node instance created successfully.")
+
+    workflow = Workflow.load(name='workflow_001',
+                             ntype='workflow',
+                             directory=BLOCK_PATH)
+
+    print(workflow)
+    print("Workflow instance created successfully.")
+
+    TRANSFORMER = Transformer(
+        additional_parameters={'delay':0.001},
+        rename_attr=[('result', 'n'),]
+    )
+
+    with workflow as wf:
+        wf.import_node(label='HC_node_3', 
+                       node=node, 
+                       transformer=TRANSFORMER)
+        wf.add_link('HC_node_2', 'HC_node_3')
+        
+    wf.execute(n=4, delay=0.1)
+
+
 
 
 
@@ -127,4 +187,8 @@ def install_workflow():
 if __name__ == "__main__":
 
     install_workflow()
+
+    load_workflow()
+
+    mix_node_and_workflow()
 

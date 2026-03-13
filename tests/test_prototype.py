@@ -4,6 +4,15 @@ from configs import *
 
 import pytest
 
+from blocks.base.prototype import Prototype
+
+from blocks.base.prototype import INSTALLER
+from blocks.engine.installer import Installer
+from blocks.asset.python3.install import InstallerPython
+from blocks.engine.execute import Execute
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.env import pyEnvironment
+
 BLOCK_PATH  = "myblock/"
 
 def basic_function(n):
@@ -14,16 +23,9 @@ class TestPrototypeInitialization:
      
     def test_prototype(self):
 
-        from blocks.base.prototype import Prototype
-
-        from blocks.base.prototype import INSTALLER
-        from blocks.engine.installer import Installer
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
-
         INSTALL     = Installer
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
         data = {
                 'name': 'prototype-test',
@@ -39,7 +41,19 @@ class TestPrototypeInitialization:
                     'auto':False,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
             }
@@ -48,26 +62,18 @@ class TestPrototypeInitialization:
         
         assert prototype.name == 'prototype-test'
         assert prototype.version == '0.0.1'
-        assert prototype.directory == BLOCK_PATH
+        assert prototype.directory == BLOCK_PATH  # type: ignore[attr-defined]
 
-        assert isinstance(prototype.environment, Environment)
+        assert isinstance(prototype.environment, EnvironmentBase)
         assert isinstance(prototype.installer, Installer)
         assert isinstance(prototype.executor, Execute)
 
 
     def test_prototype_serialization(self):
         
-        from blocks.base.prototype import Prototype
-
-        from blocks.base.prototype import INSTALLER
-        from blocks.engine.installer import Installer
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
-
-        
         INSTALL     = Installer
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
         data = {
                 'name': 'prototype-test',
@@ -83,7 +89,19 @@ class TestPrototypeInitialization:
                     'auto':False,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
             }
@@ -100,20 +118,14 @@ class TestPrototypeInitialization:
         
         assert prototype_bis.name == 'prototype-test'
         assert prototype_bis.version == '0.0.1'
-        assert prototype_bis.directory == BLOCK_PATH
+        assert prototype_bis.directory == BLOCK_PATH  # type: ignore[attr-defined]
 
     def test_prototype_install_z(self):
         """Test the installation process of a prototype."""
-        from blocks.base.prototype import Prototype
-
-        from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.install import InstallerPython
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
 
         INSTALL     = InstallerPython
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
         data = {
                 'name': 'prototype-test',
@@ -129,7 +141,19 @@ class TestPrototypeInitialization:
                     'auto':True,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
             }
@@ -151,14 +175,9 @@ class TestPrototypeInitialization:
         """Test the installation process of a prototype with a method."""
         from blocks.base.prototype import Prototype
 
-        from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.install import InstallerPython
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
-
         INSTALL     = InstallerPython
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
 
         data = {
@@ -175,7 +194,19 @@ class TestPrototypeInitialization:
                     'auto':True,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
                 'methods':[basic_function],
@@ -197,14 +228,9 @@ class TestPrototypeInitialization:
         """Test the installation process of a prototype with files."""
         from blocks.base.prototype import Prototype
 
-        from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.install import InstallerPython
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
-
         INSTALL     = InstallerPython
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
 
         data = {
@@ -221,7 +247,19 @@ class TestPrototypeInitialization:
                     'auto':True,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
                 'files':['myscript/my_script.py',],
@@ -242,16 +280,10 @@ class TestPrototypeInitialization:
     def test_prototype_install_with_method_and_files(self):
 
         """Test the installation process of a prototype with both methods and files."""
-        from blocks.base.prototype import Prototype
-
-        from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.install import InstallerPython
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
 
         INSTALL     = InstallerPython
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
 
         data = {
@@ -268,7 +300,19 @@ class TestPrototypeInitialization:
                     'auto':True,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
                 'methods':[basic_function],
@@ -290,16 +334,10 @@ class TestPrototypeInitialization:
     def test_prototype_install_with_allowed_names(self):
 
         """Test the installation process of a prototype with allowed names."""
-        from blocks.base.prototype import Prototype
-
-        from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.install import InstallerPython
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
 
         INSTALL     = InstallerPython
         EXECUTE     = Execute
-        ENVIRONMENT = Environment
+        ENVIRONMENT = EnvironmentBase
 
 
         data = {
@@ -316,7 +354,19 @@ class TestPrototypeInitialization:
                     'auto':True,
                 },
                 'environment': ENVIRONMENT,
-                'environment_config':{},
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
                 'executor': EXECUTE,
                 'executor_config':{},
                 'methods':[basic_function],
@@ -332,15 +382,13 @@ class TestPrototypeInitialization:
             installed = True
         except Exception as e:
             print(f"Installation failed: {e}")
+            installed = False
+        
+        assert installed, "Prototype installation should succeed."
+
 
     def test_prototype_load(self):
         """Test loading a prototype from disk."""
-        from blocks.base.prototype import Prototype
-
-        from blocks.base.prototype import INSTALLER
-        from blocks.asset.python3.install import InstallerPython
-        from blocks.engine.execute import Execute
-        from blocks.engine.environment import Environment
 
         try:
             loaded_prototype = Prototype.load(
@@ -359,6 +407,8 @@ class TestPrototypeInitialization:
         """Test executing a method of the prototype."""
         from blocks.base.prototype import Prototype
 
+        loaded_prototype = None
+        result = None
         try:
             loaded_prototype = Prototype.load(
                 name='prototype-method-test',
@@ -373,7 +423,7 @@ class TestPrototypeInitialization:
         assert loaded, "Prototype loading should succeed."
 
         try:
-            result = loaded_prototype.execute(name='basic_function', n=5)
+            result = loaded_prototype.execute(name='basic_function', n=5)  # type: ignore[union-attr]
             executed = True
         except Exception as e:
             print(f"Execution failed: {e}")
@@ -386,9 +436,10 @@ class TestPrototypeInitialization:
         """Test uninstalling the prototype."""
         from blocks.base.prototype import Prototype
 
+        loaded_prototype = None
         try:
             loaded_prototype = Prototype.load(
-                name='prototype-uninstall',
+                name='prototype-allowed-names-test',
                 directory=BLOCK_PATH,
                 format='json',
                 ntype='prototype')
@@ -400,7 +451,7 @@ class TestPrototypeInitialization:
         assert loaded, "Prototype loading should succeed."
         
         try:
-            loaded_prototype.uninstall()
+            loaded_prototype.uninstall()  # type: ignore[union-attr]
             uninstalled = True
         except Exception as e:
             print(f"Uninstallation failed: {e}")
@@ -412,6 +463,7 @@ class TestPrototypeInitialization:
         """Test the basic use case of creating, installing, loading, and executing a prototype."""
         from blocks.base.prototype import Prototype
 
+        proto = None
         try:
             proto = Prototype.load(
                 name='prototype-file-test',
@@ -426,9 +478,9 @@ class TestPrototypeInitialization:
         assert loaded, "Prototype loading should succeed."
 
         try:
-            proto.installer.move(os.path.join('..', 'myscript'), 
+            proto.installer.move(os.path.join('..', 'myscript'),   # type: ignore[union-attr]
                                  erase_source=True )
-            proto.installer.move(BLOCK_PATH, 
+            proto.installer.move(BLOCK_PATH,   # type: ignore[union-attr]
                                  erase_source=True )
             moved = True
         except:
@@ -438,7 +490,7 @@ class TestPrototypeInitialization:
         assert moved, "Moving prototype files should succeed."
 
         try:
-            proto.installer.rename("basics_prototype")
+            proto.installer.rename("basics_prototype")  # type: ignore[union-attr]
             renamed = True
         except:
             print("Renaming prototype failed.")
@@ -450,6 +502,7 @@ class TestPrototypeInitialization:
         """Test compressing and decompressing the prototype."""
         from blocks.base.prototype import Prototype
 
+        proto = None
         try:
             proto = Prototype.load(
                 name='prototype-file-test',
@@ -464,7 +517,7 @@ class TestPrototypeInitialization:
         assert loaded, "Prototype loading should succeed."
 
         try:
-            proto.installer.compress()
+            proto.installer.compress()  # type: ignore[union-attr]
             compressed = True
         except Exception as e:
             print(f"Compression failed: {e}")
@@ -473,7 +526,7 @@ class TestPrototypeInitialization:
         assert compressed, "Prototype compression should succeed."
 
         try:
-            proto.installer.decompress()
+            proto.installer.decompress()  # type: ignore[union-attr]
             decompressed = True
         except Exception as e:
             print(f"Decompression failed: {e}")

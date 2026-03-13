@@ -1,4 +1,6 @@
 import os
+from typing import *
+
 
 
 
@@ -6,6 +8,7 @@ class Transformer:
 
     def __init__(
             self,
+            additional_parameters: Optional[Dict[str, Any]] = None,
             rename_attr = None,
             modify_attr = None,
             ignore_attr = None, ):
@@ -13,6 +16,7 @@ class Transformer:
         self.ra = rename_attr
         self.ma = modify_attr
         self.ia = ignore_attr
+        self.ap = additional_parameters
 
     def _rename(self, data):
         for old_name, new_name in self.ra or []:
@@ -40,6 +44,8 @@ class Transformer:
         }
 
     def __call__(self, input):
+
+        input = {**input, **(self.ap or {})}
 
         out = self._rename(input)
         out = self._modify(out)

@@ -17,6 +17,7 @@ from blocks.utils.exceptions import PrototypeError,ErrorCode
 
 from blocks.engine.environment import EnvironmentBase
 
+
 from blocks.utils.exceptions import safe_operation
 
 
@@ -46,11 +47,12 @@ class Prototype(block.Block,Register):
 
     def __init__(
             self,
-            unique_environment=False,
+            unique_environment: bool = False,
+            language: 'dict | Callable[..., dict] | None' = None,
             *,
-            installer = None,
-            environment = EnvironmentBase,
-            executor = None,
+            installer: 'Callable[..., Any] | None' = None,
+            environment: 'Callable[..., Any]' = EnvironmentBase,
+            executor: 'Callable[..., Any] | None' = None,
             **config
         ):
         """Initialize a `Prototype` instance.
@@ -59,6 +61,16 @@ class Prototype(block.Block,Register):
             unique_environment (bool): Whether this prototype should use a
                 unique environment instance (behavior depends on the provided
                 environment implementation).
+            language (dict | Callable[..., dict] | None): Optional language
+                preset. Pass a config dict (e.g. from
+                :meth:`blocks.engine.language.Language.python3_pip`) or a
+                zero-argument callable returning one. Its keys populate
+                `installer`, `environment`, `executor` and their `_config`
+                counterparts as defaults (explicit keyword arguments take
+                precedence). **Construction-time only** — `language` is NOT
+                stored by :meth:`to_dict`; the round-trip is preserved because
+                the resolved concrete classes and their configs are serialized
+                instead.
             installer (type | Callable | None): Installer class/factory used to
                 create the `installer` instance. It is called as
                 `installer(self, **installer_config)`.
@@ -89,18 +101,59 @@ class Prototype(block.Block,Register):
                 executor, installer, register, or `Block` initialization.
         """
         logger.info("Initializing Prototype instance")
-        
+
+        if language is not None:
+            name = config.get('name', None)
+            lang_config = language(
+                name = f"{name}_pip" if name is not None else None,
+                directory = config.get('directory', None)
+            ) if callable(language) else language
+            if installer is None:
+                installer = lang_config.get('installer', installer)
+            if environment is EnvironmentBase:
+                environment = lang_config.get('environment', environment)
+            if executor is None:
+                executor = lang_config.get('executor', executor)
+            for key in ('installer_config', 'environment_config', 'executor_config'):
+                if key not in config:
+                    config[key] = lang_config.get(key, {})
+
         self.unique_environment = unique_environment
-        
-        self.environment = environment(**config.pop('environment_config'))
 
-        #logger.info("[1/5] Import environment")
+        self._build_environment(environment, config.pop('environment_config'))
+        self._build_executor(executor, config.pop('executor_config'))
+        self._build_register(
+            config.pop('allowed_name', []),
+            config.pop('methods', []),
+            config.pop('files', []),
+        )
 
-        exec_config = config.pop('executor_config')
+        install_config = config.pop('installer_config')
+        super().__init__(allowed_name=self.allowed_name, **config)
 
+        if installer is None:
+            installer = INSTALLER.DEFAULT
+        self._build_installer(installer, install_config)
+
+
+    # ===========================================
+    # Private build helpers
+    # ===========================================
+
+    def _build_environment(
+            self,
+            environment: 'Callable[..., Any]',
+            environment_config: dict,
+        ) -> None:
+        self.environment = environment(**environment_config)
+
+    def _build_executor(
+            self,
+            executor: 'Callable[..., Any] | None',
+            exec_config: dict,
+        ) -> None:
         if executor is None:
-            self.executor = Execute(backend='default',
-                                    build_backend=True)
+            self.executor = Execute(backend='default', build_backend=True)
         else:
             try:
                 self.executor = executor(**exec_config)
@@ -111,58 +164,49 @@ class Prototype(block.Block,Register):
                     message="Invalid executor object in parameters",
                     cause=e
                 )
-        #logger.info("[2/5] Import executor")
 
-        methods = config.pop('methods',[])
-        files   = config.pop('files',[])
-
+    def _build_register(
+            self,
+            allowed_name: list,
+            methods: list,
+            files: list,
+        ) -> None:
         try:
             self.init_register(
-                config.pop('allowed_name',[]),
-                methods=methods, 
+                allowed_name,
+                methods=methods,
                 files=files,
                 site_packages=getattr(
                     self.environment.environment, 'site_packages', None),
             )
         except PrototypeError as e:
-        
-            logger.critical("Executor didn't loaded")
-        
+            logger.critical("Register didn't load")
             raise PrototypeError(
                 code=ErrorCode.PROTOTYPE_INIT_EXECUTOR,
-                message="Invalid executor object in parameters",
+                message="Invalid register configuration",
                 cause=e
-            ) 
-
-        #logger.info("[3/5] Create register")
-
-        install_config = config.pop('installer_config')
-
-        super().__init__(allowed_name = self.allowed_name,
-                         **config)
-        
-        #logger.info("[4/5] Build Block")
-
-        if installer is None:
-            installer = INSTALLER.DEFAULT
-
-        try:
-            self.installer = installer(
-                self,
-                **install_config
             )
-        except PrototypeError as e:
 
+    def _build_installer(
+            self,
+            installer: 'Callable[..., Any]',
+            install_config: dict,
+        ) -> None:
+        try:
+            self.installer = installer(self, **install_config)
+        except PrototypeError as e:
             logger.critical("Installer is not seting up !")
-            
             raise PrototypeError(
                 code=ErrorCode.PROTOTYPE_INIT_INSTALLER,
                 message="Invalid installer object",
                 cause=e
-            ) 
-        #logger.info("[5/5] Complete Prototye")
+            )
 
-        
+
+    # ===========================================
+    # Dict serialization / deserialization
+    # ===========================================
+
     def to_dict(self,):
         """Serialize the prototype into a dictionary.
 
@@ -351,44 +395,49 @@ class Prototype(block.Block,Register):
             >>> print(result)
         """
         error = False
-        
-        sys.stdout = self.stdout
-        print(f" \u25B6\033[1;30m Executing {self.__class__.__name__} '{self.name}'...\033[0m", file=sys.stdout)
+        value = None
 
-        value   = None
-        forward = getattr(self, 'forward', None)
-        logger.info(f"Get forward {self.__class__.__name__} methods")
+        _prev_stdout = sys.stdout
+        sys.stdout = self.stdout
         
         try:
-            exec  = self.executor.execute(forward=forward)
-            value = exec(**data)
+            print(f" \u25B6\033[1;30m Executing {self.__class__.__name__} '{self.name}'...\033[0m", file=sys.stdout)
 
-        except Exception as e:
-            error = True
-            logger.critical(f"Execution failed with message :\n{e}")
+            forward = getattr(self, 'forward', None)
+            logger.info(f"Get forward {self.__class__.__name__} methods")
 
-            err = PrototypeError(
-                code=ErrorCode.PROTOTYPE_EXECUTION,
-                message=f"Execution failed with message :\n{e}",
-                cause=e
-            )
+            try:
+                exec  = self.executor.execute(forward=forward)
+                value = exec(**data)
 
-            if not self.ignore_error:
-                raise err
-            
+            except Exception as e:
+                error = True
+                logger.critical(f"Execution failed with message :\n{e}")
+
+                err = PrototypeError(
+                    code=ErrorCode.PROTOTYPE_EXECUTION,
+                    message=f"Execution failed with message :\n{e}",
+                    cause=e
+                )
+
+                if not self.ignore_error:
+                    raise err
+
+            finally:
+                txt = f"Execution {self.name} complete"
+
+                if error:
+                    print(f' \u274C\033[1;30m {txt} (failed) \033[0m',
+                          file=sys.stdout)
+                else:
+                    print(f' \u2705\033[1;30m {txt} (succes) \033[0m',
+                          file=sys.stdout)
+
+                logger.warning(f"Complete {self.__class__.__name__} execution")
+
         finally:
-            txt = f"Execution {self.name} complete"
+            sys.stdout = _prev_stdout
 
-            if error:
-                print(f' \u274C\033[1;30m {txt} (failed) \033[0m', 
-                      file=sys.stdout)            
-            else:
-                print(f' \u2705\033[1;30m {txt} (succes) \033[0m', 
-                      file=sys.stdout)
-            
-            logger.warning(f"Complete {self.__class__.__name__} execution")
-        
-        sys.stdout = sys.__stdout__
         return value
 
 

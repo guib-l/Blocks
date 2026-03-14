@@ -3,7 +3,7 @@ import sys
 import time
 import asyncio
 from copy import copy, deepcopy
-from typing import *
+from typing import Any, Dict, List, Optional
 
 from blocks.utils.logger import *
 
@@ -59,7 +59,12 @@ class Communication:
         
     def get_current_interface(self, label=None):
         if label is None:
-            label = self.graphics.current_node.NAME
+            if self.graphics is not None:
+                label = self.graphics.current_node.NAME
+            else:
+                raise CommunicateGraphics("Graphics must be defined to get current interface.")
+        if self.interface is None:
+            raise CommunicateInterface("No interface defined in LabelCommunication.")
         for lbl,intf in self.interface:
             if lbl == label:
                 return intf
@@ -116,7 +121,7 @@ class DirectCommunication(Communication):
         for _node in self.graphics:
 
             _label = _node.NAME \
-                if hasattr(_node,'NAME') else str(_label)
+                if hasattr(_node,'NAME') else str(_node)
 
             interf = self.get_current_interface(label=_label)
             
@@ -153,12 +158,14 @@ class LabelCommunication(Communication):
         
     def send(self, data:Any, label=None):
         if label is None:
-            label = self.graphics.first
+            if self.graphics is not None:
+                label = self.graphics.first
         self.buffer.deposit(data, label=label)
 
     def receive(self, label=None, side='input') -> Any:
         if label is None:
-            label = self.graphics.prev_node
+            if self.graphics is not None:
+                label = self.graphics.prev_node
         if self.buffer.has_data():
             return self.buffer.withdraw(label=label, side=side)
         return None
@@ -256,12 +263,14 @@ class AsyncCommunication(Communication):
         
     def send(self, data:Any, label=None):
         if label is None:
-            label = self.graphics.first
+            if self.graphics is not None:
+                label = self.graphics.first
         self.buffer.deposit(data, label=label)
 
     def receive(self,label=None) -> Any:
         if label is None:
-            label = self.graphics.prev_node
+            if self.graphics is not None:
+                label = self.graphics.prev_node
         if self.buffer.has_data():
             return self.buffer.withdraw(label=label)
         return None
@@ -309,11 +318,15 @@ class AsyncCommunication(Communication):
 
         for node_label in self.graphics:
 
+            interf = None
             for label,intf in self.interface:
                 if label == node_label:
                     interf = intf
                     break
             
+            if interf is None:
+                continue
+
             interf.input = await self.buffer.get()
             
             yield interf

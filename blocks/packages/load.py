@@ -3,12 +3,13 @@ import sys
 
 import importlib
 import importlib.util
+from typing import Optional
 
 from contextlib import contextmanager
 
 
 @contextmanager
-def plugins_env(site_packages: str = None):
+def plugins_env(site_packages: Optional[str] = None):
     """Context manager to temporarily add a directory to sys.path for plugin loading."""
     original_sys_path = sys.path.copy()
     try:
@@ -22,9 +23,13 @@ def load_plugins(name, path, site_packages=None):
     """Load a plugin module from a specified path, ensuring site-packages is included."""
     with plugins_env(site_packages):
         spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None:
+            raise ImportError(f"Cannot find module '{name}' at '{path}'")
         module = importlib.util.module_from_spec(spec)
         sys.modules[name] = module
-        spec.loader.exec_module(module)
+        if spec.loader is None:
+            raise ImportError(f"No loader found for module '{name}' at '{path}'")
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
         return module
 
 class PluginLoader:
@@ -36,7 +41,7 @@ class PluginLoader:
 
         print("PluginLoader initialized")
     
-    def load(self, name: str, path: str, site_packages: str = None):
+    def load(self, name: str, path: str, site_packages: Optional[str] = None):
         """Load a plugin or return cached version."""
         if name in self.plugins:
             return self.plugins[name]

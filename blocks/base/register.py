@@ -3,8 +3,7 @@ import sys
 import json
 
 import inspect
-from typing import *
-from abc import *
+from typing import Optional, Any, Callable, Union, Iterable, List
 from pathlib import Path
 from enum import Enum
 
@@ -30,7 +29,9 @@ class MethodObjects:
 
 
 class Register:
-    
+
+    _default_method_name: Optional[str] = None
+
     def init_register(
             self,
             allowed_name,
@@ -64,6 +65,17 @@ class Register:
         self.allowed_name = allowed_name or list(self._register_methods.keys())  
 
         self.filter_register_methods(allowed_name=self.allowed_name)
+        self._default_method_name = (
+            list(self._register_methods.keys())[0]
+            if self._register_methods else None
+        )
+
+    def set_default_method(self, name: str) -> None:
+        """Explicitly set the default method returned when ``name=None``."""
+        if name not in self._register_methods:
+            raise ValueError(
+                f"Method '{name}' is not registered in the method registry")
+        self._default_method_name = name
 
     # ===========================================
     # Register of methods
@@ -75,17 +87,11 @@ class Register:
         return func.call
 
     def get_register_methods(self, name=None):
-        # On récupère la méthode souhaité dans le registre
-        # enregistré à l'instanciation
-        if (name is None) and len(self._register_methods)==1:
-            name = list(self._register_methods.keys())[0]
-            
-            
-        
+        if name is None:
+            name = self._default_method_name
         if name not in self._register_methods:
             raise ValueError(
                 f"Method '{name}' is not registered in the method registry")
-
         return self._register_methods[name]
 
     def set_register_methods(self, 

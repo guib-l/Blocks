@@ -150,7 +150,7 @@ class ThreadedBackend(Backend):
             'type': self.__ntype__,
             'max_workers': self.max_workers,
             'daemon': self.daemon,
-            'queue': (lambda: self._queue.to_dict())() if not Exception else None,
+            'queue': None,
             'pool': type(self.pool).__name__ if self.pool else None,
         })
         return _dict
@@ -165,7 +165,7 @@ class ThreadedBackend(Backend):
             **data.get('config', {})
         )
 
-    def setup(self, ):
+    def setup(self, resources: Optional[Dict[str, Any]] = None) -> bool:
         if self.pool is None:
             self.pool = ThreadPoolExecutor(max_workers=self.max_workers,
                                            thread_name_prefix="ThreadedBackend")
@@ -177,18 +177,19 @@ class ThreadedBackend(Backend):
         self.setup()
 
         _worker = self._worker
-        future  = self.pool.submit(_worker, func, *args, **kwargs)
+        assert self.pool is not None
+        future = self.pool.submit(_worker, func, *args, **kwargs)
         return future.result()
         
     def _worker(self, func, *args, **kwargs):
         
         try:
             result = func(*args, **kwargs)
-            self.results_queue.put(('success', result, threading.current_thread().name))
+            self.queue.put(('success', result, threading.current_thread().name))
             return result
         
         except Exception as e:
-            self.results_queue.put(
+            self.queue.put(
                 ('error', str(e), threading.current_thread().name))
             raise Exception
 
@@ -217,9 +218,9 @@ class MultiprocessBackend(Backend):
         # Implementation for multiprocess execution
         pass
 
-    def require(self, *args, **kwargs):
+    def require(self, *args, **kwargs) -> bool:
         # Implementation for multiprocess requirements
-        pass
+        return True
 
     def destroy(self,):
         # Cleanup for multiprocess backend
@@ -239,9 +240,9 @@ class DistributedBackend(Backend):
         # Implementation for distributed execution
         pass
 
-    def require(self, *args, **kwargs):
+    def require(self, *args, **kwargs) -> bool:
         # Implementation for distributed requirements
-        pass
+        return True
 
     def destroy(self,):
         # Cleanup for distributed backend
@@ -261,9 +262,9 @@ class GPUBackend(Backend):
         # Implementation for GPU execution
         pass
 
-    def require(self, *args, **kwargs):
+    def require(self, *args, **kwargs) -> bool:
         # Implementation for GPU requirements
-        pass
+        return True
 
     def destroy(self,):
         # Cleanup for GPU backend

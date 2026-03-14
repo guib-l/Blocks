@@ -27,7 +27,7 @@ def install_node():
     # itself in its environment.
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
     
     # Default environment
     ENVIRONMENT = EnvironmentBase
@@ -89,7 +89,7 @@ def install_node():
 def load_node():
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
     # ===============================================
     # Load the Node from its directory and execute it in its environment.
     import time

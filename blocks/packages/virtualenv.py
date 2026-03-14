@@ -17,7 +17,7 @@ class EnvironMixin:
     
     @property
     def context_exists(self):
-        if os.path.isdir(self.directory):
+        if self.directory is not None and os.path.isdir(self.directory):
             return True
         return self._exist
 
@@ -26,7 +26,7 @@ class EnvironMixin:
         self._exist = trim
 
     @property
-    def site_packages(self) -> str:
+    def site_packages(self) -> typing.Optional[str]:
         """Path to the site-packages directory of this environment. Override in subclasses."""
         return None
 

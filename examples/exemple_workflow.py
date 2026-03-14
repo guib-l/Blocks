@@ -34,7 +34,7 @@ def install_workflow():
     # itself in its environment.
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
 
     node = Node.load(name='node_002',
                      ntype='node',
@@ -130,7 +130,7 @@ def load_workflow():
     # itself in its environment.
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
 
     workflow = Workflow.load(name='workflow_001',
                              ntype='workflow',
@@ -151,7 +151,7 @@ def mix_node_and_workflow():
     # itself in its environment.
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
 
     node = Node.load(name='node_002',
                      ntype='node',

@@ -1,8 +1,8 @@
 
 import threading
-from datetime import *
-from typing import *
-from abc import *
+from datetime import datetime, timezone
+from typing import Any, List, Optional
+from abc import ABC, abstractmethod
 
 import logging
 import json
@@ -16,7 +16,7 @@ redis = optional_import("redis")
 
 
 
-def get_new_label(exist_label:Any, new_label:Any=None) -> str:
+def get_new_label(exist_label: Any, new_label: Any = None) -> Any:
     """
     Create a new label that does not exist in the current set of labels.
     
@@ -60,7 +60,7 @@ class Buffer(ABC):
         ...
 
     @abstractmethod
-    def has_data(self, side: str = None):
+    def has_data(self, side: Optional[str] = None) -> bool:
         """Check if the buffer contains data."""
         ...
 
@@ -106,14 +106,14 @@ class DataBuffer(Buffer):
                 return slot.get(label, None)
             return next(iter(slot.values()))
 
-    def has_data(self, side: str = None):
+    def has_data(self, side: Optional[str] = None) -> bool:
         
         with self._lock:
             if side:
                 return len(self._buffer[side]) > 0
             return any(len(v) > 0 for v in self._buffer.values())
 
-    def flush(self, side: str = None):
+    def flush(self, side: Optional[str] = None):
         
         with self._lock:
             if side:
@@ -126,7 +126,7 @@ class DataBuffer(Buffer):
         with self._lock:
             return list(self._buffer[side].keys())
     
-    def is_empty(self, side: str = None) -> bool:
+    def is_empty(self, side: Optional[str] = None) -> bool:
         
         with self._lock:
             if side:
@@ -155,8 +155,8 @@ class RedisDataBuffer(Buffer):
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        password: str = None,
-        ttl: int = None,    
+        password: Optional[str] = None,
+        ttl: Optional[int] = None,    
     ):
         
         if redis is None:
@@ -234,7 +234,7 @@ class RedisDataBuffer(Buffer):
             raw = self._client.hget(key, labels[0])
             return json.loads(raw) if raw else None
 
-    def has_data(self, side: str = None):
+    def has_data(self, side: Optional[str] = None) -> bool:
     
         with self._lock:
             if side:
@@ -244,7 +244,7 @@ class RedisDataBuffer(Buffer):
                 for s in ("input", "output")
             )
 
-    def flush(self, side: str = None):
+    def flush(self, side: Optional[str] = None):
         with self._lock:
             if side:
                 self._client.delete(self._key(side))
@@ -259,7 +259,7 @@ class RedisDataBuffer(Buffer):
     def ping(self):
         try:
             return self._client.ping()
-        except redis.ConnectionError:
+        except Exception:
             return False
 
     def __repr__(self):

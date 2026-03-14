@@ -4,6 +4,7 @@ envs/
 .tests/
 .env/
 .envs/
+.blocks/
 myblock/
 archive/
 

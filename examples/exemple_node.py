@@ -34,7 +34,7 @@ def install_node():
     # itself in its environment.
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
     
     # Default environment
     ENVIRONMENT = EnvironmentBase
@@ -94,7 +94,7 @@ def install_node():
 def load_node():
 
     # Directory where the Node is located
-    BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
     # ===============================================
     # Load the Node from its directory and execute it in its environment.
     import time
@@ -115,7 +115,39 @@ def load_node():
     print(f'Dead-Time of Node execution in {end-start-2*0.3} s.')
 
 
+def simpliest_node():
+    # Node with python3_pip
 
+    from blocks.engine.language import Language
+
+    # Directory where the Node is located
+    BLOCK_PATH = os.path.join(os.getcwd(),'.blocks')
+
+    # =============================================
+
+    node = Node(
+        name='node_001',
+        directory=os.path.join(os.getcwd(),'.blocks'),
+        methods=[basic_function,],
+        language=Language.python3_pip
+    )
+    
+    node.execute(n=4, delay=0.1)
+
+    # =============================================
+
+    node = Node(
+        name='node_001',
+        directory=os.path.join(os.getcwd(),'.blocks'),
+        methods=[basic_function,],
+        language=Language.python3_pip(
+            name='pip-env.01',
+            directory=os.path.join(BLOCK_PATH, 'envs'),
+            dependencies=[]
+        )
+    )
+    
+    node.execute(n=4, delay=0.1)
 
 
 if __name__ == "__main__":
@@ -123,4 +155,10 @@ if __name__ == "__main__":
     install_node()
 
     load_node()
+
+    simpliest_node()
+
+
+
+
 

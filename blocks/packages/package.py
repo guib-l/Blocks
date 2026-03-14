@@ -1,7 +1,7 @@
 import os
 import sys
 
-from typing import List, Optional
+from typing import List, Optional, Union, Any
 from pathlib import Path
 
 from dataclasses import dataclass
@@ -15,8 +15,8 @@ from blocks.utils.logger import *
 @dataclass
 class SimpleProfile:
 
-    commands: List[List[str]] = None
-    directory: str = "./"
+    commands: Optional[List[List[str]]] = None
+    directory: Union[str, Path] = "./"
     shell: bool = False
     timeout: Optional[int] = None
 
@@ -27,6 +27,7 @@ class SimpleProfile:
 
     def _execute_command(self, cmd: List[str], **kwargs) -> tuple[str, str, int]:
         """Execute a single command and return stdout, stderr, and return code."""
+        process: Optional[subprocess.Popen] = None
         try:
             process = subprocess.Popen(
                 cmd,
@@ -41,7 +42,8 @@ class SimpleProfile:
             return stdout, stderr, process.returncode
         
         except subprocess.TimeoutExpired:
-            process.kill()
+            if process is not None:
+                process.kill()
             raise RuntimeError(f"Command {cmd} timed out after {self.timeout} seconds")
         
         except Exception as e:
@@ -53,8 +55,11 @@ class SimpleProfile:
         if commands is None:
             commands = self.commands
         
+        _cmds: List[List[str]]
         if isinstance(commands, list) and all(isinstance(c, str) for c in commands):
-            commands = [commands,]
+            _cmds = [commands]  # type: ignore[list-item]
+        else:
+            _cmds = commands or []
 
         results = {
             'outputs': [],
@@ -63,7 +68,7 @@ class SimpleProfile:
             'success': True
         }
 
-        for i, cmd in enumerate(commands):
+        for i, cmd in enumerate(_cmds):
             try:
                 stdout, stderr, returncode = self._execute_command(cmd, **kwargs)
                 results['outputs'].append(stdout)
@@ -148,14 +153,20 @@ class Packages(Select):
                  "auto_build","profile","_backend_manager",
                  "_backend_environ",'env_type','mng_type')
 
+    # type annotations for dynamically-resolved backend attributes
+    _backend_environ: Any
+    _backend_manager: Any
+    env_type: Any
+    mng_type: Any
+
     def __init__(self,
-                 directory = '.',
-                 env_name = 'conda-env.01',
-                 env_type = 'conda',
-                 mng_type = 'conda',
-                 dependencies = [],
-                 auto_build = False,
-                 profile = None,
+                 directory: Union[str, Path] = '.',
+                 env_name: str = 'conda-env.01',
+                 env_type: Any = 'conda',
+                 mng_type: Any = 'conda',
+                 dependencies: list = [],
+                 auto_build: bool = False,
+                 profile: Optional[SimpleProfile] = None,
                  **args ):
 
         self.directory = Path(directory)
@@ -203,10 +214,9 @@ class Packages(Select):
 
     def build(self, **kwargs):
         env_logger.info(f"Building environment {self.env_name} with dependencies {self.dependencies}")
-        #import time
-        #ax = time.time()
-        #print("build",)
-        self._backend_environ = self.environ(
+
+        _environ_cls: Any = self.environ
+        self._backend_environ = _environ_cls(
             name=self.env_name,
             directory=self.directory,
         )
@@ -217,8 +227,7 @@ class Packages(Select):
             env_path=self._backend_environ.env_path,
             profile=self.profile,
         )
-        #bx = time.time()
-        #print("end_build", bx-ax)
+
         env_logger.info(f"Manager for environment {self.env_name} initialized successfully")
 
     def install(self):
@@ -234,13 +243,13 @@ class Packages(Select):
         """Convenience proxy to the backend environment's site-packages path."""
         return self._backend_environ.site_packages
 
-    def activate(self) -> bool:
+    def activate(self) -> Optional[bool]:
         env_logger.info(f"Activating environment {self.env_name}")
         return self._backend_environ.enable()
 
-    def update(self, dependencies: List[str]=None):
+    def update(self, dependencies: Optional[List[str]] = None):
         env_logger.info(f"Updating dependencies {dependencies} in environment {self.env_name}")
-        for dep in dependencies:
+        for dep in (dependencies or []):
             self._backend_manager.update_dependencies(dep)
 
     def list_dependencies(self):
@@ -255,7 +264,7 @@ class Packages(Select):
         env_logger.info(f"Uninstalling dependencies {dependencies} from environment {self.env_name}")
         self._backend_manager.uninstall_dependencies(dependencies)
 
-    def deactivate(self) -> bool:
+    def deactivate(self) -> Optional[bool]:
         env_logger.info(f"Deactivating environment {self.env_name}")
         return self._backend_environ.disable()
 

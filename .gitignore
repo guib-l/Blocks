@@ -7,6 +7,8 @@ envs/
 .blocks/
 myblock/
 archive/
+myscript/
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

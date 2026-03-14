@@ -1,7 +1,7 @@
 
 import sys
 
-from typing import *
+from typing import Optional, Any, Callable, Union, Iterable, List
 
 from blocks.base import block
 from blocks import BLOCK_PATH
@@ -399,7 +399,7 @@ class Prototype(block.Block,Register):
 
         _prev_stdout = sys.stdout
         sys.stdout = self.stdout
-        
+
         try:
             print(f" \u25B6\033[1;30m Executing {self.__class__.__name__} '{self.name}'...\033[0m", file=sys.stdout)
 

@@ -213,7 +213,7 @@ class Graphics:
         """
         if (src,dst) not in self.links:
             self.links.append((src,dst))
-            
+        
         self.nodes_type.update(
             {
                 src:{

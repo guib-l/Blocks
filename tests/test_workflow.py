@@ -1,237 +1,173 @@
-import os,sys
-import time
+
 from configs import *
 
-from blocks import BLOCK_PATH
 
-from blocks.base import *
-from blocks.base.prototype import Prototype
+import pytest
 
-from blocks.nodes.node import Node
 from blocks.nodes.workflow import Workflow
 
+from blocks.engine.oriented import AcyclicGraphic
+from blocks.engine.installer import Installer
 from blocks.engine.execute import Execute
-from blocks.engine.oriented import AcyclicGraphic,CyclicGraphic
-from blocks.engine import INSTALLER
-
-from blocks.engine.environment import Environment
-
-from blocks.interface.buffer import BUFFER
-from blocks.interface.communication import COMMUNICATE 
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.env import pyEnvironment
+from blocks.interface.communication import COMMUNICATE
 from blocks.interface.interface import INTERFACE
+from blocks.interface.buffer import BUFFER
 
-from blocks.utils.logger import logger
+BLOCK_PATH  = "myblock/"
+INSTALL     = Installer
+EXECUTE     = Execute
+ENVIRONMENT = EnvironmentBase
 
-from blocks.engine.transformer import Transformer
-
-if __name__ == "__main__":
-      
-    # ===============================================
-    # Récupération et exécution dans son environnement
-    print("\n"+"*"*40)
-
-    start = time.time()
-    node = Node.load(name='basics_prototype',
-                     ntype='prototype',
-                     directory=BLOCK_PATH,)
-    end = time.time()
-    print(node)
-    print("Node instance created successfully.")
-    print(f'Instance created in {end-start} s.')
-
-    node.execute(name='basic_function',n=5)
-
-
-    # ===============================================
-    def transf(data):
-        if data['result']==0:
-            return {'n':None}
-        return {'n': data['result']}
-    
-    
-
-    transf = Transformer(
-        rename_attr = [('result','n'),],
-        modify_attr = [],
-        ignore_attr = []
-    )
-
-    # Lancement du workflow
-    print("\n"+"*"*40)
-    configuration = {
+data = {
         'name': 'workflow-test',
         'id': None,
         'version': '0.0.1',
-        'stdout': sys.stdout,
-        'stderr': sys.stderr,
-        'ignore_error':False,
         'directory':BLOCK_PATH,
         'mandatory_attr': False,
         'metadata': {'source': 'generated', 
                      'version': 1.0,
                      'description': 'A sample dataset for testing'},
-        'installer': INSTALLER.WORKFLOW,
+        'installer': INSTALL,
         'installer_config':{
             'auto':False,
         },
-        'environment': Environment,
-        'environment_config':{},
-        'executor': Execute,
-        'executor_config':{},
         'graphics': AcyclicGraphic,
-        'graphics_config':{
-            'links':[('HC_node_1','HC_node_2'), 
-                     ('HC_node_2','HC_node_3')],
-            'first':'HC_node_1',
-            'last':'HC_node_3',
-        },
+        'graphics_config':{},
         'communicate': COMMUNICATE.LABEL,
         'communicate_config':{},
         'interface': INTERFACE.SIMPLE,
         'buffer': BUFFER.DATABUFFER,
-        'register_nodes':{
-            'HC_node_1': {'node':'heavy_calculation', 
+        'environment': ENVIRONMENT,
+        'environment_config':{
+            'name': 'env_001',
+            'language': 'python',
+            'environment': pyEnvironment,
+            'parameters':{
+                'directory': os.path.join(BLOCK_PATH, 'envs'),
+                'env_name': 'pip-env.01',
+                'env_type': 'venv',
+                'mng_type': 'pip',
+                'dependencies': [],
+                'auto_build': True,
+            }
+        },
+        'executor': EXECUTE,
+        'executor_config':{},
+        'register_nodes':{},
+    }
+
+class TestWorkflowInitialization:
+    """Test Workflow initialization and properties."""
+     
+    def test_workflow(self):
+        """Test Workflow initialization and properties."""
+
+        workflow = Workflow(**data)
+        
+        assert workflow.name == 'workflow-test'
+        assert workflow.version == '0.0.1'
+        assert workflow.directory == "myblock/"  # type: ignore[attr-defined]
+
+        assert isinstance(workflow.environment, EnvironmentBase)
+        assert isinstance(workflow.installer, Installer)
+        assert isinstance(workflow.executor, Execute)
+
+    def test_workflow_graphics(self):
+        """Test Workflow graphics initialization and properties."""
+
+        link = [ ('g',2),(4,1),(0,'g'),
+                (2,4),(2,54),(3,4),(7,54),
+                ('g',3),(54,8),(3,8) ]
+        data['graphics_config'] = {
+            'links':link,
+            'first':0,
+            'last':None,
+        }
+        workflow = Workflow(**data)
+        assert isinstance(workflow.graphics, AcyclicGraphic)
+        assert len(workflow.graphics.nodes) == 9
+
+    def test_workflow_register_nodes(self):
+        """Test Workflow register nodes initialization and properties."""
+        from blocks.base.prototype import Prototype
+
+        try:
+            proto = Prototype.load(
+                name='prototype-file-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
+        
+        assert loaded, "Prototype loading should succeed."
+
+        data['register_nodes'] = {
+            'HC_node_1': {'node':'prototype-file-test', 
                           'directory':BLOCK_PATH,
                           'method_name':'heavy_calculation',
                           'ntype':Prototype,
                           'transformer': None},
-            'HC_node_2': {'node':node,
-                          'method_name':'basic_function',
+            'HC_node_2': {'node':proto,   # type: ignore[attr-defined]
+                          'method_name':'say',
                           'ntype':Prototype,
-                          'transformer': transf},
-            'HC_node_3': {'node':node,
-                          'method_name':'basic_function',
+                          'transformer': None},
+            'HC_node_3': {'node':proto,   # type: ignore[attr-defined]
+                          'method_name':'say2',
                           'ntype':Prototype,
-                          'transformer': transf.to_config()},
+                          'transformer': None},
         }
-    }
 
-    wk = Workflow(**configuration)
-    print(wk)
-    print("Workflow instance created successfully.")
+        workflow = Workflow(**data)
 
-
-    print(wk.graphics)
-    print("Workflow Graphics created successfully.")
+        assert len(workflow.get_register_nodes()) == 3
     
-    
-    # ===============================================
-    print("\n"+"="*40)
+    def test_workflow_execution(self):
+        """Test Workflow execution."""
+        from blocks.base.prototype import Prototype
 
-    print("Registered nodes:")
-
-    print(wk.get_register_nodes())
-    print(wk.get_register_nodes(name='HC_node_1'))
-
-    print(wk.communicate)
-
-    wk.execute(n=3)
-    wk.install()
-
-
-    # ===============================================
-    print("\n"+"="*40)
-    
-    new_wk = Workflow.load(
-        name='workflow-test',
-        directory=BLOCK_PATH,
-        ntype="workflow",
-    )
-    print(new_wk)
-    print("Workflow instance loaded successfully.")
-
-    new_wk.execute(n=3)
-    #sys.exit()
-
-    # ===============================================
-    print("\n"+"="*40)
-
-    wk.import_node(
-        new_wk,
-        'HC_workflow_1',
-        transformer=transf )
-
-    wk.add_link('HC_node_3','HC_workflow_1')
-    wk.graphics.build()
-    print( 'Graphics: ',wk.graphics.graphics )
-
-    #wk.execute(n=3)
-
-    #wk.del_link('HC_node_3','HC_workflow_1')
-
-
-    # ===============================================
-    print("\n"+"="*40)
-
-    with Workflow.create(stdout=sys.stdout) as wkc:
-
-        wkc.import_node(
-            new_wk,
-            'HC_workflow_1',
-            transformer=None )
-
-
-        wkc.import_node(
-            new_wk,
-            'HC_workflow_2',
-            transformer=transf )
+        try:
+            proto = Prototype.load(
+                name='prototype-file-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
         
-        wkc.add_link([('HC_workflow_1','HC_workflow_2')])
+        assert loaded, "Prototype loading should succeed."
 
-    wkc.execute(n=3)
+        links = [ ('HC_node_1','HC_node_2'), ]
+        data['graphics_config'] = {
+            'links':links,
+            'first':'HC_node_1',
+            'last':None,
+        }
 
-    wkc.draw()
+        data['register_nodes'] = {
+            'HC_node_1': {'node':'prototype-file-test', 
+                          'directory':BLOCK_PATH,
+                          'method_name':'say2',
+                          'ntype':Prototype,
+                          'transformer': None},
+            'HC_node_2': {'node':proto,   # type: ignore[attr-defined]
+                          'method_name':'say',
+                          'ntype':Prototype,
+                          'transformer': None},
+        }
 
-    #sys.exit()
+        workflow = Workflow(**data)
 
-
-    # ===============================================
-    print("\n"+"="*40)
-
-    with Workflow.create(stdout=sys.stdout,
-                         graphics=CyclicGraphic) as wkc:
-
-        wkc.import_node(
-            new_wk,
-            'HC_workflow_1',
-            transformer=None )
-
-
-        wkc.import_node(
-            new_wk,
-            'HC_workflow_2',
-            transformer=transf )
-        
-        wkc.add_link([('HC_workflow_1','HC_workflow_2')])
-
-        wkc.import_node(
-            node,
-            'HC_node_1a',
-            method_name="basic_function",
-            transformer=transf )
-        
-        wkc.add_link([('HC_workflow_2','HC_node_1a')])
-
-        wkc.import_node(
-            node,
-            'HC_node_2b',
-            method_name="basic_function",
-            transformer=transf )
-        
-        wkc.add_link([('HC_node_1a','HC_node_2b')])
-
-        wkc.add_loop(
-            start='HC_node_1a',
-            end='HC_node_2b',
-            epoch=2,
-            ctype='FOR'
-        )
+        workflow.execute(n='hello')
 
 
-    wkc.execute(n=3)
 
-
-    sys.exit()
 
 
 

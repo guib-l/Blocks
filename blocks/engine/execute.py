@@ -23,13 +23,6 @@ from .backend import (ThreadedBackend,
 from blocks.utils.logger import *
 
 
-# TODO:
-# > Penser à faire une fonction submit pour soumettre les différentes taches
-#   au processus du Backend
-#   Cette méthode doit permettre d'éxécuter les nodes 
-# > Implémenter la méthode d'éxécution qui permet gère la lecture/ecriture 
-#   dans des fichier.
-
 
 class EXECUTE_BACKEND:
     DEFAULT         = Backend,
@@ -127,7 +120,7 @@ class BaseExecute:
         self._workdir = str(Path(workdir))  
 
     def __str__(self):
-        txt = f"Execute(workdir={self.workdir}, use_external={self.use_external}, language={self.language})"
+        txt = f"Execute(workdir={self.workdir}, use_external={self.use_external})"
         return txt
 
 
@@ -146,6 +139,8 @@ class Execute(BaseExecute):
                  **kwargs):
 
         exec_logger.info("Loading Executor method")
+
+        arguments: dict = {}
 
         if isinstance(backend,str):
             self._proto_backend  = EXECUTE_BACKEND.get(backend)
@@ -174,9 +169,10 @@ class Execute(BaseExecute):
         super().__init__(**kwargs)
 
 
-    def to_config(self):
+    def to_config(self) -> dict:
         config = super().to_config()
-        return config.update(**self.to_dict())
+        config.update(self.to_dict())
+        return config
 
     def to_dict(self):
 
@@ -192,7 +188,7 @@ class Execute(BaseExecute):
                 use_external=self.use_external,
                 use_cache=self.use_cache,
                 backend=self._backend.to_dict() or None,
-                queue=(lambda: self._queue.to_dict())() if not Exception else None,
+                queue=None,
                 build_backend=True,
             )
             return _dict
@@ -268,7 +264,6 @@ class FileIOExecute(Execute):
     def read_output(self,):
         pass
     
-    @overload
     def execute(self, forward=None):
         
         if forward:

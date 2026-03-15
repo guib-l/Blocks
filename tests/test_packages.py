@@ -1,100 +1,29 @@
-import os,sys
-import time
-import json
-from datetime import *
-from copy import copy, deepcopy
-from typing import Any, Dict, TypeVar
-from dataclasses import dataclass
-from configs import *
 
+import os
+import pytest
 
-from packages.package import Packages
+from blocks.packages import Packages
 
-from packages.package import SimpleProfile
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.env import pyEnvironment
 
+BLOCK_PATH = os.path.join(os.getcwd(),'blocks')
 
-cmds = [
-    ['python3','--version'],
-    ['pip','list']
-]
-
-# Test d'execution de profile
-prf = SimpleProfile()
-out = prf.execute(commands=cmds)
-
-
-
-
-if __name__ == "__main__":
-
-    pkg = Packages(
-        directory = '.',
-        env_name = 'pip-env.01',
-        env_type = 'venv',
-        mng_type = 'pip',
-        dependencies = ['numpy'],
-        auto_build = False,
-        profile = None,
-        use_shell = True,
-    )
-
-    # Construit l'environement et télécharges des dependences
-    pkg.build()
-
-    # Active l'environement
-    pkg.activate()
-
-    # Ajoute des dépendances dans l'environement
-    #pkg.install_dependencies( dependencies=["scipy"],)
-    #pkg.uninstall_dependencies( dependencies=["scipy"])
-
-    # Sort de l'environement
-    pkg.deactivate()
-
-    pkg.move_env(
-        target="myblock/"
-    )
-    pkg_copy = pkg.copy(
-        new_name="pip-env.02",
-        directory=".",
-    )
-
-    #pkg_copy.install_dependencies(
-    #    dependencies=['matplotlib']
-    #)
+class TestPackage:
     
-    if pkg == pkg_copy:
-        print(" > Same objects")
-    else:
-        print(" > Different objects")
+    def test_package_initialization(self):
 
+        data = {
+            'directory': os.path.join(BLOCK_PATH, 'envs'),
+            'env_name': 'pip-env.01',
+            'env_type': 'venv',
+            'mng_type': 'pip',
+            'dependencies': [],
+            'auto_build': True,
+        }
+        package = Packages(**data)
 
-    pkg.merge(
-        pkg = pkg_copy,
-        directory = ".",
-        ignore_dependencies = None,
-    )
-
-    pkg.uninstall_dependencies('numpy')
-
-    print(" > Cleanup environments")
-    print(pkg.dependencies)
-
-    data = pkg.to_dict()
-    print('DATA from pkg object : \n NONE',)#json.dumps(data,indent=4))
-
-    X = Packages.from_dict(data)
-    print('Re-build packages : \n',X)
-
-    X.build()
-    X.uninstall()
-
-
-    pkg.uninstall()
-    pkg_copy.uninstall()
-
-
-    sys.exit()
+        assert package.env_name == 'pip-env.01'
 
 
 

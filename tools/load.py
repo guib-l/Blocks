@@ -11,9 +11,90 @@ import textwrap
 from pathlib import Path
 
 
+import importlib.util
+from contextlib import contextmanager
+
+@contextmanager
+def plugins_env(site_packages: str = None):
+    """Context manager to temporarily add a directory to sys.path for plugin loading."""
+    original_sys_path = sys.path.copy()
+    try:
+        if site_packages and site_packages not in sys.path:
+            sys.path.insert(0, site_packages)
+        yield
+    finally:
+        sys.path = original_sys_path
+
+def load_plugins(name, path, site_packages=None):
+    """Load a plugin module from a specified path, ensuring site-packages is included."""
+    with plugins_env(site_packages):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+
+class PluginLoader:
+    """Manage dynamic plugin loading with caching and lifecycle management."""
+    
+    def __init__(self):
+        self.plugins = {}
+        self.paths = {}  
+    
+    def load(self, name: str, path: str, site_packages: str = None):
+        """Load a plugin or return cached version."""
+        if name in self.plugins:
+            return self.plugins[name]
+        
+        module = load_plugins(name, path, site_packages)
+        self.plugins[name] = module
+        self.paths[name] = (path, site_packages)
+        return module
+    
+    def unload(self, name: str) -> bool:
+        """Unload a plugin and remove from cache."""
+        if name not in self.plugins:
+            return False
+        
+        if name in sys.modules:
+            del sys.modules[name]
+        del self.plugins[name]
+        self.paths.pop(name, None)
+        return True
+    
+    def reload(self, name: str) -> None:
+        """Reload a plugin using stored path information."""
+        if name not in self.paths:
+            raise ValueError(f"Plugin '{name}' not found or never loaded")
+        
+        path, site_packages = self.paths[name]
+        self.unload(name)
+        self.load(name, path, site_packages)
+    
+    def get_plugin(self, name: str):
+        """Retrieve a loaded plugin."""
+        return self.plugins.get(name)
+    
+    def list_plugins(self) -> list:
+        """List all loaded plugins."""
+        return list(self.plugins.keys())
+
+
+
+
 def _import_modules(file_path: str):
+    """
+    Import a Python module from a given file path.
+
+    Args:
+        file_path (str): Path to the Python file to import
+        
+    Returns:
+        The imported module object
+    """
 
     module_name = Path(file_path).stem
+    print(module_name, file_path)
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     module = importlib.util.module_from_spec(spec)
 
@@ -25,6 +106,21 @@ def _import_modules(file_path: str):
 def _load_function_from_file(file_path: str, 
                              function_name: str=None,
                              ignore_restriction: bool=False):
+    """
+    Load a function from a Python file.
+
+    Args:
+        file_path (str): Path to the Python file
+        function_name (str): Name of the function to load (if None, loads the first function found)
+        ignore_restriction (bool): If True, allows loading the first function if multiple are found without
+                            raising an error; if False, raises an error if multiple functions are found without a specified name
+
+    Returns:
+        The loaded function object
+    
+    Raises:
+        ValueError: If no functions are found or if multiple functions are found without specifying a name.
+    """
 
     module = _import_modules(file_path=file_path)
 

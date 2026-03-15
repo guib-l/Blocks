@@ -1,184 +1,547 @@
-import os
-import time
+
 from configs import *
 
-from blocks import BLOCK_PATH
 
-from blocks.base import *
+import pytest
+
 from blocks.base.prototype import Prototype
 
 from blocks.base.prototype import INSTALLER
+from blocks.engine.installer import Installer
+from blocks.asset.python3.install import InstallerPython
+from blocks.engine.execute import Execute
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.env import pyEnvironment
 
-from blocks.export import task_node
-from blocks.engine.environment import Environment
+BLOCK_PATH  = "myblock/"
 
+def basic_function(n):
+    return n*2
 
-def basic_function(n=5):
-    result = 0
-    for i in range(n):
-        # Simulation de calcul lourd
-        result += i
-        time.sleep(0.2)
-        print(f"Calcul en cours... étape {i+1}/{n}")
-    return result
+class TestPrototypeInitialization:
+    """Test Prototype initialization and properties."""
+     
+    def test_prototype(self):
 
+        INSTALL     = Installer
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
 
-@task_node(backend    = 'default',
-           execute    = None,
-           objectType = Prototype,)
-def heavy_calculation(n=5):
-    """Fonction qui sera interruptible (environ)."""
-    result = 0
-    for i in range(n):
-        # Simulation de calcul lourd
-        result += i
-        time.sleep(0.2)
-        print(f"Calcul en cours... étape {i+1}/{n}")
-    return result
+        data = {
+                'name': 'prototype-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':False,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+            }
 
+        prototype = Prototype(**data)
+        
+        assert prototype.name == 'prototype-test'
+        assert prototype.version == '0.0.1'
+        assert prototype.directory == BLOCK_PATH  # type: ignore[attr-defined]
 
-
-if __name__ == "__main__":
-      
-   # Create a sample dataset
-    data = {
-        'name': 'prototype-test',
-        'id': None,
-        'version': '0.0.1',
-        'directory':BLOCK_PATH,
-        'mandatory_attr': False,
-        'metadata': {'source': 'generated', 
-                     'version': 1.0,
-                     'description': 'A sample dataset for testing'},
-        'installer': INSTALLER.PYTHON,
-        'installer_config':{
-            'auto':True,
-        },
-        'environment': Environment,
-        'environment_config':{},
-        'executor': None,
-        'executor_config':{},
-    }
-
-
-    # ===============================================
-    # Initialisation d'un Prototype
-    print("\n"+"*"*40)
-
-    print("BUILD PROTOTYPE in-place")
-    
-    proto = Prototype(**data)
-
-    print(proto)
-    print("Prototype instance created successfully.") 
+        assert isinstance(prototype.environment, EnvironmentBase)
+        assert isinstance(prototype.installer, Installer)
+        assert isinstance(prototype.executor, Execute)
 
 
-    # ===============================================
-    # Installation COMPLET d'un Prototype via 'install'
-    print("\n"+"*"*40)
+    def test_prototype_serialization(self):
+        
+        INSTALL     = Installer
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
 
-    data.update(
-        {
-            'files':['myscript/my_script.py',],
-            'methods':[basic_function],
-            'allowed_name':[]
-        }
-    )
+        data = {
+                'name': 'prototype-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':False,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+            }
 
-    proto = Prototype(**data)
-    print(proto)
-    print("Prototype instance created successfully.") 
+        prototype = Prototype(**data)
+        serialized = prototype.to_dict()
 
-    proto.install()
-    print("Prototype instance installed successfully.")
+        assert isinstance(serialized, dict)
+        assert serialized['name'] == 'prototype-test'
+        assert serialized['version'] == '0.0.1'
+        assert serialized['directory'] == BLOCK_PATH
 
+        prototype_bis = Prototype.from_dict(**serialized)
+        
+        assert prototype_bis.name == 'prototype-test'
+        assert prototype_bis.version == '0.0.1'
+        assert prototype_bis.directory == BLOCK_PATH  # type: ignore[attr-defined]
 
+    def test_prototype_install_z(self):
+        """Test the installation process of a prototype."""
 
-    new_proto = Prototype.load(
-        name='prototype-test',
-        directory=BLOCK_PATH,
-        format='json',
-        ntype='prototype'
-    )
+        INSTALL     = InstallerPython
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
 
-    print(new_proto)
-    print("Prototype instance loaded successfully.")
+        data = {
+                'name': 'prototype-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':True,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+            }
 
+        prototype = Prototype(**data)
+        
+        # Test installation (this will depend on the actual implementation of the installer)
+        try:
+            prototype.install()
+            installed = True
+        except Exception as e:
+            print(f"Installation failed: {e}")
+            installed = False
+        
+        assert installed, "Prototype installation should succeed."
 
-    proto.uninstall()
-    print("Prototype instance uninstalled successfully.")
+    def test_prototype_install_with_method(self):
 
+        """Test the installation process of a prototype with a method."""
+        from blocks.base.prototype import Prototype
 
-    # Re-installation pour test @task_manager
-    proto = Prototype(**data)
-    print(proto)
-    print("Prototype instance created successfully.") 
-
-    proto.install()
-
-    # ===============================================
-    # Prototype vie @task_manager
-    print("\n"+"*"*40)
-
-
-    hc = heavy_calculation()
-    print(hc)
-
-    # TODO : Uncomment to test installation via task manager
-    hc.install(directory=BLOCK_PATH)
-
-
-    results = hc.execute(n=4)
-    print('Results : ',results)
-    
-
-    proto.execute(name='say', words='from Prototype execute method')
-
-    
-    # ===============================================
-    # Manipulation du prototye (déplacement, nom, suppr ...)
-    print("\n"+"*"*40)
-
-    # Déplacer les fichiers (avec l'environnement ?)
-    proto.installer.move( os.path.join(BLOCK_PATH, '..'), erase_source=True )
-    proto.installer.move( BLOCK_PATH, erase_source=True )
-
-    # Changer le nom
-    proto.installer.rename('basics_prototype')
-
-    new_proto = Prototype.load(
-        name='basics_prototype',
-        directory=BLOCK_PATH,
-        format='json',
-        ntype='prototype'
-    )
-
-    print(new_proto)
-    print("Prototype instance loaded successfully.")
-
-    # Compression d'un prototype
-    new_proto.installer.compress( )
-    print("Prototype instance compressed successfully.")
-
-    print(new_proto.installer.path_to_install)
+        INSTALL     = InstallerPython
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
 
 
-    new_proto.uninstall()
-    print("Prototype instance uninstalled successfully.")
+        data = {
+                'name': 'prototype-method-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':True,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+                'methods':[basic_function],
+            }
 
-    # Décompression d'un prototype
-    new_proto.installer.decompress()
-    print("Prototype instance decompressed successfully.")
+        prototype = Prototype(**data)
+        
+        # Test installation (this will depend on the actual implementation of the installer)
+        try:
+            prototype.install()
+            installed = True
+        except Exception as e:
+            print(f"Installation failed: {e}")
+            installed = False
+        
+        assert installed, "Prototype installation should succeed."
 
-    new_proto = Prototype.load(
-        name='basics_prototype',
-        directory=BLOCK_PATH,
-        format='json',
-        ntype='prototype'
-    )
+    def test_prototype_install_files(self):
+        """Test the installation process of a prototype with files."""
+        from blocks.base.prototype import Prototype
 
-    print(new_proto)
-    print("Prototype instance loaded successfully.")
+        INSTALL     = InstallerPython
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
 
-    new_proto.execute(name='basic_function', n=3)
+
+        data = {
+                'name': 'prototype-file-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':True,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+                'files':['myscript/my_script.py',],
+            }
+
+        prototype = Prototype(**data)
+        
+        # Test installation (this will depend on the actual implementation of the installer)
+        try:
+            prototype.install()
+            installed = True
+        except Exception as e:
+            print(f"Installation failed: {e}")
+            installed = False
+        
+        assert installed, "Prototype installation should succeed."
+
+    def test_prototype_install_with_method_and_files(self):
+
+        """Test the installation process of a prototype with both methods and files."""
+
+        INSTALL     = InstallerPython
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
+
+
+        data = {
+                'name': 'prototype-method-file-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':True,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+                'methods':[basic_function],
+                'files':['myscript/my_script.py',],
+            }
+
+        prototype = Prototype(**data)
+        
+        # Test installation (this will depend on the actual implementation of the installer)
+        try:
+            prototype.install()
+            installed = True
+        except Exception as e:
+            print(f"Installation failed: {e}")
+            installed = False
+        
+        assert installed, "Prototype installation should succeed."
+
+    def test_prototype_install_with_allowed_names(self):
+
+        """Test the installation process of a prototype with allowed names."""
+
+        INSTALL     = InstallerPython
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
+
+
+        data = {
+                'name': 'prototype-allowed-names-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':True,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+                'methods':[basic_function],
+                'files':['myscript/my_script.py',],
+                'allowed_name':['basic_function',],
+            }
+
+        prototype = Prototype(**data)
+        
+        # Test installation (this will depend on the actual implementation of the installer)
+        try:
+            prototype.install()
+            installed = True
+        except Exception as e:
+            print(f"Installation failed: {e}")
+            installed = False
+        
+        assert installed, "Prototype installation should succeed."
+
+
+    def test_prototype_load(self):
+        """Test loading a prototype from disk."""
+
+        try:
+            loaded_prototype = Prototype.load(
+                name='prototype-method-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
+        
+        assert loaded, "Prototype loading should succeed."
+
+    def test_prototype_execute(self):
+        """Test executing a method of the prototype."""
+        from blocks.base.prototype import Prototype
+
+        loaded_prototype = None
+        result = None
+        try:
+            loaded_prototype = Prototype.load(
+                name='prototype-method-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
+        
+        assert loaded, "Prototype loading should succeed."
+
+        try:
+            result = loaded_prototype.execute(name='basic_function', n=5)  # type: ignore[union-attr]
+            executed = True
+        except Exception as e:
+            print(f"Execution failed: {e}")
+            executed = False
+        
+        assert executed, "Prototype method execution should succeed."
+        assert result == 10, "The result of basic_function(5) should be 10."
+
+    def test_prototype_uninstall(self):
+        """Test uninstalling the prototype."""
+        from blocks.base.prototype import Prototype
+
+        loaded_prototype = None
+        try:
+            loaded_prototype = Prototype.load(
+                name='prototype-allowed-names-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
+        
+        assert loaded, "Prototype loading should succeed."
+        
+        try:
+            loaded_prototype.uninstall()  # type: ignore[union-attr]
+            uninstalled = True
+        except Exception as e:
+            print(f"Uninstallation failed: {e}")
+            uninstalled = False
+        
+        assert uninstalled, "Prototype uninstallation should succeed."
+
+    def test_prototype_basic_use(self):
+        """Test the basic use case of creating, installing, loading, and executing a prototype."""
+        from blocks.base.prototype import Prototype
+
+        proto = None
+        try:
+            proto = Prototype.load(
+                name='prototype-file-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
+        
+        assert loaded, "Prototype loading should succeed."
+
+        try:
+            proto.installer.move(os.path.join('..', 'myscript'),   # type: ignore[union-attr]
+                                 erase_source=True )
+            proto.installer.move(BLOCK_PATH,   # type: ignore[union-attr]
+                                 erase_source=True )
+            moved = True
+        except:
+            print("Moving files failed.")
+            moved = False
+
+        assert moved, "Moving prototype files should succeed."
+
+        try:
+            proto.installer.rename("basics_prototype")  # type: ignore[union-attr]
+            renamed = True
+        except:
+            print("Renaming prototype failed.")
+            renamed = False
+
+        assert renamed, "Renaming prototype should succeed."
+
+    def test_prototype_compress(self):
+        """Test compressing and decompressing the prototype."""
+        from blocks.base.prototype import Prototype
+
+        proto = None
+        try:
+            proto = Prototype.load(
+                name='prototype-file-test',
+                directory=BLOCK_PATH,
+                format='json',
+                ntype='prototype')
+            loaded = True
+        except Exception as e:
+            print(f"Loading failed: {e}")
+            loaded = False
+        
+        assert loaded, "Prototype loading should succeed."
+
+        try:
+            proto.installer.compress()  # type: ignore[union-attr]
+            compressed = True
+        except Exception as e:
+            print(f"Compression failed: {e}")
+            compressed = False
+        
+        assert compressed, "Prototype compression should succeed."
+
+        try:
+            proto.installer.decompress()  # type: ignore[union-attr]
+            decompressed = True
+        except Exception as e:
+            print(f"Decompression failed: {e}")
+            decompressed = False
+        
+        assert decompressed, "Prototype decompression should succeed."
+
+
+
+
+
+
+
+
+
+
+
 

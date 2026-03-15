@@ -16,30 +16,6 @@ def optional_import(module_name):
         return None
 
 
-@contextmanager
-def safe_operation(
-        operation_name: str, 
-        code=None,
-        details={},
-        ERROR=None ):
-    """
-    Context manager pour encapsuler des opérations critiques.
-    Capture toutes les exceptions non-Block et les convertit en BlockError.
-    """
-    try:
-        yield  
-    except ERROR:
-        raise
-    except Exception as e:
-        message = f"Unexpected error during {operation_name}"
-        logger.critical(message, extra=details)
-        raise ERROR(
-            code=code,
-            message=message,
-            details=details,
-            cause=e
-        ) from e
-
 
 # ==============================================
 # Blocks related errors
@@ -100,7 +76,7 @@ class BaseError(Exception):
     def __init__(
             self, 
             message:str,
-            code:Optional[ErrorCode]=None,
+            code:Optional[Union[ErrorCode, Any]]=None,
             details:Optional[Dict[str,Any]]=None,
             cause: Optional[Exception]=None
         ):
@@ -124,6 +100,30 @@ class BaseError(Exception):
     def __repr__(self):
         return f"{self.__class__.__name__}(code={self.code}, message={self.message!r}, details={self.details})"
 
+
+@contextmanager
+def safe_operation(
+        operation_name: str, 
+        code: Optional[Union[ErrorCode, Any]]=None,
+        details: Optional[Dict[str, Any]]=None,
+        ERROR: Type[BaseError] = BaseError ):
+    """
+    Context manager pour encapsuler des opérations critiques.
+    Capture toutes les exceptions non-Block et les convertit en BlockError.
+    """
+    try:
+        yield  
+    except BaseError:
+        raise
+    except Exception as e:
+        message = f"Unexpected error during {operation_name}"
+        logger.critical(message, extra=details)
+        raise ERROR(
+            code=code,
+            message=message,
+            details=details,
+            cause=e
+        ) from e
 
 
 class BlockError(BaseError):

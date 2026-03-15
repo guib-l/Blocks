@@ -1,0 +1,15 @@
+{
+  "python-envs.workspaceSearchPaths": ["./env/**",],
+  "python.defaultInterpreterPath": "./.env/bin/python",
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}",
+    "${workspaceFolder}/examples",
+    "${workspaceFolder}/test"
+  ],
+  "python.analysis.typeCheckingMode": "off",
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingTypeStubs": "none"
+  }
+}

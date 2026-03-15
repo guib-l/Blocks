@@ -6,6 +6,7 @@ import logging
 
 BLOCK_PATH      = "myblock/"
 BLOCK_WORKSPACE = None
+BLOCK_EXEMPLES  = os.path.join(os.getcwd(),'examples')
 
 if 'BLOCK_PATH' in os.environ:
     BLOCK_PATH = os.environ['BLOCK_PATH']

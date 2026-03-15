@@ -1,13 +1,15 @@
+
 import io
 import sys
 import uuid
 import json
 from datetime import *
-from copy import copy, deepcopy
+from copy import deepcopy
 import csv
 from typing import *
+from abc import abstractmethod
+
 from .dataset import DataSet
-from copy import copy, deepcopy
 
 from blocks.base.version import VersionManager
 
@@ -20,12 +22,25 @@ from blocks.utils.exceptions import safe_operation
 from blocks.utils.exceptions import BlockError,ErrorCode
 
 class Block(DataSet):
+    """Base class for Blocks.
+
+    A `Block` is a versioned dataset-like object that can be serialized and
+    executed within the Blocks engine.
+
+    Attributes:
+        __ntype__ (str): Object type marker used by the framework.
+        _mandatory_attributes (list[str]): Method names required on subclasses.
+
+    Notes:
+        This class uses `__slots__` for a smaller memory footprint.
+    """
 
     __ntype__ = "block"
 
     _mandatory_attributes = []
 
     __slots__ = [
+        'ignore_error',
         '__name__',
         '__id__',
         '__version__',
@@ -33,10 +48,20 @@ class Block(DataSet):
     ]
 
     def __new__(cls, **kwargs):
-        """
-        Create a new instance of Block.
-        This method ensures all parameters can be properly passed
-        to Block instance creation.
+        """Create a new instance of `Block`.
+
+        This hook validates that required subclass methods exist before the
+        instance is created.
+
+        Args:
+            **kwargs: Ignored. Present to support a flexible construction API.
+
+        Raises:
+            BlockError: If one of the required methods declared in
+                `_mandatory_attributes` is missing on the subclass.
+
+        Returns:
+            Block: A newly allocated instance.
         """
         for attr in cls._mandatory_attributes:
             if not hasattr(cls, attr):
@@ -50,29 +75,53 @@ class Block(DataSet):
     
     def __init__(
             self, 
-            id   = None, 
-            name = "default",
-            version = "0.0.1",
-            directory = '.',
-            authors = ["Anonymous"],
-            files = [],
-            codes = [],
-            data = {},
-            doc = None,
-            stdout = sys.__stdout__,
-            stderr = sys.__stderr__,
-            ignore_error = True,
+            id: Union[str, uuid.UUID, None]= None, 
+            name: str = "default",
+            version: str = "0.0.1",
+            directory: str = '.',
+            authors: list = ["Anonymous"],
+            files: list = [],
+            codes: list = [],
+            data: dict = {},
+            doc: Optional[str] = None,
+            stdout: Optional[TextIO] = sys.__stdout__,
+            stderr: Optional[TextIO] = sys.__stderr__,
+            ignore_error: bool = True,
             **kwargs ):
         """
-        Initialize the BaseBlock with given options.
+        Initialize a `Block`.
+
         Args:
-            options (dict): Dictionary to be added to the block 
-            along with standard elements.
+            id (str | uuid.UUID | None): Unique identifier for the block. If
+                `None`, a new UUID is generated.
+            name (str): Block name.
+            version (str): Semantic version string.
+            directory (str): Block directory.
+            authors (list[str]): Block authors.
+            files (list[str]): Files associated with the block.
+            codes (list): Code snippets associated with the block.
+            data (dict): Additional data payload.
+            doc (str | None): Documentation string.
+            stdout (TextIO): Stream to use as `sys.stdout` during the block
+                lifetime.
+            stderr (TextIO): Stream to use as `sys.stderr` during the block
+                lifetime.
+            ignore_error (bool): Whether to ignore errors during execution.
+            **kwargs: Additional keyword arguments forwarded to `DataSet`.
+
+        Raises:
+            BlockError: If `name`, `id`, `stdout`, `stderr`, or `version` are
+                invalid.
+
+        Example:
+            >>> block = Block(name="MyBlock", version="1.0.0")
+            >>> block.name
+            'MyBlock'
         """
         # Gestion stdout/stderr
         self.stdout = stdout or sys.stdout
         self.stderr = stderr or sys.stderr
-
+        
         self.ignore_error = ignore_error
 
         self.__name__    = None
@@ -94,22 +143,36 @@ class Block(DataSet):
             **kwargs
         )
 
-
     # ===========================================
     # Propriétés stdout/stderr
     # ===========================================
 
     @property
     def stdout(self) -> TextIO:
-        """Get the current stdout stream."""
+        """Current stdout stream.
+
+        Returns:
+            TextIO: The current `sys.stdout`.
+        """
         return sys.stdout
     
     @stdout.setter
-    def stdout(self, stream: Optional[TextIO]=None):
-        """Set a custom stdout stream."""
+    def stdout(self, stream: Union[TextIO, 'logging.Logger', None] = None):
+        """Set a custom stdout stream.
+
+        If `stream` is a `logging.Logger`, it will be wrapped in a
+        :class:`~blocks.utils.logger.StreamLogger`.
+
+        Args:
+            stream (TextIO | logging.Logger | None): A stream-like object with a
+                `write()` method.
+
+        Raises:
+            BlockError: If `stream` does not provide a `write()` method.
+        """
 
         if isinstance(stream, logging.Logger):
-            stream = StreamLogger(logger=stream, 
+            stream = StreamLogger(logger=stream,   # type: ignore[assignment]
                                   level=LOGGER_BLOCK_LEVEL)
 
         if not hasattr(stream, 'write'):
@@ -118,20 +181,35 @@ class Block(DataSet):
                 message="stdout stream must have a write() method."
             )
         #self._stdout = stream 
-        sys.stdout = stream
+        sys.stdout = stream  # type: ignore[assignment]
     
     @property
     def stderr(self) -> TextIO:
-        """Get the current stderr stream."""
+        """Current stderr stream.
+
+        Returns:
+            TextIO: The current `sys.stderr`.
+        """
         #return self._stderr
         return sys.stderr
     
     @stderr.setter
-    def stderr(self, stream: Optional[TextIO]):
-        """Set a custom stderr stream."""
+    def stderr(self, stream: Union[TextIO, 'logging.Logger', None] = None):
+        """Set a custom stderr stream.
+
+        If `stream` is a `logging.Logger`, it will be wrapped in a
+        :class:`~blocks.utils.logger.StreamLogger`.
+
+        Args:
+            stream (TextIO | logging.Logger): A stream-like object with a
+                `write()` method.
+
+        Raises:
+            BlockError: If `stream` does not provide a `write()` method.
+        """
 
         if isinstance(stream, logging.Logger):
-            stream = StreamLogger(logger=stream, 
+            stream = StreamLogger(logger=stream,   # type: ignore[assignment]
                                   level=LOGGER_BLOCK_LEVEL)
             
         if not hasattr(stream, 'write'):
@@ -141,7 +219,7 @@ class Block(DataSet):
             )
         
         #self._stderr = stream 
-        sys.stderr = stream
+        sys.stderr = stream  # type: ignore[assignment]
     
     
 
@@ -151,8 +229,8 @@ class Block(DataSet):
 
     @property
     def name(self):
-        """
-        Get the name of the block.
+        """Block name.
+
         Returns:
             str: The name of the block.
         """
@@ -160,10 +238,13 @@ class Block(DataSet):
     
     @name.setter
     def name(self, name):
-        """
-        Set the name of the block.
+        """Set the block name.
+
         Args:
-            name (str): The name to set for the block.
+            name (str): The name to set.
+
+        Raises:
+            BlockError: If `name` is not a non-empty string.
         """
         if not isinstance(name, str):
             raise BlockError(
@@ -181,19 +262,23 @@ class Block(DataSet):
 
     @property
     def id(self):
-        """
-        Get the ID of the block.
+        """Block UUID.
+
         Returns:
-            str: The ID of the block.
+            uuid.UUID: The block identifier.
         """
         return self.__id__
         
     @id.setter
     def id(self, id=None):
-        """
-        Set the ID of the block.
+        """Set the block UUID (write-once).
+
         Args:
-            id (str): The ID to set for the block.
+            id (str | uuid.UUID | None): Identifier to set. If `None`, a new
+                UUID is generated.
+
+        Raises:
+            BlockError: If `id` is invalid, or if the ID has already been set.
         """
         # Valeur qui ne doit être définie qu'UNE seule fois
         if self.__id__ is None:
@@ -213,7 +298,7 @@ class Block(DataSet):
             if not isinstance(id, uuid.UUID):
                 raise BlockError(
                     code=ErrorCode.BLOCK_INVALID_UUID,
-                    message=f'ID needs to be {uuid.__class__} object'
+                    message=f'ID needs to be {uuid.UUID} object'
                 )
             
             self.__id__ = id
@@ -222,43 +307,53 @@ class Block(DataSet):
         else:
             raise BlockError(
                 code=ErrorCode.BLOCK_INVALID_ID,
-                mesage="ID has already been set and cannot be changed."
+                message="ID has already been set and cannot be changed."
             )
 
     def is_valid_uuid(self, val):
-        """
-        Check if the given value is a valid UUID.
+        """Return True if `val` can be parsed as a UUID.
+
         Args:
-            val (str): The value to check.
+            val (Any): Value to validate.
+
         Returns:
-            bool: True if the value is a valid UUID, False otherwise.
+            bool: `True` if UUID-like, `False` otherwise.
         """
         try:
             _ = uuid.UUID(str(val))
             return True
         except (ValueError, AttributeError, TypeError):
             return False
+        
+    # ===========================================
+    # Versioning
+    # ===========================================
 
     @property
     def version(self):
-        """
-        Get the version of the block.
+        """Current block version.
+
         Returns:
-            str: The version of the block.
+            str: The version string.
         """
         return self.__version__
 
     @version.setter
     def version(self, version, changelog=None):
-        """
-        Set the version of the block.
+        """Set the block version.
+
+        This delegates version transitions to `VersionManager`.
+
         Args:
-            version (str): The version to set for the block.
-            changelog (str, optional): The changelog for the version update.
+            version (str): Target version.
+            changelog (str | None): Optional changelog message.
+
+        Raises:
+            BlockError: If version upgrade fails.
         """
         try:
             if self.vsm.current_version != version:
-                self.vsm.upgrade_version(version,changelog=changelog)
+                self.vsm.upgrade_version(version, changelog=changelog or "")
 
             self.__version__ = self.vsm.current_version
             self._dataset['version'] = self.vsm.current_version
@@ -271,19 +366,19 @@ class Block(DataSet):
 
     @property
     def changelog(self):
-        """
-        Get the changelog of the block.
+        """Version changelog.
+
         Returns:
-            str: The changelog of the block.
+            str: Changelog text.
         """
-        return self.vsm.changelog
+        return self.vsm.get_changelog()
 
     @property
     def version_info(self):
-        """
-        Get the version information of the block.
+        """Return a serializable version summary.
+
         Returns:
-            dict: A dictionary containing the version and changelog.
+            dict: A dictionary containing `version` and `changelog`.
         """
         return {
             "version": self.version,
@@ -297,34 +392,36 @@ class Block(DataSet):
     # ===========================================
 
     def __eq__(self, other):
-        """
-        Compare two Block instances.
+        """Return True when two blocks share the same UUID.
+
         Args:
-            other (Block): The other instance to compare with.
+            other (Any): Value to compare.
+
         Returns:
-            bool: True if the instances are equal, False otherwise.
+            bool: Equality result.
         """
         if not isinstance(other, Block):
             return False
         return self.id == other.id
 
     def __ne__(self, other):
-        """
-        Compare two Block instances for inequality.
+        """Return True when blocks do not share the same UUID.
+
         Args:
-            other (Block): The other instance to compare with.
+            other (Any): Value to compare.
+
         Returns:
-            bool: True if the instances are not equal, False otherwise.
+            bool: Inequality result.
         """
         if not isinstance(other, Block):
             return True
         return self.id != other.id
     
     def __hash__(self):
-        """
-        Generate a hash for the Block instance.
+        """Hash based on the block UUID.
+
         Returns:
-            int: Hash value of the instance.
+            int: Hash value.
         """
         return hash(self.id)
     
@@ -334,16 +431,12 @@ class Block(DataSet):
     # ===========================================
 
     def __str__(self):
-        """
-        Représentation pour les utilisateurs
-        """
+        """User-facing string representation."""
         return self.__repr__()
 
     def __repr__(self, base=''):
-        """
-        Représentation technique pour les développeurs
-        """
-        n_symb = len(self.__class__.__name__)
+        """Developer-facing representation."""
+        n_symb = len(self.__class__.__name__ or '')
         space = ' ' * (n_symb+1)
         attrs = f",\n{space}".join(f"{k}={repr(v.__str__())}" for k, v in self._dataset.items() 
                       if k in ['name', 'id', 'version'])
@@ -355,12 +448,22 @@ class Block(DataSet):
     # ===========================================
 
     def copy(self):
+        """Shallow copy the block.
+
+        Returns:
+            Block: A new instance with the same dataset values.
+        """
         return type(self)(**self._dataset)
 
     def __copy__(self):
         return self.copy()
     
     def deepcopy(self):
+        """Deep copy the block.
+
+        Returns:
+            Block: A new instance with a deep-copied dataset.
+        """
         return type(self)(**deepcopy(self._dataset))
     
     def __deepcopy__(self, memo):
@@ -371,36 +474,69 @@ class Block(DataSet):
     # ===========================================
 
 
-    def to_csv(self):
+    def to_csv(self, filepath: str = '', delimiter: str = ',') -> str:
+        """Serialize the block dataset as a single-row CSV.
+
+        Returns:
+            str: CSV content with a header row and a single value row.
+
+        Raises:
+            BlockError: If serialization fails.
+        """
 
         with safe_operation(
                 'CSV serialisation',
                 ErrorCode.BLOCK_INVALID_NAME,
-                BlockError ):
+                ERROR=BlockError ):
             output = io.StringIO()
             writer = csv.writer(output)
             writer.writerow(self._dataset.keys())
             writer.writerow(self._dataset.values())
             return output.getvalue()
 
-    def to_json(self, 
-                indent=4,
-                encoder=BlockJSONEncoder):
+    def to_json(self,
+                encoder: Type[json.JSONEncoder] = BlockJSONEncoder,
+                indent: int = 4):
+        """Serialize the block dataset as JSON.
+
+        Args:
+            indent (int): Indentation passed to `json.dumps`.
+            encoder (type[json.JSONEncoder]): Encoder class.
+
+        Returns:
+            str: JSON string representation.
+
+        Raises:
+            BlockError: If serialization fails.
+        """
 
         with safe_operation(
                 'JSON serialisation',
                 ErrorCode.BLOCK_INVALID_NAME,
-                BlockError ):
+                ERROR=BlockError ):
             
             return json.dumps(self._dataset, 
                               indent=indent, 
                               cls=encoder)
 
     def to_dict(self,):
+        """Return the underlying dataset mapping.
+
+        Returns:
+            dict: Internal dataset representation.
+        """
         return self._dataset
     
     @classmethod
     def from_dict(cls, **data):
+        """Create a `Block` from a dictionary payload.
+
+        Args:
+            **data: Keyword arguments forwarded to the constructor.
+
+        Returns:
+            Block: A new instance.
+        """
         return cls(**data)
 
 
@@ -409,7 +545,7 @@ class Block(DataSet):
     # ===========================================
 
 
-    def update_version(major=None,minor=None,patch=None):
+    def update_version(self, major=None, minor=None, patch=None):
         pass
 
     @abstractmethod

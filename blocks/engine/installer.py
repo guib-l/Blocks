@@ -2,7 +2,6 @@ import os
 import pickle
 
 from typing import *
-from abc import *
 from pathlib import Path
 
 from tools.load import *
@@ -22,15 +21,15 @@ class Installer:
 
     def __init__(
             self,
-            object=None, 
+            object: Any = None, 
             *,
-            directory=None,
-            auto=False):
+            directory: Optional[str] = None,
+            auto: bool = False):
         
         self.object = object   
         self.auto_create = auto
 
-        self.path_to_install = directory or os.path.abspath(object.directory)
+        self.path_to_install: str = directory or os.path.abspath(str(object.directory))
 
         self.filemanager = FileManager(
             base_directory=os.path.join(
@@ -44,7 +43,7 @@ class Installer:
         with safe_operation(
                 'Setup config serialization',
                 ErrorCodeInstall.INSTALL_ERROR_CONFIG,
-                InstallError):
+                ERROR=InstallError):
             
             return {
                 'auto': self.auto_create,
@@ -53,8 +52,8 @@ class Installer:
 
     def update_metadata(
             self,
-            name: str = None,
-            directory = None,
+            name: Optional[str] = None,
+            directory: Optional[str] = None,
             format: str = 'json',):
         
         self.export_metadata(
@@ -65,8 +64,8 @@ class Installer:
         
     def export_metadata(
             self, 
-            name: str = None,
-            directory = None,
+            name: Optional[str] = None,
+            directory: Optional[str] = None,
             format: str = 'json',):
 
         filename = f'{self.object.__ntype__}.{format}'        
@@ -95,8 +94,8 @@ class Installer:
 
     @staticmethod
     def import_metadata(
-            name: str = None,
-            directory = None,
+            name: Optional[str] = None,
+            directory: Optional[str] = None,
             ntype: str = 'prototype',
             format: str = 'json',):
         
@@ -106,11 +105,12 @@ class Installer:
                 ERROR=InstallError):
             
             filename = f'{ntype}.{format}'
-            abs_directory = os.path.abspath(directory)
-            _dir = os.path.join(abs_directory, name, filename )
+            abs_directory = os.path.abspath(directory or '.')
+            _name: str = name or ''
+            _dir = os.path.join(abs_directory, _name, filename)
 
             filemanager = FileManager(
-                base_directory=os.path.join( abs_directory, name ),
+                base_directory=os.path.join(abs_directory, _name),
                 auto_create=False )
             
             content = filemanager.read_json(_dir)
@@ -139,7 +139,8 @@ class Installer:
 
     def _create_dir(self, 
                     directory=None):
-
+        
+        path_to_install = os.path.join(self.path_to_install, self.object.name)
         if directory is not None:
             path_to_install = os.path.abspath(directory)
 
@@ -180,9 +181,9 @@ class Installer:
         self.filemanager.delete_directory(directory)
 
     def compress(self, 
-                 zipname: str = None,
-                 source: Union[str, Path] = None, 
-                 destination: Union[str, Path] = None,) -> None:
+                 zipname: Optional[str] = None,
+                 source: Optional[Union[str, Path]] = None, 
+                 destination: Optional[Union[str, Path]] = None,) -> None:
         """
         Compresse le contenu du répertoire source dans une archive ZIP.
 
@@ -190,27 +191,21 @@ class Installer:
             source (Union[str, Path]): Chemin du répertoire à compresser.
             destination (Union[str, Path]): Chemin de l'archive ZIP de destination.
         """
-        if source is None:
-            source = self.path_to_install
+        _source: Union[str, Path] = source if source is not None else self.path_to_install
+        _zipname: str = zipname if zipname is not None else f"{self.object.name}.zip"
+        _source = os.path.join(_source, self.object.name)
+        _destination: Union[str, Path] = destination if destination is not None else os.path.join(
+            os.path.abspath(str(self.object.directory)), f"{_zipname}")
 
-        if zipname is None:
-            zipname = f"{self.object.name}.zip"
+        self.filemanager.create_zip(_source, _destination)
 
-        source = os.path.join(source, self.object.name)
-
-        if destination is None:
-            destination = os.path.join(
-                os.path.abspath(self.object.directory), f"{zipname}")
-
-        self.filemanager.create_zip(source, destination)
-
-        logger.info(f"Compressing from {source} to {destination}")
+        logger.info(f"Compressing from {_source} to {_destination}")
 
 
     def decompress(self, 
-                   zipname: str = None,
-                   source: Union[str, Path] = None, 
-                   destination: Union[str, Path] = None) -> None:
+                   zipname: Optional[str] = None,
+                   source: Optional[Union[str, Path]] = None, 
+                   destination: Optional[Union[str, Path]] = None) -> None:
         """
         Décompresse une archive ZIP dans le répertoire de destination.
 
@@ -218,21 +213,14 @@ class Installer:
             source (Union[str, Path]): Chemin de l'archive ZIP à décompresser.
             destination (Union[str, Path]): Chemin du répertoire de destination.
         """
-        if zipname is None:
-            zipname = f"{self.object.name}.zip"
+        _zipname: str = zipname if zipname is not None else f"{self.object.name}.zip"
+        _source: Union[str, Path] = source if source is not None else self.path_to_install
+        _source = os.path.join(_source, _zipname)
+        _destination: Union[str, Path] = destination if destination is not None else self.path_to_install
 
-        if source is None:
-            source = self.path_to_install
+        self.filemanager.extract_zip(_source, _destination)
 
-        source = os.path.join(source, zipname)
-
-        if destination is None:
-            destination =  self.path_to_install
-
-        self.filemanager.extract_zip(source, 
-                              destination)
-        
-        logger.info(f"Decompressing from {source} to {destination}")
+        logger.info(f"Decompressing from {_source} to {_destination}")
 
 
     def rename(self, new_name: str) -> None:
@@ -264,10 +252,10 @@ class Installer:
 
 
     def compose(self, 
-                filename,
-                content = None,
-                encoding='utf-8',
-                append=False):
+                filename: str,
+                content: Union[str, bytes] = '',
+                encoding: str = 'utf-8',
+                append: bool = False):
         """
         Compose a file with the given content.
         """
@@ -303,15 +291,15 @@ class Installer:
 
     def data_dumps(
             self,
-            data,
-            filename=None,
-            format="pickle",
-            encode="wb",
+            data: Any,
+            filename: Optional[str] = None,
+            format: str = "pickle",
+            encode: str = "wb",
             **kwargs):
         
 
         if format=='pickle':
-            with open(filename,encode) as f:
+            with open(filename, encode) as f:  # type: ignore[arg-type]
                 pickle.dump(data, f)
         else:
             raise InstallError(
@@ -321,14 +309,14 @@ class Installer:
 
     def data_loads(
             self,
-            filename=None,
-            format="pickle",
-            encode="wb",
+            filename: Optional[str] = None,
+            format: str = "pickle",
+            encode: str = "rb",
             **kwargs):
         
         if format=='pickle':
-            with open(filename,encode) as f:
-                data = pickle.loads(data, f)
+            with open(filename, encode) as f:  # type: ignore[arg-type]
+                data = pickle.load(f)
         else:
             raise InstallError(
                 code=ErrorCodeInstall.INSTALL_ERROR_ENVIRON,

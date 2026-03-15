@@ -1,63 +1,71 @@
-import os
-import time
+
 from configs import *
 
-from blocks.base import *
-from blocks.base.prototype import Prototype
+
+import pytest
 
 from blocks.nodes.node import Node
-
-from blocks.export import task_node
-from blocks.engine.environment import EnvironMixin
-
-
-
-
-
+from blocks.base.prototype import INSTALLER
+from blocks.engine.installer import Installer
+from blocks.asset.python3.install import InstallerPython
+from blocks.engine.execute import Execute
+from blocks.engine.environment import EnvironmentBase
+from blocks.asset.python3.env import pyEnvironment
 
 
+class TestNodeInitialization:
+    """Test Node initialization and properties."""
+     
+    def test_node(self):
+     
+        BLOCK_PATH  = "mynode/"
+        INSTALL     = Installer
+        EXECUTE     = Execute
+        ENVIRONMENT = EnvironmentBase
 
-if __name__ == "__main__":
-      
-    # ===============================================
-    # Récupération et exécution dans son environnement
-    print("\n"+"*"*40)
+        data = {
+                'name': 'node-test',
+                'id': None,
+                'version': '0.0.1',
+                'directory':BLOCK_PATH,
+                'mandatory_attr': False,
+                'metadata': {'source': 'generated', 
+                             'version': 1.0,
+                             'description': 'A sample dataset for testing'},
+                'installer': INSTALL,
+                'installer_config':{
+                    'auto':False,
+                },
+                'environment': ENVIRONMENT,
+                'environment_config':{
+                    'name': 'env_001',
+                    'language': 'python',
+                    'environment': pyEnvironment,
+                    'parameters':{
+                        'directory': os.path.join(BLOCK_PATH, 'envs'),
+                        'env_name': 'pip-env.01',
+                        'env_type': 'venv',
+                        'mng_type': 'pip',
+                        'dependencies': [],
+                        'auto_build': True,
+                    }
+                },
+                'executor': EXECUTE,
+                'executor_config':{},
+            }
+        
+        node = Node(**data)
+        assert node.name == 'node-test'
+        assert node.version == '0.0.1'
+        assert node.directory == "mynode/"   # type: ignore[attr-defined]
 
-    start = time.time()
-    node = Node.load(name='heavy_calculation',
-                     ntype='prototype',
-                     directory=BLOCK_PATH)
-    end = time.time()
-    print(node)
-    print("Node instance created successfully.")
-    print(f'Instance created in {end-start} s.')
-
-    print(node._register_methods)
-
-    node.execute(n=4)
-
-    print(type(node))
-    print(node.registred_files)
-
-    # ===============================================
-
-    _dict = node.to_dict()
-    print("Node serialized to dictionary successfully.")
-    import json
-    from tools.encoder import EnvJSONEncoder
-    print(json.dumps(_dict, indent=4, cls=EnvJSONEncoder))
+        assert isinstance(node.environment, EnvironmentBase)
+        assert isinstance(node.installer, Installer)
+        assert isinstance(node.executor, Execute)
 
 
-    # Re-create the Node from the dictionary
-    node_copy = Node.from_dict(**_dict)
-    print("Node deserialized from dictionary successfully.")
-    print(node_copy)
 
-    print('Registred methods : ',node_copy._register_methods)
 
-    # TODO: Execute the copied Node
-    #print(json.dumps(node_copy.to_dict(), indent=4, cls=EnvJSONEncoder))
-    #node_copy.execute(name='heavy_calculation',n=4)
 
 
 

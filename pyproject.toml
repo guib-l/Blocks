@@ -1,0 +1,23 @@
+[project]
+name = "blocks"
+version = "2026.3.1"
+description = "Project Blocks : first versions"
+authors = [
+    { name = "hsyfard", email = "hysfart@gmail.com" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "requests",
+    "pytest"
+]
+readme = "README.md"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+
+[tool.setuptools.packages.find]
+where = ["."]

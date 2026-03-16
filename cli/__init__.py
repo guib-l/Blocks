@@ -5,6 +5,7 @@ import sys
 USAGE = """usage: blocks <command> [<subcommand>] [options]
 
 Commands:
+  config      Manage the global session configuration.
   workflow    Manage and run workflows.
   node        Manage and run nodes.
   version     Print the installed blocks version.
@@ -33,6 +34,10 @@ def main(argv=None) -> None:
 
     if command == "version":
         cmd_version()
+
+    elif command == "config":
+        from cli.commands.config import run as config_run
+        config_run(args[1:])
 
     elif command == "workflow":
         from cli.commands.workflow import run as workflow_run

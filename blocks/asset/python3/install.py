@@ -74,7 +74,6 @@ class InstallerPython(Installer):
             format : format of export (pickle)
         
         """
-        print()
         structural_object = {
             'installer':self.object.installer.__class__,
             'installer_config':self.object.installer.to_config(),
@@ -233,18 +232,6 @@ class InstallerPython(Installer):
 # Installer for Workflow 
 ###############################################################################
 
-
-class Transformer:
-
-    def __init__(self, func: Optional[Dict[str, Any]] = None):
-        self.func = func
-    def __call__(self, *args, **kwargs):
-        if self.func is None:
-            raise InstallError(
-                code=ErrorCodeInstall.INSTALL_ERROR_BUILD,
-                message="Transformer has no function set"
-            )
-        return self.func["func"](*args, **kwargs)
 
 
 

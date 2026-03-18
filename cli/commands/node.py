@@ -74,6 +74,8 @@ def cmd_create(args) -> None:
     from blocks.nodes.node import Node
     from blocks.asset.python3.install import InstallerPython
     from blocks.engine.environment import EnvironmentBase
+    from blocks.engine.execute import Execute
+    from blocks.engine.language import Language
     from cli.utils import kill
     from cli.session import load
 
@@ -89,6 +91,9 @@ def cmd_create(args) -> None:
             version=args.version,
             directory=directory,
             mandatory_attr=False,
+            language=Language.python3_pip(name=args.name, 
+                                          directory=directory,
+                                          dependencies=[]),
             metadata={
                 "source": "cli",
                 "author": session.get("author", ""),
@@ -96,10 +101,6 @@ def cmd_create(args) -> None:
             },
             installer=InstallerPython,
             installer_config={"auto": True},
-            environment=EnvironmentBase,
-            environment_config={},
-            executor=None,
-            executor_config={},
             files=[args.input],
             allowed_name=[],
         )

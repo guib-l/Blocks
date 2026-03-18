@@ -1,7 +1,7 @@
 import json
 import sys
 
-from typing import Any
+from typing import Any, NoReturn
 
 
 def error(msg: str) -> None:
@@ -9,7 +9,7 @@ def error(msg: str) -> None:
     print(f"[error] {msg}", file=sys.stderr)
 
 
-def kill(msg: str, code: int = 1) -> None:
+def kill(msg: str, code: int = 1) -> NoReturn:
     """Print an error message and exit."""
     error(msg)
     sys.exit(code)

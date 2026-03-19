@@ -45,11 +45,12 @@ class Language:
         }
 
     @classmethod
-    def python3_pip(cls, name, directory, dependencies=[]):
+    def python3_pip(cls, name, directory, dependencies=[], **kwargs):
         config = cls._python3_config()
         config['environment_config']['parameters']['env_name'] = name
         config['environment_config']['parameters']['directory'] = directory
         config['environment_config']['parameters']['dependencies'] = dependencies
+        config['environment_config']['parameters'].update(kwargs)
         return config
 
 
@@ -58,7 +59,7 @@ class Language:
 # Usage: from blocks.engine.language import python3_pip
 # ---------------------------------------------------------------------------
 
-def python3_pip(name: str, directory: 'str | None', dependencies: list = []) -> dict:
+def python3_pip(name: str, directory: 'str | None', dependencies: list = [], **kwargs) -> dict:
     """Return a python3/pip language config dict.
 
     Shortcut for :meth:`Language.python3_pip` usable without instantiation::
@@ -66,7 +67,7 @@ def python3_pip(name: str, directory: 'str | None', dependencies: list = []) -> 
         from blocks.engine.language import python3_pip
         proto = Prototype(language=python3_pip(name="my-env", directory="/path"))
     """
-    return Language.python3_pip(name=name, directory=directory, dependencies=dependencies)
+    return Language.python3_pip(name=name, directory=directory, dependencies=dependencies, **kwargs)
 
 
 

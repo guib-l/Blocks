@@ -95,6 +95,7 @@ def _parse_pipeline(names):
 
 def cmd_create(args) -> None:
     from blocks.nodes.workflow import Workflow
+    from blocks.engine.language import Language
     from cli.utils import kill
     from cli.session import load
 
@@ -111,6 +112,10 @@ def cmd_create(args) -> None:
                 "author": session.get("author", ""),
                 "email": session.get("email", ""),
             },
+            language=Language.python3_pip(name=args.name, 
+                                          directory=directory,
+                                          dependencies=[]),
+            register_nodes={},
         )
         wf.install()
     except Exception as e:
@@ -141,7 +146,8 @@ def _register_file_as_node(wf, filepath, directory) -> None:
             installer=InstallerPython,
             installer_config={"auto": True},
             language=Language.python3_pip(name=node_name, 
-                                          directory=directory,),
+                                          directory=directory,
+                                          dependencies=[]),
             files=[filepath],
             allowed_name=[],
         )

@@ -40,11 +40,11 @@ def main(argv=None) -> None:
         config_run(args[1:])
 
     elif command == "workflow":
-        from cli.commands.workflow import run as workflow_run
+        from cli.commands.cli_workflow import run as workflow_run
         workflow_run(args[1:])
 
     elif command == "node":
-        from cli.commands.node import run as node_run
+        from cli.commands.cli_node import run as node_run
         node_run(args[1:])
 
     else:

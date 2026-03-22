@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("-d", "--directory", default=None,
                        help="Directory where the workflow(s) are stored (default: session directory).")
     p_run.add_argument("-i", "--input", default=None,
-                       help="Input data as a JSON object string.")
+                       help="Input data: a JSON object string or a path to a .json file.")
     p_run.add_argument("-f", "--format", default="json",
                        help="Load format: json or pickle. (default: json)")
 

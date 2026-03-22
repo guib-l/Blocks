@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("-m", "--method", default=None,
                        help="Method name to execute (default: first registered).")
     p_run.add_argument("-i", "--input", default=None,
-                       help="Input data as a JSON object string.")
+                       help="Input data: a JSON object string or a path to a .json file.")
 
     # --- info ---
     p_info = sub.add_parser("info", help="Display metadata and registered methods.")

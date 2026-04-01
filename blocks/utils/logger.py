@@ -22,9 +22,9 @@ def colorize(text,color_code,style_code=None):
     return f"{style}{color_code}m{text}\033[0m"
 
 
-LOG_DIR = 'logs'
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+#LOG_DIR = 'logs'
+#if not os.path.exists(LOG_DIR):
+#    os.makedirs(LOG_DIR)
 
 
 

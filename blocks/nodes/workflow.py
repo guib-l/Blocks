@@ -24,6 +24,9 @@ from blocks.engine.transformer import Transformer
 
 
 
+
+
+
 class REGISTER_NODE:
 
     @staticmethod
@@ -388,21 +391,52 @@ class Workflow(prototype.Prototype):
             stderr:Optional[TextIO]=sys.stderr,
             mandatory_attr=False,
             metadata:Optional[Dict[str,Any]]={'source': 'generated'},
-            installer=INSTALLER.WORKFLOW,
-            installer_config:Optional[Dict[str,Any]]={'auto':False},
-            environment=EnvironmentBase,
-            environment_config:Optional[Dict[str,Any]]={},
+            language: 'dict | Callable[..., dict] | None' = None,
+            dependencies: list = [],
+            installer=None,
+            installer_config:Optional[Dict[str,Any]]=None,
+            environment=None,
+            environment_config:Optional[Dict[str,Any]]=None,
             executor=None,
-            executor_config:Optional[Dict[str,Any]]={},
-            graphics=AcyclicGraphic,
-            graphics_config:Optional[Dict[str,Any]]={},
-            communicate=COMMUNICATE.LABEL,
-            communicate_config:Optional[Dict[str,Any]]={},
-            interface=INTERFACE.SIMPLE,
-            buffer=BUFFER.DATABUFFER,
+            executor_config:Optional[Dict[str,Any]]=None,
+            graphics=None,
+            graphics_config:Optional[Dict[str,Any]]=None,
+            communicate=None,
+            communicate_config:Optional[Dict[str,Any]]=None,
+            interface=None,
+            buffer=None,
             **config
         ):
 
+        # Resolve language config (callable or plain dict)
+        lang_config: dict = {}
+        if language is not None:
+            lang_config = language(
+                name=name,
+                directory=directory,
+            ) if callable(language) else dict(language)
+
+        # Priority: explicit caller value  >  language config  >  hardcoded default
+        installer          = installer          if installer          is not None else lang_config.get('installer',          INSTALLER.WORKFLOW)
+        installer_config   = installer_config   if installer_config   is not None else lang_config.get('installer_config',   {'auto': False})
+        environment        = environment        if environment        is not None else lang_config.get('environment',        EnvironmentBase)
+        environment_config = environment_config if environment_config is not None else lang_config.get('environment_config', {})
+        executor           = executor           if executor           is not None else lang_config.get('executor',           None)
+        executor_config    = executor_config    if executor_config    is not None else lang_config.get('executor_config',    {})
+        graphics           = graphics           if graphics           is not None else lang_config.get('graphics',           AcyclicGraphic)
+        graphics_config    = graphics_config    if graphics_config    is not None else lang_config.get('graphics_config',    {})
+        communicate        = communicate        if communicate        is not None else lang_config.get('communicate',        COMMUNICATE.LABEL)
+        communicate_config = communicate_config if communicate_config is not None else lang_config.get('communicate_config', {})
+        interface          = interface          if interface          is not None else lang_config.get('interface',          INTERFACE.SIMPLE)
+        buffer             = buffer             if buffer             is not None else lang_config.get('buffer',             BUFFER.DATABUFFER)
+
+        # Merge extra dependencies into environment_config
+        if dependencies:
+            environment_config = dict(environment_config)
+            params = dict(environment_config.get('parameters', {}))
+            environment_config['parameters'] = params
+            existing = params.get('dependencies', [])
+            params['dependencies'] = existing + [d for d in dependencies if d not in existing]
 
         with safe_operation(
                 'Creating workflow',

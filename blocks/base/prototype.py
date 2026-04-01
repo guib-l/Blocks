@@ -104,8 +104,11 @@ class Prototype(block.Block,Register):
 
         if language is not None:
             name = config.get('name', None)
+            if name is None:
+                logger.warning("No name provided in config, language presets might not resolve correctly")
+                
             lang_config = language(
-                name = f"{name}_pip" if name is not None else None,
+                name = f"{name}" if name is not None else None,
                 directory = config.get('directory', None)
             ) if callable(language) else language
             if installer is None:
